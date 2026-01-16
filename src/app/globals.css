@@ -1,26 +1,129 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    color-scheme: dark;
+    --bg-0: #0b0a0d;
+    --bg-1: #141217;
+    --bg-2: #1b1920;
+    --text-1: #f2eee7;
+    --text-2: #c8c0b6;
+    --text-3: #9c948a;
+    --accent-1: #d4813c;
+    --accent-2: #b86a2f;
+    --border-1: #2a2630;
+    --border-2: #3a3442;
+    --focus: #f2a766;
+    --danger: #e06b63;
+    --success: #6cbf7a;
+    --warning: #f2c46d;
+  }
+
+  html {
+    color: var(--text-1);
+    background: var(--bg-0);
+  }
+
+  body {
+    font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    text-rendering: optimizeLegibility;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-md font-black uppercase tracking-wider transition-all;
+    @apply min-h-[44px] px-5 py-2.5;
+  }
+
+  .btn-primary {
+    @apply bg-amber-700 text-black hover:bg-amber-600;
+  }
+
+  .btn-secondary {
+    @apply border border-amber-700/60 text-amber-200 hover:bg-amber-700/20;
+  }
+
+  .btn-ghost {
+    @apply text-amber-300 hover:text-amber-100 hover:bg-amber-900/30;
+  }
+
+  .input-base {
+    @apply w-full bg-[#0f0d0c] border border-amber-900/40 text-amber-100 px-3 py-2 rounded-md text-sm;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-2 rounded-full border border-amber-700/50 bg-amber-900/30 px-3 py-1 text-[11px] font-semibold text-amber-200;
+  }
+
+  .chip[data-selected="true"] {
+    @apply bg-amber-700 text-black border-amber-500;
+  }
+
+  .card {
+    @apply bg-[#14110f] border border-amber-900/30 rounded-lg;
+  }
+
+  .tooltip {
+    @apply pointer-events-none absolute z-20 rounded-md border border-amber-600/60 bg-[#14110f] px-3 py-2 text-xs text-amber-50 shadow-2xl backdrop-blur-sm;
+    background-color: rgba(20, 17, 15, 0.98);
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+}
+
+/* Кастомные стили для полос прокрутки */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(245, 158, 11, 0.3) rgba(20, 17, 15, 0.5);
+}
+
+/* Для WebKit браузеров (Chrome, Safari, Edge) */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}*::-webkit-scrollbar-track {
+  background: rgba(20, 17, 15, 0.5);
+  border-radius: 5px;
+}*::-webkit-scrollbar-thumb {
+  background: rgba(245, 158, 11, 0.4);
+  border-radius: 5px;
+  border: 2px solid rgba(20, 17, 15, 0.5);
+}*::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 158, 11, 0.6);
+}*::-webkit-scrollbar-thumb:active {
+  background: rgba(245, 158, 11, 0.8);
+}/* Для Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(245, 158, 11, 0.4) rgba(20, 17, 15, 0.5);
 }
