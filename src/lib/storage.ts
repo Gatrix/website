@@ -19,7 +19,7 @@ export function getStorageImageUrl(
     return filename;
   }
   
-  // Если это не локальный файл и не полная ссылка, формируем ссылку на Supabase
-  const PROJECT_ID = 'uuhuugprmmdobmpkbjnn';
-  return `https://${PROJECT_ID}.supabase.co/storage/v1/object/public/${bucket}/${filename}`;
+  // Если это не локальный файл и не полная ссылка, формируем ссылку через наш прокси
+  // Это помогает обойти блокировки Supabase в некоторых регионах
+  return `/api/storage/${bucket}/${filename}`;
 }
