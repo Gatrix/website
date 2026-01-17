@@ -2,8 +2,9 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
 import AtmosphericBackground from "@/components/AtmosphericBackground";
+import { register } from "@/lib/actions/auth";
+import { signIn } from "next-auth/react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,21 +21,28 @@ export default function LoginPage() {
 
     try {
       if (isSignUp) {
-        const { error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-        if (signUpError) throw signUpError;
-        // После регистрации перенаправляем на профиль
-        router.push("/profile");
+        const formData = new FormData();
+        formData.append("email", email);
+        formData.append("password", password);
+        
+        const result = await register(formData);
+        if (result?.error) {
+          setError(result.error);
+        } else {
+          router.push("/profile");
+        }
       } else {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
+        const result = await signIn("credentials", {
           email,
           password,
+          redirect: false,
         });
-        if (signInError) throw signInError;
-        // После входа перенаправляем на профиль
-        router.push("/profile");
+
+        if (result?.error) {
+          setError("Неверный email или пароль");
+        } else {
+          router.push("/profile");
+        }
       }
     } catch (err: any) {
       setError(err.message || "Произошла ошибка");

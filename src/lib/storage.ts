@@ -1,15 +1,5 @@
-// Твой ID проекта из Supabase (взят из твоего URL)
-const PROJECT_ID = 'uuhuugprmmdobmpkbjnn';
-
-// Используем переменную окружения для URL, если есть, иначе формируем дефолтный
-const BASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL 
-  ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public`
-  : `https://${PROJECT_ID}.supabase.co/storage/v1/object/public`;
-
-const STORAGE_URL = BASE_URL;
-
 /**
- * Универсальная функция для получения URL из Supabase Storage
+ * Универсальная функция для получения URL из хранилища
  * @param filename - название файла (например, 'poster.png')
  * @param bucket - название бакета в Storage
  */
@@ -19,7 +9,7 @@ export function getStorageImageUrl(
 ): string | null {
   if (!filename) return null;
   
-  // Если это уже полная ссылка, возвращаем как есть
+  // Если это уже полная ссылка (например, с Vercel Blob или внешняя), возвращаем как есть
   if (filename.startsWith('http')) {
     return filename;
   }
@@ -29,7 +19,7 @@ export function getStorageImageUrl(
     return filename;
   }
   
-  // Сначала проверяем, нет ли такого файла локально в папке public
-  // (В Next.js файлы из public доступны по пути /название_папки/файл)
-  return `/${bucket}/${filename}`;
+  // Если это не локальный файл и не полная ссылка, формируем ссылку на Supabase
+  const PROJECT_ID = 'uuhuugprmmdobmpkbjnn';
+  return `https://${PROJECT_ID}.supabase.co/storage/v1/object/public/${bucket}/${filename}`;
 }

@@ -3,23 +3,16 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { supabase } from "@/lib/supabase";
+import { useSession, signOut } from "next-auth/react";
 import AtmosphericBackground from "@/components/AtmosphericBackground";
 import { Shield, Sword, LogOut, Edit2, Save, X, Clock, Trophy, Star, Lock, Mail, User } from "lucide-react";
-
-interface Profile {
-  id: string;
-  avatar_url: string | null;
-  player_name: string | null;
-  games_count: number;
-  level: number;
-  user_id: string;
-}
+import { getProfile, updateProfile, createProfile } from "@/lib/actions/profile";
+import type { Profile } from "@/lib/db";
 
 export default function ProfilePage() {
   const router = useRouter();
+  const { data: session, status } = useSession();
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [user, setUser] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
     player_name: "",
@@ -31,86 +24,40 @@ export default function ProfilePage() {
   const [editSuccess, setEditSuccess] = useState(false);
 
   useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login");
+    }
+  }, [status, router]);
+
+  useEffect(() => {
     const loadProfile = async () => {
+      if (status !== "authenticated" || !session?.user) return;
+
       try {
-        const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser();
-        
-        if (userError || !currentUser) {
-          router.push("/login");
-          return;
-        }
-
-        setUser(currentUser);
-
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("user_id", currentUser.id)
-          .maybeSingle();
+        const data = await getProfile();
 
         if (data) {
           setProfile(data);
           setEditForm({
             player_name: data.player_name || "",
-            email: currentUser.email || "",
+            email: session.user.email || "",
             password: "",
             confirmPassword: "",
           });
-          return;
-        }
-
-        const isNotFound = !data && (!error || error.code === "PGRST116" || error.message?.includes("No rows"));
-        
-        if (isNotFound) {
-          const newProfile = {
-            user_id: currentUser.id,
-            player_name: currentUser.email?.split("@")[0] || "Игрок",
-            avatar_url: null,
-            games_count: 0,
-            level: 1,
-          };
-
-          const { data: createdProfile, error: createError } = await supabase
-            .from("profiles")
-            .insert([newProfile])
-            .select()
-            .single();
-
-          if (createError) {
-            console.error("Error creating profile:", createError);
-            setProfile({
-              id: currentUser.id,
-              user_id: currentUser.id,
-              player_name: currentUser.email?.split("@")[0] || "Игрок",
-              avatar_url: null,
-              games_count: 0,
-              level: 1,
-            });
-          } else if (createdProfile) {
-            setProfile(createdProfile);
+        } else {
+          // Create profile if it doesn't exist
+          const newProfile = await createProfile({
+            player_name: session.user.email?.split("@")[0] || "Игрок",
+          });
+          if (newProfile) {
+            setProfile(newProfile);
             setEditForm({
-              player_name: createdProfile.player_name || "",
-              email: currentUser.email || "",
+              player_name: newProfile.player_name || "",
+              email: session.user.email || "",
               password: "",
               confirmPassword: "",
             });
           }
-        } else {
-          console.error("Error loading profile:", error);
-          setProfile({
-            id: currentUser.id,
-            user_id: currentUser.id,
-            player_name: currentUser.email?.split("@")[0] || "Игрок",
-            avatar_url: null,
-            games_count: 0,
-            level: 1,
-          });
-          setEditForm({
-            player_name: currentUser.email?.split("@")[0] || "",
-            email: currentUser.email || "",
-            password: "",
-            confirmPassword: "",
-          });
         }
       } catch (err) {
         console.error("Error:", err);
@@ -118,7 +65,7 @@ export default function ProfilePage() {
     };
 
     loadProfile();
-  }, [router]);
+  }, [session, status]);
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -130,7 +77,7 @@ export default function ProfilePage() {
     setIsEditing(false);
     setEditForm({
       player_name: profile?.player_name || "",
-      email: user?.email || "",
+      email: session?.user?.email || "",
       password: "",
       confirmPassword: "",
     });
@@ -143,7 +90,6 @@ export default function ProfilePage() {
     setEditSuccess(false);
 
     try {
-      // Валидация пароля
       if (editForm.password && editForm.password !== editForm.confirmPassword) {
         setEditError("Пароли не совпадают");
         return;
@@ -154,56 +100,20 @@ export default function ProfilePage() {
         return;
       }
 
-      // Обновляем email, если изменился
-      if (editForm.email !== user?.email) {
-        const { error: emailError } = await supabase.auth.updateUser({
-          email: editForm.email,
-        });
-        if (emailError) {
-          setEditError(`Ошибка обновления email: ${emailError.message}`);
-          return;
-        }
-      }
+      // Update name in profile
+      const updated = await updateProfile({
+        player_name: editForm.player_name,
+      });
 
-      // Обновляем пароль, если указан
-      if (editForm.password) {
-        const { error: passwordError } = await supabase.auth.updateUser({
-          password: editForm.password,
-        });
-        if (passwordError) {
-          setEditError(`Ошибка обновления пароля: ${passwordError.message}`);
-          return;
-        }
-      }
-
-      // Обновляем никнейм в профиле
-      const { data: updatedProfile, error: profileError } = await supabase
-        .from("profiles")
-        .update({ player_name: editForm.player_name })
-        .eq("user_id", user.id)
-        .select()
-        .single();
-
-      if (profileError) {
-        setEditError(`Ошибка обновления профиля: ${profileError.message}`);
+      if (!updated) {
+        setEditError("Ошибка обновления профиля");
         return;
       }
 
-      // Обновляем локальное состояние
-      if (updatedProfile) {
-        setProfile(updatedProfile);
-      }
-      
-      // Обновляем данные пользователя
-      const { data: { user: updatedUser } } = await supabase.auth.getUser();
-      if (updatedUser) {
-        setUser(updatedUser);
-      }
-
+      setProfile(updated);
       setEditSuccess(true);
       setIsEditing(false);
       
-      // Очищаем поля пароля
       setEditForm(prev => ({
         ...prev,
         password: "",
@@ -217,9 +127,14 @@ export default function ProfilePage() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push("/");
+    await signOut({ callbackUrl: "/" });
   };
+
+  if (status === "loading") {
+    return <div>Загрузка...</div>;
+  }
+
+  const user = session?.user;
 
   const displayProfile = profile || {
     id: user?.id || "",

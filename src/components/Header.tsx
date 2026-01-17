@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Menu, X } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { useSession } from "next-auth/react";
 
 const DiscordIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 127.14 96.36" className={className}>
@@ -22,34 +22,16 @@ const TelegramIcon = ({ className }: { className?: string }) => (
 export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
+  const { data: session, status } = useSession();
   const isAdventuresPage = pathname === "/adventures";
   const isSchedulePage = pathname === "/schedule";
   const isAboutPage = pathname === "/about";
   const isLoginPage = pathname === "/login";
   const isProfilePage = pathname === "/profile";
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Проверяем текущее состояние авторизации
-    const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setIsAuthenticated(!!user);
-      setLoading(false);
-    };
-
-    checkAuth();
-
-    // Подписываемся на изменения состояния авторизации
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAuthenticated(!!session?.user);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
+  
+  const isAuthenticated = !!session;
+  const loading = status === "loading";
 
   const towerLogo = "/logos/tower.webp";
   const textLogo = "/logos/text.webp";
