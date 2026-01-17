@@ -29,6 +29,7 @@ export function getStorageImageUrl(
     return filename;
   }
   
-  // Формируем прямую ссылку на Supabase Storage
-  return `${STORAGE_URL}/${bucket}/${filename}`;
+  // Сначала проверяем, нет ли такого файла локально в папке public
+  // (В Next.js файлы из public доступны по пути /название_папки/файл)
+  return `/${bucket}/${filename}`;
 }
