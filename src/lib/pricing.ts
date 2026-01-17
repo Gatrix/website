@@ -1,8 +1,8 @@
 export type Tier = "standard" | "premium";
 
 export const PRICING = {
-  standard: 1800,
-  premium: 2600,
+  standard: 1000,
+  premium: 1000,
 };
 
 export function getPricePerPlayer(tier: Tier) {

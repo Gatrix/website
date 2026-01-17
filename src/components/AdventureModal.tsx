@@ -324,13 +324,11 @@ export default function AdventureModal({
                       )}
                     </div>
 
-                    {(adventure.priceLabel || adventure.price) && (
-                      <div className="border-t border-amber-900/30 px-4 sm:px-6 md:px-8 lg:px-10 py-4">
-                        <div className="text-amber-400/80 text-xs uppercase tracking-[0.2em]">
-                          {adventure.priceLabel ?? adventure.price}
-                        </div>
+                    <div className="border-t border-amber-900/30 px-4 sm:px-6 md:px-8 lg:px-10 py-4">
+                      <div className="text-amber-400/80 text-xs uppercase tracking-[0.2em]">
+                        1000 ₽ / игрок
                       </div>
-                    )}
+                    </div>
                   </div>
                 </motion.div>
               </AnimatePresence>

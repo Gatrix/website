@@ -35,14 +35,13 @@ export default function Home() {
             className="transition-opacity duration-500 ease-in-out"
           >
             <div className="inline-block px-2 sm:px-3 py-1 border border-amber-900/50 text-amber-700 text-[9px] sm:text-[10px] tracking-[0.3em] uppercase mb-3 sm:mb-4">
-              Испытай свою фантазию
+              Место твоих лучших историй
             </div>
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold mb-4 sm:mb-6 md:mb-8 leading-[1.1] text-amber-50 shadow-amber-950 text-shadow-sm uppercase tracking-tight">
-              Место твоих <br /> лучших историй
+              Испытай свое <br /> воображение
             </h1>
             <p className="text-base sm:text-lg text-[#8c8279] mb-6 sm:mb-8 md:mb-10 max-w-md leading-relaxed">
-              НРИ‑сессии в {`{ГОРОД}`}: тёмное фэнтези, партии {`{РАЗМЕР_ГРУППЫ}`} игроков,
-              длительность {`{ДЛИТЕЛЬНОСТЬ}`}.
+              И имя нам — ПОЛИГОН. Красноярская Гильдия неровно дышащих ко всем настольным ролевым игрищам. Площадка для отдыха, очерченная границей фантазии.
             </p>
             <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:gap-4">
               <button
@@ -76,9 +75,6 @@ export default function Home() {
                 Безопасная атмосфера: границы проговариваются до игры.
               </li>
             </ul>
-            <p className="mt-4 text-xs text-amber-400/70">
-              Оплата после подтверждения слота. Перенос — по правилам клуба, уточним перед записью.
-            </p>
           </div>
 
           {/* Галерея как "старые фото на стене" */}
@@ -141,7 +137,7 @@ export default function Home() {
             <div className="bg-[#12100f]/90 border border-amber-900/30 p-6 sm:p-8 shadow-[0_0_25px_rgba(120,83,45,0.15)] hover:shadow-[0_0_35px_rgba(180,120,60,0.25)] transition-shadow">
               <div className="flex items-start justify-between gap-4 mb-4">
                 <h3 className="text-2xl sm:text-3xl font-bold text-amber-100 uppercase">Стандарт</h3>
-                <span className="text-amber-600 text-sm sm:text-base font-black">от … ₽/чел</span>
+                <span className="text-amber-600 text-sm sm:text-base font-black">1000 ₽/чел</span>
               </div>
               <p className="text-xs uppercase tracking-[0.25em] text-amber-700/70 mb-4">Подходит новичкам</p>
               <ul className="space-y-3 text-[#8c8279] text-sm sm:text-base">
@@ -173,7 +169,7 @@ export default function Home() {
             <div className="bg-[#12100f]/90 border border-amber-900/30 p-6 sm:p-8 shadow-[0_0_25px_rgba(120,83,45,0.15)] hover:shadow-[0_0_35px_rgba(180,120,60,0.25)] transition-shadow">
               <div className="flex items-start justify-between gap-4 mb-4">
                 <h3 className="text-2xl sm:text-3xl font-bold text-amber-100 uppercase">Премиум</h3>
-                <span className="text-amber-600 text-sm sm:text-base font-black">от … ₽/чел</span>
+                <span className="text-amber-600 text-sm sm:text-base font-black">1000 ₽/чел</span>
               </div>
               <p className="text-xs uppercase tracking-[0.25em] text-amber-700/70 mb-4">Максимум атмосферы</p>
               <ul className="space-y-3 text-[#8c8279] text-sm sm:text-base">

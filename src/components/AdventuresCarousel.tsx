@@ -32,6 +32,16 @@ export default function AdventuresCarousel({
   const lastUpdateTime = useRef<number>(Date.now());
   const [isHovered, setIsHovered] = useState(false);
   const [hoveredCardIndex, setHoveredCardIndex] = useState<number | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
   
   const count = adventures.length;
   
@@ -83,8 +93,8 @@ export default function AdventuresCarousel({
       const deltaTime = (now - lastUpdateTime.current) / 1000; // в секундах
       lastUpdateTime.current = now;
 
-      // Пауза если пользователь зажал карточку, открыта модалка или курсор в зоне карусели
-      if (isDragging.current || isPaused || isHovered) {
+      // Пауза если пользователь зажал карточку, открыта модалка, курсор в зоне карусели или мобильное устройство
+      if (isDragging.current || isPaused || isHovered || isMobile) {
         animationFrameId = requestAnimationFrame(autoScroll);
         return;
       }
@@ -133,21 +143,32 @@ export default function AdventuresCarousel({
     
     // Определяем, на сколько карточек прокрутить
     // Учитываем и смещение, и скорость
-    let cardsMoved = Math.round(offset / CARD_FULL_WIDTH);
+    // Для мобильных устройств делаем свайп более чувствительным
+    const sensitivityThreshold = isMobile ? 0.2 : 0.5;
+    const velocityThreshold = isMobile ? 200 : 500;
+    
+    let cardsMoved = 0;
+    if (Math.abs(offset) > CARD_FULL_WIDTH * sensitivityThreshold) {
+      cardsMoved = Math.sign(offset) * Math.ceil(Math.abs(offset) / CARD_FULL_WIDTH);
+    }
     
     // Если быстрый свайп, добавляем инерцию
-    if (Math.abs(velocity) > 500) {
-      cardsMoved += velocity > 0 ? 1 : -1;
+    if (Math.abs(velocity) > velocityThreshold) {
+      // Если мы уже учли движение через offset, не добавляем лишнего, 
+      // но если сдвиг был небольшой, а скорость высокая - двигаем
+      if (cardsMoved === 0 || Math.sign(cardsMoved) === Math.sign(velocity)) {
+        cardsMoved += velocity > 0 ? 1 : -1;
+      }
     }
     
     // Рассчитываем целевую позицию (привязка к ближайшей карточке)
     const currentX = x.get();
-    const currentCard = Math.round(currentX / CARD_FULL_WIDTH);
-    const targetX = currentCard * CARD_FULL_WIDTH;
+    // Применяем движение к текущей позиции
+    const targetX = (Math.round(currentX / CARD_FULL_WIDTH) + cardsMoved) * CARD_FULL_WIDTH;
     
     animationControlsRef.current = animate(x, targetX, {
       type: "spring",
-      stiffness: 300,
+      stiffness: isMobile ? 400 : 300, // Чуть жестче на мобильных для быстроты
       damping: 30,
       onComplete: () => {
         normalizePosition();
