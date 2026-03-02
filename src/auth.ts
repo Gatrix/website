@@ -1,41 +1,42 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { supabase } from "@/lib/supabase";
+import { compare } from "bcryptjs";
+import { findUserByEmail } from "@/lib/data/users";
+
+function resolveAuthSecret(): string {
+  const secret = process.env.AUTH_SECRET;
+  if (secret) return secret;
+  if (process.env.NODE_ENV === "development") return "dev-secret-min-32-chars-for-auth";
+  throw new Error("AUTH_SECRET must be set in production");
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  secret: resolveAuthSecret(),
+  trustHost: true,
   session: { strategy: "jwt" },
   providers: [
     Credentials({
       name: "Credentials",
       credentials: {
         email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
+        password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        // ВАЖНО: Мы запрашиваем пользователя из Supabase Auth (если есть доступ к таблице auth.users)
-        // или из вашей таблицы profiles, если вы храните там хеши паролей.
-        // Обычно в Supabase Auth пароли скрыты.
-        
-        // ВАРИАНТ 1: Если вы используете Supabase Auth, лучше просто использовать их клиент.
-        // Но так как нам нужно проксировать, мы сделаем вход через Supabase на сервере:
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: credentials.email as string,
-          password: credentials.password as string,
-        });
+        const user = await findUserByEmail(credentials.email as string);
+        if (!user) return null;
 
-        if (error || !data.user) {
-          return null;
-        }
+        const ok = await compare(credentials.password as string, user.passwordHash);
+        if (!ok) return null;
 
         return {
-          id: data.user.id,
-          email: data.user.email,
-          name: data.user.user_metadata?.full_name,
+          id: user.id,
+          email: user.email,
+          name: user.player_name || user.email.split("@")[0],
         };
-      }
-    })
+      },
+    }),
   ],
   pages: {
     signIn: "/login",

@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getStorageImageUrl } from "@/lib/storage";
 import type { Adventure } from "@/hooks/useAdventures";
 import { useRouter } from "next/navigation";
 
@@ -31,7 +30,8 @@ export default function AdventureModal({
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
-  const slideDirectionRef = useRef(1);
+  const scrollPositionRef = useRef(0);
+  const [slideDirection, setSlideDirection] = useState(1);
 
   // Управление с клавиатуры (Escape, стрелки влево/вправо)
   useEffect(() => {
@@ -58,82 +58,98 @@ export default function AdventureModal({
       closeButtonRef.current?.focus();
     });
     return () => {
-      previouslyFocusedRef.current?.focus();
+      // Не возвращаем фокус на карточку — она в overflow-hidden карусели, ring обрезается.
+      // Вместо этого снимаем фокус, чтобы не было странного выделения.
+      const el = previouslyFocusedRef.current;
+      if (el?.closest?.("[data-adventure-card]")) {
+        (el as HTMLElement).blur();
+      } else if (el?.focus) {
+        requestAnimationFrame(() => el.focus());
+      }
     };
   }, [isOpen]);
 
-  // Предотвращение скролла фона
+  // Предотвращение скролла фона + компенсация ширины скроллбара (убирает тряску при закрытии)
   useEffect(() => {
     if (isOpen) {
+      scrollPositionRef.current = window.scrollY;
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
       document.body.style.overflow = "hidden";
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
     } else {
-      document.body.style.overflow = "unset";
+      document.body.style.overflow = "";
+      document.body.style.paddingRight = "";
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: scrollPositionRef.current, behavior: "auto" });
+      });
     }
     return () => {
-      document.body.style.overflow = "unset";
+      document.body.style.overflow = "";
+      document.body.style.paddingRight = "";
     };
   }, [isOpen]);
 
-  const imageUrl = adventure
-    ? getStorageImageUrl(adventure.img_url || adventure.poster, "adventures")
-    : null;
+  const imageUrl = adventure?.imageUrl ?? null;
+  const playerIntro = adventure?.intro?.trim() || "";
   const fullDescription = adventure?.description?.trim() || adventure?.logline?.trim() || "";
-  const formatLabel = (format?: Adventure["format"]) => {
-    if (!format) return null;
-    const normalized = format.toString().toLowerCase();
-    if (normalized === "oneshot") return "Ваншот";
-    if (normalized === "mini-campaign") return "Мини-кампания";
-    if (normalized === "campaign") return "Кампания";
-    return format.toString();
+  const displayText = playerIntro || fullDescription;
+  const adventureTypeLabel = (type?: string) => {
+    if (!type) return null;
+    const t = type.toLowerCase();
+    if (t === "oneshot" || t === "ваншот") return "Ваншот (1 игра)";
+    if (t === "adventure" || t === "приключение") return "Приключение (~5 игр)";
+    if (t === "campaign" || t === "кампания") return "Кампания (10+ игр)";
+    return type;
   };
-  const badges = useMemo(() => {
-    if (!adventure) return [];
-    const items: string[] = [];
-    const genre = Array.isArray(adventure.genre) ? adventure.genre[0] : adventure.genre ?? adventure.focus;
-    if (genre) items.push(genre);
-    const tone = Array.isArray(adventure.tone) ? adventure.tone[0] : adventure.tone;
-    if (tone) items.push(tone);
-    if (adventure.difficulty) items.push(`Сложность: ${adventure.difficulty}`);
-    const durationLabel = adventure.durationMinutes
-      ? `${Math.round((adventure.durationMinutes / 60) * 10) / 10} ч`
-      : adventure.durationHours ?? adventure.time;
-    if (durationLabel) items.push(`Длительность: ${durationLabel}`);
-    const players = adventure.playerCount
-      ? `${adventure.playerCount.min}-${adventure.playerCount.max}`
-      : adventure.players;
-    if (players) items.push(`Игроки: ${players}`);
-    const format = formatLabel(adventure.format);
-    if (format) items.push(`Формат: ${format}`);
-    if (adventure.isBeginnerFriendly) items.push("Новичкам ок");
-    if (adventure.ageRating) items.push(`Возраст: ${adventure.ageRating}`);
-    return items;
+  const universeDisplay = (v: string) => (v === "Иное" ? "Иной мир" : v);
+
+  const durationLabel = useMemo(() => {
+    if (!adventure) return "";
+    if (adventure.session_duration?.trim()) return adventure.session_duration.trim();
+    if (adventure.time?.trim()) return adventure.time.trim();
+    if (adventure.durationHours?.trim()) return adventure.durationHours.trim();
+    if (typeof adventure.durationMinutes === "number" && adventure.durationMinutes > 0) {
+      const hours = adventure.durationMinutes / 60;
+      return Number.isInteger(hours) ? `${hours} ч` : `${hours.toFixed(1)} ч`;
+    }
+    return "";
   }, [adventure]);
 
-  const highlights = adventure?.highlights?.length
-    ? adventure.highlights
-    : adventure?.benefits?.length
-      ? adventure.benefits
-      : [
-          "Атмосферная игра с живыми решениями",
-          "Помощь с персонажем и правилами",
-          "Продуманные сцены и реквизит",
-          "Безопасные границы и поддержка ведущего",
-          "Памятные моменты и награды",
-        ];
+  const playersLabel = useMemo(() => {
+    if (!adventure) return "";
+    if (adventure.player_count?.trim()) return adventure.player_count.trim();
+    if (adventure.players?.trim()) return adventure.players.trim();
+    if (adventure.playerCount) return `${adventure.playerCount.min}-${adventure.playerCount.max} игроков`;
+    return "";
+  }, [adventure]);
+
+  const paramsList = useMemo(() => {
+    if (!adventure) return [];
+    const items: { label: string; value: string }[] = [];
+    if (adventure.universe)
+      items.push({ label: "Вселенная", value: universeDisplay(adventure.universe) });
+    const setting = adventure.subsetting?.trim() || "";
+    if (setting) items.push({ label: "Сеттинг", value: setting });
+    const genres = Array.isArray(adventure.genre)
+      ? adventure.genre
+      : adventure.genre
+        ? [adventure.genre]
+        : adventure.focus
+          ? [adventure.focus]
+          : [];
+    if (genres.length) items.push({ label: "Жанр", value: genres.join(", ") });
+    if (adventure.difficulty) items.push({ label: "Сложность", value: adventure.difficulty });
+    const advType = adventureTypeLabel(adventure.adventure_type ?? adventure.format);
+    if (advType) items.push({ label: "Тип", value: advType });
+    if (durationLabel) items.push({ label: "Длительность игры", value: durationLabel });
+    if (playersLabel) items.push({ label: "Количество игроков", value: playersLabel });
+    return items;
+  }, [adventure, durationLabel, playersLabel]);
 
   const handleChooseDate = () => {
     if (!adventure) return;
     onClose();
-    const params = new URLSearchParams();
-    params.set("view", "calendar");
-    if (adventure.id) params.set("adventureId", adventure.id);
-    params.set("availability", "available");
-    router.push(`/schedule?${params.toString()}#calendar`);
-  };
-
-  const handleOtherAdventures = () => {
-    onClose();
-    router.push("/adventures");
+    router.push("/schedule#calendar");
   };
 
   const handleDialogKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -165,7 +181,7 @@ export default function AdventureModal({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50"
             onClick={onClose}
           />
 
@@ -183,35 +199,19 @@ export default function AdventureModal({
               role="dialog"
               aria-modal="true"
               aria-labelledby="adventure-title"
-              aria-describedby={fullDescription ? "adventure-description" : undefined}
+              aria-describedby={displayText ? "adventure-description" : undefined}
               onKeyDown={handleDialogKeyDown}
-              className="relative w-full max-w-5xl max-h-[95vh] sm:max-h-[90vh] bg-[#14110f] border-2 border-amber-700/40 rounded-lg sm:rounded-xl overflow-hidden shadow-2xl pointer-events-auto flex flex-col"
+              className="relative w-[min(94vw,85rem)] h-[min(90vh,52rem)] max-h-[90vh] bg-[#14110f] border-2 border-amber-700/40 rounded-lg sm:rounded-xl overflow-hidden shadow-2xl pointer-events-auto flex flex-col"
             >
-              {/* Декоративные углы */}
-              <div className="absolute top-0 left-0 w-4 h-4 sm:w-6 md:w-8 border-t-2 border-l-2 border-amber-500/60 z-20" />
-              <div className="absolute top-0 right-0 w-4 h-4 sm:w-6 md:w-8 border-t-2 border-r-2 border-amber-500/60 z-20" />
-              <div className="absolute bottom-0 left-0 w-4 h-4 sm:w-6 md:w-8 border-b-2 border-l-2 border-amber-500/60 z-20" />
-              <div className="absolute bottom-0 right-0 w-4 h-4 sm:w-6 md:w-8 border-b-2 border-r-2 border-amber-500/60 z-20" />
-
-              {/* Кнопка закрытия */}
-              <button
-                onClick={onClose}
-                aria-label="Закрыть"
-                ref={closeButtonRef}
-                className="absolute top-2 right-2 sm:top-4 sm:right-4 z-40 w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center bg-amber-950/60 border border-amber-800/50 rounded-full text-amber-600 hover:text-amber-400 hover:bg-amber-900/40 transition-all shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#14110f]"
-              >
-                <X size={20} className="sm:w-6 sm:h-6" />
-              </button>
-
-              {/* Стрелки навигации */}
+              {/* Стрелки навигации — прикреплены к карточке, на всю высоту */}
               {hasPrevious && onPrevious && (
                 <button
                   onClick={() => {
-                    slideDirectionRef.current = -1;
+                    setSlideDirection(-1);
                     onPrevious();
                   }}
                   aria-label="Предыдущее приключение"
-                  className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-30 w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-amber-950/60 border border-amber-800/50 rounded-full text-amber-600 hover:text-amber-400 hover:bg-amber-900/40 transition-all shadow-lg"
+                  className="absolute left-0 top-0 bottom-0 z-30 w-20 sm:w-24 flex items-center justify-center bg-amber-950/60 hover:bg-amber-900/40 border-r border-amber-800/50 text-amber-500 hover:text-amber-400 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-inset"
                 >
                   <ChevronLeft size={24} className="sm:w-6 sm:h-6" />
                 </button>
@@ -219,115 +219,115 @@ export default function AdventureModal({
               {hasNext && onNext && (
                 <button
                   onClick={() => {
-                    slideDirectionRef.current = 1;
+                    setSlideDirection(1);
                     onNext();
                   }}
                   aria-label="Следующее приключение"
-                  className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-30 w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-amber-950/60 border border-amber-800/50 rounded-full text-amber-600 hover:text-amber-400 hover:bg-amber-900/40 transition-all shadow-lg"
+                  className="absolute right-0 top-0 bottom-0 z-30 w-20 sm:w-24 flex items-center justify-center bg-amber-950/60 hover:bg-amber-900/40 border-l border-amber-800/50 text-amber-500 hover:text-amber-400 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-inset"
                 >
                   <ChevronRight size={24} className="sm:w-6 sm:h-6" />
                 </button>
               )}
+              {/* Декоративные углы */}
+              <div className="absolute top-0 left-0 w-4 h-4 sm:w-6 md:w-8 border-t-2 border-l-2 border-amber-500/60 z-20" />
+              <div className="absolute top-0 right-0 w-4 h-4 sm:w-6 md:w-8 border-t-2 border-r-2 border-amber-500/60 z-20" />
+              <div className="absolute bottom-0 left-0 w-4 h-4 sm:w-6 md:w-8 border-b-2 border-l-2 border-amber-500/60 z-20" />
+              <div className="absolute bottom-0 right-0 w-4 h-4 sm:w-6 md:w-8 border-b-2 border-r-2 border-amber-500/60 z-20" />
 
               <AnimatePresence mode="wait" initial={false}>
                 <motion.div
                   key={adventure.id}
-                  initial={{ opacity: 0, x: slideDirectionRef.current * 40 }}
+                  initial={{ opacity: 0, x: slideDirection * 40 }}
                   animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: slideDirectionRef.current * -40 }}
+                  exit={{ opacity: 0, x: slideDirection * -40 }}
                   transition={{ duration: 0.2, ease: "easeOut" }}
-                  className="flex flex-col md:flex-row overflow-y-auto"
+                  className="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden pl-20 sm:pl-24 pr-20 sm:pr-24"
                 >
-                  {/* Левая панель - Постер приключения */}
-                  <div className="relative w-full md:w-[250px] lg:w-[300px] xl:w-[350px] bg-[#0f0d0c] border-b md:border-b-0 md:border-r border-amber-900/30 flex-shrink-0 flex flex-col items-center justify-start p-3 sm:p-4 md:pt-8">
-                    {/* Зона постера с соотношением 2:3 */}
-                    <div className="relative w-full max-w-[200px] sm:max-w-[250px] md:max-w-none aspect-[2/3] flex items-center justify-center overflow-hidden rounded-md shadow-inner mb-6 sm:mb-8">
-                      {imageUrl ? (
-                        <Image
-                          src={imageUrl}
-                          alt={`Постер: ${adventure.title}`}
-                          fill
-                          className="object-cover transition-transform duration-500"
-                          sizes="(max-width: 768px) 250px, 350px"
-                        />
-                      ) : (
-                        <div className="absolute inset-0 bg-gradient-to-br from-amber-900/20 to-amber-950/40 flex items-center justify-center">
-                          <span className="text-amber-900/30 text-xs sm:text-sm uppercase font-bold">Нет изображения</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="w-full max-w-[220px] sm:max-w-[260px] md:max-w-none space-y-2">
-                      <button
-                        onClick={handleChooseDate}
-                        className="btn btn-primary w-full focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#14110f]"
-                      >
-                        Подобрать дату
-                      </button>
-                      <button
-                        onClick={handleOtherAdventures}
-                        className="btn btn-secondary w-full focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#14110f]"
-                      >
-                        Другие приключения
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Правая панель - Информация о приключении */}
-                  <div className="flex-1 min-h-[320px] flex flex-col">
-                    <div className="flex-1 p-4 sm:p-6 md:p-8 lg:p-10 overflow-y-auto">
-                      {/* Header */}
-                      <div className="space-y-3 mb-6">
-                        <h2 id="adventure-title" className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-extrabold uppercase tracking-tight text-amber-100 leading-tight">
-                          {adventure.title}
-                        </h2>
-                        {fullDescription && (
-                          <div className="max-h-[150px] sm:max-h-[200px] overflow-y-auto pr-2">
-                            <p id="adventure-description" className="text-sm sm:text-base md:text-lg text-amber-200/80 leading-relaxed whitespace-pre-line">
-                              {fullDescription}
-                            </p>
+                  {/* Левая панель — постер и параметры */}
+                  <div className="relative w-full md:w-[40.84%] md:min-w-[284px] md:max-w-[392px] md:h-full bg-[#0f0d0c] border-b md:border-b-0 md:border-r border-amber-900/30 min-h-0 md:flex-none md:flex-shrink-0 flex flex-col p-[min(1rem,2vw)] sm:p-4 md:pt-[min(2rem,3vh)] md:pb-0">
+                    <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
+                      <div className="relative w-full max-w-[min(337px,85%)] min-w-[198px] aspect-[3/4] max-h-[min(47vh, 416px)] flex items-center justify-center overflow-hidden rounded-md shadow-inner mb-4 sm:mb-6 flex-shrink-0 self-center mx-auto">
+                        {imageUrl ? (
+                          <Image
+                            src={imageUrl}
+                            alt={`Постер: ${adventure.title}`}
+                            fill
+                            className="object-cover transition-transform duration-500"
+                            sizes="(max-width: 768px) 280px, 415px"
+                            unoptimized
+                          />
+                        ) : (
+                          <div className="absolute inset-0 bg-gradient-to-br from-amber-900/20 to-amber-950/40 flex items-center justify-center">
+                            <span className="text-amber-900/30 text-xs sm:text-sm uppercase font-bold">Нет изображения</span>
                           </div>
                         )}
                       </div>
-
-                      <div className="mb-4">
-                        <h3 className="text-amber-400/80 uppercase text-[10px] sm:text-xs font-bold mb-3 tracking-[0.2em] border-b border-amber-900/30 pb-1 font-sans">
-                          Что вас ждет
-                        </h3>
-                        <ul className="space-y-2 text-[#d1c7bc] text-sm sm:text-base">
-                          {highlights.slice(0, 6).map((benefit) => (
-                            <li key={benefit} className="flex items-start gap-3">
-                              <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600 shadow-[0_0_8px_rgba(245,158,11,0.4)]" />
-                              <span>{benefit}</span>
-                            </li>
+                      {paramsList.length > 0 && (
+                        <div className="w-full max-w-[min(260px,75vw)] md:max-w-none mb-4 flex-shrink-0 space-y-2">
+                          {paramsList.map(({ label, value }) => (
+                            <p
+                              key={label}
+                              className="text-base sm:text-lg text-amber-200/90 leading-relaxed border-b border-amber-900/40 pb-2 last:border-b-0"
+                            >
+                              <span className="text-amber-500/80 font-medium">{label}: </span>
+                              {value}
+                            </p>
                           ))}
-                        </ul>
-                      </div>
-
-                      {badges.length > 0 && (
-                        <div className="mb-6">
-                          <h3 className="text-amber-400/80 uppercase text-[10px] sm:text-xs font-bold mb-3 tracking-[0.2em] border-b border-amber-900/30 pb-1 font-sans">
-                            Параметры
-                          </h3>
-                          <div className="flex flex-wrap gap-2">
-                            {badges.map((badge) => (
-                              <span key={badge} className="chip">
-                                {badge}
-                              </span>
-                            ))}
-                          </div>
                           {adventure.contentWarnings?.length ? (
-                            <p className="mt-3 text-xs text-amber-300/70">
-                              Контент‑предупреждения: {adventure.contentWarnings.join(", ")}
+                            <p className="mt-2 text-base sm:text-lg text-amber-300/70">
+                              <span className="text-amber-500/80 font-medium">Контент‑предупреждения: </span>
+                              {adventure.contentWarnings.join(", ")}
                             </p>
                           ) : null}
                         </div>
                       )}
                     </div>
+                  </div>
 
-                    <div className="border-t border-amber-900/30 px-4 sm:px-6 md:px-8 lg:px-10 py-4">
-                      <div className="text-amber-400/80 text-xs uppercase tracking-[0.2em]">
-                        1000 ₽ / игрок
+                  {/* Правая панель — вступительный текст, длительность, игроки, архетипы, кнопка */}
+                  <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
+                    <button
+                      onClick={onClose}
+                      aria-label="Закрыть"
+                      ref={closeButtonRef}
+                      className="absolute top-4 right-4 z-40 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center bg-[#14110f]/90 border border-amber-900/30 rounded-md text-amber-600/70 hover:text-amber-500/90 hover:bg-amber-950/30 hover:border-amber-800/30 transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-700/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#14110f]"
+                    >
+                      <X size={18} className="sm:w-5 sm:h-5" />
+                    </button>
+                    <div className="flex-1 p-4 sm:p-[min(1.5rem,2vw)] md:p-[min(2rem,2.5vw)] pr-14 sm:pr-16 overflow-y-auto">
+                      <h2 id="adventure-title" className="text-[clamp(1.125rem,2.5vw,2.25rem)] md:text-[clamp(1.5rem,3vw,2.5rem)] font-extrabold uppercase tracking-tight text-amber-100 leading-tight mb-4">
+                        {adventure.title}
+                      </h2>
+                      {displayText && (
+                        <p id="adventure-description" className="text-[clamp(0.875rem,1.5vw,1.125rem)] md:text-[clamp(1rem,1.8vw,1.25rem)] text-amber-200/80 leading-relaxed whitespace-pre-line">
+                          {displayText}
+                        </p>
+                      )}
+                      <div className="mt-6">
+                        <h3 className="text-amber-300/90 font-semibold text-sm sm:text-base uppercase tracking-wide mb-3 text-center">
+                          Архетипичные персонажи
+                        </h3>
+                        <div className="grid grid-cols-4 gap-5 sm:gap-8 w-[67.5%] mx-auto">
+                          {Array.from({ length: 8 }, (_, idx) => (
+                            <div
+                              key={`archetype-slot-${idx + 1}`}
+                              className="relative aspect-square w-full rounded-md border border-amber-800/60 bg-[#14110f] overflow-hidden flex items-center justify-center text-center"
+                            >
+                              <span className="text-amber-500/60 text-xs sm:text-sm font-medium uppercase tracking-wide">
+                                {idx + 1}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
+                    </div>
+                    <div className="flex-shrink-0 p-4 sm:p-[min(1.5rem,2vw)] md:p-[min(2rem,2.5vw)] pt-0">
+                      <button
+                        onClick={handleChooseDate}
+                        className="btn btn-primary w-full focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#14110f]"
+                      >
+                        Записаться
+                      </button>
                     </div>
                   </div>
                 </motion.div>

@@ -1,14 +1,21 @@
 import React from "react";
 import { getAdventures } from "@/lib/actions/adventures";
+import { getFrontpagePhotos } from "@/lib/actions/home";
 import HomeClient from "./HomeClient";
 
-// Помечаем страницу как динамическую, чтобы она всегда запрашивала свежие данные
-export const revalidate = 3600; // Ревалидация раз в час или по необходимости
+// Динамический рендеринг: приключения загружаются при каждом запросе (не кэшируются на build)
+export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  // Получаем данные прямо на сервере
-  // Это исключает "бесконечную загрузку" на клиенте
-  const adventures = await getAdventures();
+  const [adventures, frontpagePhotos] = await Promise.all([
+    getAdventures(),
+    getFrontpagePhotos(),
+  ]);
 
-  return <HomeClient initialAdventures={adventures} />;
+  return (
+    <HomeClient
+      initialAdventures={adventures}
+      frontpagePhotos={frontpagePhotos}
+    />
+  );
 }

@@ -1,10 +1,13 @@
 "use server";
 
-import { supabase } from "@/lib/supabase";
+import { hash } from "bcryptjs";
 import { signIn } from "@/auth";
+import { invalidateUsersCache } from "@/lib/data/users";
+import { readJson, writeJson } from "@/lib/storage-client";
+import type { UserRecord } from "@/lib/data/users";
 
 export async function register(formData: FormData) {
-  const email = formData.get("email") as string;
+  const email = (formData.get("email") as string)?.trim();
   const password = formData.get("password") as string;
 
   if (!email || !password) {
@@ -12,31 +15,28 @@ export async function register(formData: FormData) {
   }
 
   try {
-    // Регистрируем пользователя в Supabase Auth
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
+    const users = (await readJson<UserRecord[]>("users.json")) ?? [];
 
-    if (error) throw error;
-    if (!data.user) throw new Error("Ошибка регистрации");
-
-    // Создаем профиль в вашей таблице profiles (если это не делается триггером в Supabase)
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .insert([{
-        user_id: data.user.id,
-        player_name: email.split("@")[0],
-        level: 1,
-        games_count: 0
-      }]);
-
-    if (profileError) {
-      console.error("Profile creation error:", profileError);
-      // Не выбрасываем ошибку, так как пользователь уже создан в Auth
+    const exists = users.some((u) => u.email.toLowerCase() === email.toLowerCase());
+    if (exists) {
+      return { error: "Пользователь с таким email уже существует" };
     }
 
-    // Входим через NextAuth
+    const passwordHash = await hash(password, 10);
+    const newUser: UserRecord = {
+      id: `user-${Date.now()}`,
+      email,
+      passwordHash,
+      player_name: email.split("@")[0],
+      avatar_url: null,
+      games_count: 0,
+      level: 1,
+    };
+
+    users.push(newUser);
+    await writeJson("users.json", users);
+    invalidateUsersCache();
+
     await signIn("credentials", {
       email,
       password,
@@ -44,8 +44,8 @@ export async function register(formData: FormData) {
     });
 
     return { success: true };
-  } catch (error: any) {
-    console.error("Registration error:", error);
-    return { error: error.message || "Something went wrong" };
+  } catch (err) {
+    console.error("Registration error:", err);
+    return { error: err instanceof Error ? err.message : "Ошибка регистрации" };
   }
 }

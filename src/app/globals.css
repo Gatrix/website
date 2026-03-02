@@ -27,6 +27,7 @@
   html {
     color: var(--text-1);
     background: var(--bg-0);
+    scrollbar-gutter: stable; /* Резерв под скроллбар — убирает тряску при открытии/закрытии модалок */
   }
 
   body {

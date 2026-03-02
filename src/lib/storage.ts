@@ -1,25 +1,24 @@
 /**
- * Универсальная функция для получения URL из хранилища
- * @param filename - название файла (например, 'poster.png')
- * @param bucket - название бакета в Storage
+ * Возвращает URL изображения (клиент-безопасная версия).
+ * Используется только для локальной разработки и публичного бакета.
+ * Для приватного бакета URL предвычисляется на сервере (storage-client).
  */
+const IMAGES_BASE = process.env.NEXT_PUBLIC_YC_STORAGE_IMAGES_BASE;
+const IMAGES_PREFIX = process.env.NEXT_PUBLIC_YC_STORAGE_IMAGES_PREFIX ?? "";
+
 export function getStorageImageUrl(
-  filename: string | null | undefined, 
-  bucket: string = 'adventures'
+  filename: string | null | undefined
 ): string | null {
   if (!filename) return null;
-  
-  // Если это уже полная ссылка (например, с Vercel Blob или внешняя), возвращаем как есть
-  if (filename.startsWith('http')) {
-    return filename;
+
+  if (filename.startsWith("http")) return filename;
+  if (filename.startsWith("/")) return filename;
+
+  if (IMAGES_BASE) {
+    const base = IMAGES_BASE.replace(/\/$/, "");
+    const path = IMAGES_PREFIX ? `${IMAGES_PREFIX}${filename}` : filename;
+    return `${base}/${path}`;
   }
 
-  // Если путь начинается с /, считаем что это локальный файл в папке public
-  if (filename.startsWith('/')) {
-    return filename;
-  }
-  
-  // Если это не локальный файл и не полная ссылка, формируем ссылку через наш прокси
-  // Это помогает обойти блокировки Supabase в некоторых регионах
-  return `/api/storage/${bucket}/${filename}`;
+  return `/${filename}`;
 }

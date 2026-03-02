@@ -1,10 +1,12 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import AtmosphericBackground from "@/components/AtmosphericBackground";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import BookingDrawer, { type BookingSlot } from "@/components/BookingDrawer";
+import { useSearchParams } from "next/navigation";
+// TODO: раскомментировать при включении бронирования
+// import BookingDrawer, { type BookingSlot } from "@/components/BookingDrawer";
 import type { Adventure } from "@/hooks/useAdventures";
 
 // Types for our schedule
@@ -14,24 +16,22 @@ interface ScheduleClientProps {
   initialAdventures: Adventure[];
 }
 
+const SLOT_DEFINITIONS = {
+  daytime: { label: "ДЕНЬ", timeRange: "11:00–17:00", timeStart: "11:00", durationMinutes: 360 },
+  evening: { label: "ВЕЧЕР", timeRange: "18:00–00:00", timeStart: "18:00", durationMinutes: 360 },
+} as const;
+const MONTH_NAMES = [
+  "ЯНВАРЬ", "ФЕВРАЛЬ", "МАРТ", "АПРЕЛЬ", "МАЙ", "ИЮНЬ",
+  "ИЮЛЬ", "АВГУСТ", "СЕНТЯБРЬ", "ОКТЯБРЬ", "НОЯБРЬ", "ДЕКАБРЬ"
+];
+const DAYS_OF_WEEK = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"];
+
 export default function ScheduleClient({ initialAdventures }: ScheduleClientProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
-  const adventures = initialAdventures;
-  const selectedAdventureId = searchParams.get("adventureId");
-  const initialTier = searchParams.get("tier") === "premium" ? "premium" : "standard";
-  const [selectedSlot, setSelectedSlot] = useState<BookingSlot | null>(null);
-  const [isBookingOpen, setIsBookingOpen] = useState(false);
-  const [slotNotice, setSlotNotice] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const dayRefs = useRef<Array<HTMLDivElement | null>>([]);
   const showOnlyAvailable = searchParams.get("availability") === "available";
-  const selectedAdventure = useMemo(
-    () => adventures.find((adv) => adv.id === selectedAdventureId),
-    [adventures, selectedAdventureId]
-  );
   
   // Calculate relative months for navigation (limit to 3 months from now)
   const today = new Date();
@@ -47,17 +47,6 @@ export default function ScheduleClient({ initialAdventures }: ScheduleClientProp
     const prev = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
     if (prev >= minDate) setCurrentDate(prev);
   };
-
-  const monthNames = [
-    "ЯНВАРЬ", "ФЕВРАЛЬ", "МАРТ", "АПРЕЛЬ", "МАЙ", "ИЮНЬ",
-    "ИЮЛЬ", "АВГУСТ", "СЕНТЯБРЬ", "ОКТЯБРЬ", "НОЯБРЬ", "ДЕКАБРЬ"
-  ];
-
-  const daysOfWeek = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"];
-  const slotDefinitions = {
-    daytime: { label: "ДЕНЬ", timeRange: "12:00–16:00", timeStart: "12:00", durationMinutes: 240 },
-    evening: { label: "ВЕЧЕР", timeRange: "19:00–23:00", timeStart: "19:00", durationMinutes: 300 },
-  } as const;
 
   // Calendar generation logic
   const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
@@ -79,34 +68,6 @@ export default function ScheduleClient({ initialAdventures }: ScheduleClientProp
     return "available";
   };
 
-  const handleSlotClick = (day: number, time: "daytime" | "evening") => {
-    const status = getSlotStatus(day, time);
-    if (status === "booked") {
-      setSlotNotice("Этот слот уже занят.");
-      return;
-    }
-    const slotMeta = slotDefinitions[time];
-    const label = `${slotMeta.label} (${slotMeta.timeRange})`;
-    const slotId = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}-${time}`;
-    const slot: BookingSlot = {
-      id: slotId,
-      dateLabel: `${day} ${monthNames[month].toLowerCase()}`,
-      timeLabel: label,
-      timeStart: slotMeta.timeStart,
-      durationMinutes: slotMeta.durationMinutes,
-      locationLabel: "{АДРЕС}",
-      status,
-      maxPlayers: 6,
-      remaining: status === "partial" ? 2 : 6,
-      minPlayers: 2,
-    };
-    setSlotNotice(null);
-    setSelectedSlot(slot);
-    setIsBookingOpen(true);
-    updateUrlParams({ slotId });
-    setSelectedDay(day);
-  };
-
   useEffect(() => {
     const wantsCalendar = window.location.hash === "#calendar" || searchParams.get("view") === "calendar";
     if (!wantsCalendar) return;
@@ -115,60 +76,6 @@ export default function ScheduleClient({ initialAdventures }: ScheduleClientProp
       calendar.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, [searchParams]);
-
-  useEffect(() => {
-    const slotId = searchParams.get("slotId");
-    if (!slotId) {
-      setIsBookingOpen(false);
-      setSelectedSlot(null);
-      return;
-    }
-    const match = slotId.match(/^(\d{4})-(\d{2})-(\d{2})-(daytime|evening)$/);
-    if (!match) return;
-    const [, yearStr, monthStr, dayStr, time] = match;
-    const slotYear = Number(yearStr);
-    const slotMonth = Number(monthStr) - 1;
-    const slotDay = Number(dayStr);
-    const status = getSlotStatus(slotDay, time as "daytime" | "evening");
-    const slotMeta = slotDefinitions[time as "daytime" | "evening"];
-    const label = `${slotMeta.label} (${slotMeta.timeRange})`;
-    setCurrentDate(new Date(slotYear, slotMonth, 1));
-    setSelectedSlot({
-      id: slotId,
-      dateLabel: `${slotDay} ${monthNames[slotMonth].toLowerCase()}`,
-      timeLabel: label,
-      timeStart: slotMeta.timeStart,
-      durationMinutes: slotMeta.durationMinutes,
-      locationLabel: "{АДРЕС}",
-      status,
-      maxPlayers: 6,
-      remaining: status === "partial" ? 2 : 6,
-      minPlayers: 2,
-    });
-    if (status === "booked") {
-      setSlotNotice("Этот слот уже занят.");
-      setIsBookingOpen(false);
-    } else {
-      setSlotNotice(null);
-      setIsBookingOpen(true);
-    }
-  }, [searchParams, monthNames]);
-
-  const updateUrlParams = (updates: Record<string, string | null>) => {
-    const params = new URLSearchParams(searchParams.toString());
-    Object.entries(updates).forEach(([key, value]) => {
-      if (!value) params.delete(key);
-      else params.set(key, value);
-    });
-    const query = params.toString();
-    router.replace(`${pathname}${query ? `?${query}` : ""}#calendar`);
-  };
-
-  const handleCloseBooking = () => {
-    setIsBookingOpen(false);
-    setSelectedSlot(null);
-    updateUrlParams({ slotId: null });
-  };
 
   const handleDayKeyDown = (event: React.KeyboardEvent, day: number) => {
     if (event.key === "Enter" || event.key === " ") {
@@ -194,23 +101,18 @@ export default function ScheduleClient({ initialAdventures }: ScheduleClientProp
           <h1 className="text-4xl md:text-5xl font-bold mb-8 text-amber-50 uppercase tracking-widest">
             СВОБОДНЫЕ ДАТЫ
           </h1>
+          {/* TODO: раскомментировать при включении бронирования
           {selectedAdventureId && (
             <div className="mb-6 text-amber-300/80 text-xs sm:text-sm uppercase tracking-[0.2em]">
               Вы выбрали: {selectedAdventure?.title ?? `#${selectedAdventureId}`}
             </div>
           )}
-          {slotNotice && (
-            <div aria-live="polite" className="mb-6 text-amber-200/80 text-xs sm:text-sm border border-amber-900/40 bg-amber-950/30 px-4 py-2 rounded-md">
-              {slotNotice}
-            </div>
-          )}
-          
           <button className="btn btn-secondary text-sm uppercase mb-8">
             ЗАПИСАТЬСЯ
           </button>
-          
+          */}
           <div className="space-y-2 text-[#8c8279] text-xs uppercase tracking-[0.2em] font-sans font-bold">
-            <p>НАЧАЛО ДНЕВНЫХ ИГР 12:00, НАЧАЛО ВЕЧЕРНИХ ИГР 19:00</p>
+            <p>НАЧАЛО ДНЕВНЫХ ИГР 11:00, НАЧАЛО ВЕЧЕРНИХ ИГР 18:00</p>
           </div>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-4 text-xs uppercase tracking-[0.2em] text-amber-300/80">
             <div className="flex items-center gap-2">
@@ -232,7 +134,7 @@ export default function ScheduleClient({ initialAdventures }: ScheduleClientProp
           </div>
           {selectedDay && (
             <div className="mt-4 text-xs uppercase tracking-[0.2em] text-amber-400/80">
-              Выбран день: {selectedDay} {monthNames[month].toLowerCase()}
+              Выбран день: {selectedDay} {MONTH_NAMES[month].toLowerCase()}
             </div>
           )}
           {showOnlyAvailable && (
@@ -253,7 +155,7 @@ export default function ScheduleClient({ initialAdventures }: ScheduleClientProp
           </button>
           
           <h2 className="text-xl md:text-2xl font-bold text-amber-100 tracking-[0.3em] min-w-[240px] text-center uppercase">
-            {monthNames[month]} {year}
+            {MONTH_NAMES[month]} {year}
           </h2>
           
           <button 
@@ -290,7 +192,7 @@ export default function ScheduleClient({ initialAdventures }: ScheduleClientProp
                 role="gridcell"
                 tabIndex={0}
                 aria-selected={selectedDay === dayNum}
-                aria-label={`День ${dayNum} ${monthNames[month].toLowerCase()}`}
+                aria-label={`День ${dayNum} ${MONTH_NAMES[month].toLowerCase()}`}
                 onClick={() => setSelectedDay(dayNum)}
                 onKeyDown={(event) => handleDayKeyDown(event, dayNum)}
                 className={`relative bg-[#0f0d0c]/80 p-4 flex flex-col justify-between transition-all hover:bg-[#1a1614] min-h-[160px] group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0a09] ${isToday ? 'bg-amber-950/10' : ''} ${selectedDay === dayNum ? 'ring-2 ring-amber-500/50' : ''}`}
@@ -298,7 +200,7 @@ export default function ScheduleClient({ initialAdventures }: ScheduleClientProp
                 <div className="flex justify-between items-start font-sans">
                   <span className={`text-3xl font-light ${isToday ? 'text-amber-500 font-bold' : 'text-amber-50/80'}`}>{dayNum}</span>
                   <span className="text-[10px] uppercase text-amber-500/80 font-bold tracking-wider">
-                    {daysOfWeek[dayOfWeekIndex]}
+                    {DAYS_OF_WEEK[dayOfWeekIndex]}
                   </span>
                 </div>
 
@@ -306,15 +208,13 @@ export default function ScheduleClient({ initialAdventures }: ScheduleClientProp
                   {!hideDaytime && (
                     <SlotButton 
                       label="ДЕНЬ" 
-                      status={daytimeStatus} 
-                      onClick={() => handleSlotClick(dayNum, "daytime")}
+                      status={daytimeStatus}
                     />
                   )}
                   {!hideEvening && (
                     <SlotButton 
                       label="ВЕЧЕР" 
-                      status={eveningStatus} 
-                      onClick={() => handleSlotClick(dayNum, "evening")}
+                      status={eveningStatus}
                     />
                   )}
                   {!hasVisibleSlots && (
@@ -329,6 +229,7 @@ export default function ScheduleClient({ initialAdventures }: ScheduleClientProp
         </div>
       </div>
 
+      {/* TODO: раскомментировать при включении бронирования
       <BookingDrawer
         isOpen={isBookingOpen}
         slot={selectedSlot}
@@ -337,6 +238,7 @@ export default function ScheduleClient({ initialAdventures }: ScheduleClientProp
         initialTier={initialTier}
         onClose={handleCloseBooking}
       />
+      */}
     </main>
   );
 }
@@ -344,13 +246,11 @@ export default function ScheduleClient({ initialAdventures }: ScheduleClientProp
 function SlotButton({
   label,
   status,
-  onClick,
 }: {
   label: string;
   status: SlotStatus;
-  onClick: () => void;
 }) {
-  const baseStyles = "text-[11px] font-black tracking-[0.2em] py-1 px-2 transition-all text-left flex items-center gap-2.5 font-sans rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0a09] relative";
+  const baseStyles = "text-[11px] font-black tracking-[0.2em] py-1 px-2 transition-all text-left flex items-center gap-2.5 font-sans rounded-sm relative";
 
   if (status === "booked") {
     return (
@@ -363,35 +263,26 @@ function SlotButton({
 
   if (status === "on-request") {
     return (
-      <button 
-        onClick={onClick}
-        className={`${baseStyles} text-amber-400 hover:text-amber-200 drop-shadow-sm`}
-      >
+      <div className={`${baseStyles} text-amber-400 drop-shadow-sm`}>
         <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(245,158,11,0.8)]"></div>
         {label} (ПО ЗАПРОСУ)
-      </button>
+      </div>
     );
   }
 
   if (status === "partial") {
     return (
-      <button 
-        onClick={onClick}
-        className={`${baseStyles} bg-amber-950/20 text-amber-300 border border-amber-800/40 hover:bg-amber-900/30 hover:text-amber-200 transition-all drop-shadow-sm`}
-      >
+      <div className={`${baseStyles} bg-amber-950/20 text-amber-300 border border-amber-800/40 drop-shadow-sm`}>
         <div className="w-2 h-2 bg-yellow-500 rounded-full shadow-[0_0_8px_rgba(234,179,8,0.5)]"></div>
         {label} (ЧАСТИЧНО)
-      </button>
+      </div>
     );
   }
 
   return (
-    <button 
-      onClick={onClick}
-      className={`${baseStyles} bg-green-950/20 text-green-400 border border-green-900/20 hover:bg-green-900/30 hover:text-green-300 transition-all drop-shadow-sm group/slot`}
-    >
-      <div className="w-2 h-2 bg-green-500 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.4)] group-hover/slot:bg-green-400 transition-colors"></div>
+    <div className={`${baseStyles} bg-green-950/20 text-green-400 border border-green-900/20 drop-shadow-sm`}>
+      <div className="w-2 h-2 bg-green-500 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.4)]"></div>
       {label}
-    </button>
+    </div>
   );
 }

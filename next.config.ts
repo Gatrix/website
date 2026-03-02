@@ -1,18 +1,18 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  reactCompiler: true,
+  output: "standalone",
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: '*.supabase.co',
-        pathname: '/storage/v1/object/public/**',
+        protocol: "https",
+        hostname: "storage.yandexcloud.net",
+        pathname: "/**",
       },
       {
-        protocol: 'https',
-        hostname: '**.public.blob.vercel-storage.com',
+        protocol: "https",
+        hostname: "polygon-ttrpg.storage.yandexcloud.net",
+        pathname: "/**",
       },
     ],
   },

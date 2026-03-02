@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import Link from "next/link";
 import {
   ChevronLeft,
@@ -8,7 +8,6 @@ import {
   Shield,
   Target,
   Globe,
-  Palette,
   ArrowRight,
   ArrowLeft,
   X,
@@ -22,106 +21,58 @@ import AdventureModal from "@/components/AdventureModal";
 import AtmosphericBackground from "@/components/AtmosphericBackground";
 import AdventureCard from "@/components/AdventureCard";
 import type { Adventure } from "@/hooks/useAdventures";
+import type { AdventureOptions } from "@/lib/actions/adventures";
 
-// Базовые сеттинги
-const BASE_SETTINGS = [
-  "Реализм",
-  "Фентези",
-  "Фантастика",
-  "Реализм + Фентези",
-  "Реализм + Фантастика",
-  "Фентези + Фантастика",
-  "Реализм + Фентези + Фантастика"
-];
-
-// Связи базовых и конкретных сеттингов
-const SETTING_RELATIONS: Record<string, string[]> = {
-  "Реализм": ["История", "Современность", "Будущее"],
-  "Фентези": ["Эпическое фентези", "Темное фентези", "Сказочное фентези"],
-  "Фантастика": ["Твердая НФ", "Мягкая НФ", "Космическая НФ"],
-  "Реализм + Фентези": ["Городское фентези", "Фольклор", "Историческое фентези"],
-  "Реализм + Фантастика": ["Стимпанк", "Ретрофутуризм", "Киберпанк"],
-  "Фентези + Фантастика": ["Техномагия", "Научная фантазия", "Космоопера"],
-  "Реализм + Фентези + Фантастика": ["Постапокалипсис", "Супергероика", "Странность"]
+// Fallback, если adventure-options.json не загружен
+const DEFAULT_OPTIONS: AdventureOptions = {
+  base_setting: ["Реализм", "Фентези", "Фантастика", "Реализм + Фентези", "Реализм + Фантастика", "Фентези + Фантастика", "Реализм + Фентези + Фантастика"],
+  setting_relations: {
+    "Реализм": ["История", "Современность", "Будущее"],
+    "Фентези": ["Эпическое фентези", "Темное фентези", "Сказочное фентези"],
+    "Фантастика": ["Твердая НФ", "Мягкая НФ", "Космическая НФ"],
+    "Реализм + Фентези": ["Городское фентези", "Фольклор", "Историческое фентези"],
+    "Реализм + Фантастика": ["Стимпанк", "Ретрофутуризм", "Киберпанк"],
+    "Фентези + Фантастика": ["Техномагия", "Научная фантазия", "Космоопера"],
+    "Реализм + Фентези + Фантастика": ["Постапокалипсис", "Супергероика", "Странность"]
+  },
+  subsetting: [],
+  genre: ["Экшен", "Военный", "Выживание", "Детектив", "Хоррор", "Мистика", "Драма", "Комедия", "Криминал", "Политический", "Шпионский", "Гротеск", "Катастрофа", "Путешествие"],
+  universe: ["Вестерос", "Средиземье", "DnD Миры", "Тамриэль", "Город парового солнца"]
 };
 
 // Функция для нормализации строк при сравнении (ё/е, э/е)
-const normalizeSetting = (s: string) => 
+const normalizeSetting = (s: string) =>
   s.toLowerCase()
-   .replace(/ё/g, 'е')
-   .replace(/э/g, 'е')
-   .replace(/[^a-zа-я0-9]/g, '');
+    .replace(/ё/g, "е")
+    .replace(/э/g, "е")
+    .replace(/[^a-zа-я0-9]/g, "");
 
-const normalizeForSearch = (s: string) => 
-  s.toLowerCase()
-   .replace(/ё/g, 'е');
-
-// Конкретные сеттинги (собираем из всех категорий)
-const SUB_SETTINGS_LIST = Object.values(SETTING_RELATIONS).flat();
-
-// Тональность (тагглы)
-const TONE_TAGS = {
-  "Светлая/Мрачная": ["Светлая атмосфера", "Мрачная атмосфера"],
-  "Серьезная/Комедийная": ["Серьезная атмосфера", "Комедийная атмосфера"],
-  "Реалистичная/Сказочная": ["Реалистичная атмосфера", "Сказочная атмосфера"],
-  "Жестокая/Щадящая": ["Жестокая атмосфера", "Щадящая атмосфера"],
-};
-
-// Фокус игры (Жанр)
-const FOCUS_GENRES = [
-  "Приключение", "Экшен", "Военный", "Выживание", "Детектив", 
-  "Хоррор", "Мистика", "Драма", "Комедия", "Криминал", 
-  "Политический", "Шпионский", "Гротеск", "Катастрофа", "Путешествие"
-];
-
-// Конкретные игровые вселенные
-const WORLDS = [
-  "Вестерос", "Средиземье", "DnD Миры", "Тамриэль", "Город парового солнца"
-];
-
-const FILTER_STEPS = [
-  {
-    id: "base_setting",
-    label: "Базовый сеттинг",
-    description: "Базовый сеттинг",
-    icon: <Globe size={24} />,
-    options: BASE_SETTINGS,
-  },
-  {
-    id: "subsetting",
-    label: "Конкретный сеттинг",
-    description: "Конкретный сеттинг",
-    icon: <Layers size={24} />,
-    options: SUB_SETTINGS_LIST,
-  },
-  {
-    id: "tone",
-    label: "Тональность",
-    description: "Атмосфера",
-    icon: <Palette size={24} />,
-    options: [] as string[], // Динамически - тагглы
-  },
-  {
-    id: "focus",
-    label: "Фокус игры",
-    description: "Жанр",
-    icon: <Shield size={24} />,
-    options: FOCUS_GENRES,
-  },
-  {
-    id: "world",
-    label: "Выбери вселенную",
-    description: "Игровая вселенная",
-    icon: <Target size={24} />,
-    options: WORLDS,
-  },
-];
+const normalizeForSearch = (s: string) =>
+  s.toLowerCase().replace(/ё/g, "е");
 
 interface AdventuresClientProps {
   initialAdventures: Adventure[];
+  adventureOptions?: AdventureOptions | null;
 }
 
-export default function AdventuresClient({ initialAdventures }: AdventuresClientProps) {
+export default function AdventuresClient({ initialAdventures, adventureOptions }: AdventuresClientProps) {
+  const opts = adventureOptions ?? DEFAULT_OPTIONS;
+  const BASE_SETTINGS = opts.base_setting;
+  const SETTING_RELATIONS = opts.setting_relations;
+  const SUB_SETTINGS_LIST = opts.subsetting.length > 0 ? opts.subsetting : Object.values(SETTING_RELATIONS).flat();
+  const FOCUS_GENRES = opts.genre;
+  const WORLDS = opts.universe;
+
+  const FILTER_STEPS = useMemo(
+    () => [
+      { id: "base_setting", label: "Базовый сеттинг", description: "Базовый сеттинг", icon: <Globe size={24} />, options: BASE_SETTINGS },
+      { id: "subsetting", label: "Конкретный сеттинг", description: "Конкретный сеттинг", icon: <Layers size={24} />, options: SUB_SETTINGS_LIST },
+      { id: "focus", label: "Фокус игры", description: "Жанр", icon: <Shield size={24} />, options: FOCUS_GENRES },
+      { id: "world", label: "Выбери вселенную", description: "Игровая вселенная", icon: <Target size={24} />, options: WORLDS },
+    ],
+    [BASE_SETTINGS, SUB_SETTINGS_LIST, FOCUS_GENRES, WORLDS]
+  );
+
   const [currentStep, setCurrentStep] = useState(0);
   const [filters, setFilters] = useState<Record<string, string[]>>({});
   const [searchQuery, setSearchQuery] = useState("");
@@ -136,7 +87,7 @@ export default function AdventuresClient({ initialAdventures }: AdventuresClient
   };
 
   // Функция для получения значения поля из приключения
-  const getAdventureFieldValue = (adv: Adventure, fieldId: string): string | string[] | null => {
+  const getAdventureFieldValue = useCallback((adv: Adventure, fieldId: string): string | string[] | null => {
     if (fieldId === "base_setting") {
       if (adv.base_setting) {
         if (Array.isArray(adv.base_setting)) return adv.base_setting;
@@ -152,29 +103,19 @@ export default function AdventuresClient({ initialAdventures }: AdventuresClient
       return adv.subsetting || null;
     }
     
-    if (fieldId === "tone") {
-      const tone = adv.tone;
-      if (!tone) return null;
-      if (typeof tone === 'string') {
-        return tone.split(/[,;|]/).map(t => t.trim()).filter(t => t);
-      }
-      if (Array.isArray(tone)) return tone;
-      return [tone];
-    }
-    
     if (fieldId === "focus") {
-      return adv.focus || null;
+      return adv.focus ?? adv.genre ?? null;
     }
     
     if (fieldId === "world") {
-      return adv.world || null;
+      return adv.world ?? adv.universe ?? null;
     }
     
     return adv[fieldId as keyof Adventure] as string | null;
-  };
+  }, []);
 
   // Функция для проверки соответствия приключения фильтру
-  const matchesFilter = (adv: Adventure, filterKey: string, selectedValues: string[]): boolean => {
+  const matchesFilter = useCallback((adv: Adventure, filterKey: string, selectedValues: string[]): boolean => {
     const value = getAdventureFieldValue(adv, filterKey);
     
     if (!value) return false;
@@ -184,24 +125,15 @@ export default function AdventuresClient({ initialAdventures }: AdventuresClient
       return selectedValues.some(selected => advBases.includes(selected));
     }
     
-    if (filterKey === "tone") {
-      const advTones = (Array.isArray(value) ? value : [value]).map(t => t.toLowerCase());
-      return selectedValues.some(selected => {
-        const normalizedSelected = selected.toLowerCase();
-        const base = normalizedSelected.replace(" атмосфера", "");
-        return advTones.includes(normalizedSelected) || advTones.includes(base);
-      });
-    }
-    
     if (Array.isArray(value)) {
       return selectedValues.some(selected => value.includes(selected));
     }
     
     return selectedValues.includes(value);
-  };
+  }, [getAdventureFieldValue]);
 
   // Функция для получения доступных опций из приключений с учетом текущих фильтров
-  const getAvailableOptionsFromAdventures = (fieldId: string, currentFilters: Record<string, string[]>): string[] => {
+  const getAvailableOptionsFromAdventures = useCallback((fieldId: string, currentFilters: Record<string, string[]>): string[] => {
     const filtered = adventures.filter((adv) => {
       return Object.entries(currentFilters).every(([key, selectedValues]) => {
         if (!selectedValues || selectedValues.length === 0 || key === fieldId) return true;
@@ -222,32 +154,14 @@ export default function AdventuresClient({ initialAdventures }: AdventuresClient
     });
     
     return Array.from(values);
-  };
+  }, [adventures, getAdventureFieldValue, matchesFilter]);
 
   // Получаем доступные опции для текущего шага с учетом выбранных фильтров
   const currentStepData = useMemo(() => {
     const step = FILTER_STEPS[currentStep];
-    
-    // Получаем доступные опции из всех приключений
     const availableFromAdventures = getAvailableOptionsFromAdventures(step.id, filters);
-
-    if (step.id === "tone") {
-      const allToneTags = Object.values(TONE_TAGS).flat();
-      const filteredTags = availableFromAdventures.length > 0 
-        ? allToneTags.filter(t => {
-            const normalizedT = t.toLowerCase();
-            const base = normalizedT.replace(" атмосфера", "");
-            return availableFromAdventures.some(advT => {
-              const normalizedAdvT = advT.toLowerCase();
-              return normalizedAdvT === normalizedT || normalizedAdvT === base;
-            });
-          })
-        : [];
-      return { ...step, options: filteredTags };
-    }
-    
     return { ...step, options: availableFromAdventures };
-  }, [currentStep, filters, adventures]);
+  }, [FILTER_STEPS, currentStep, filters, getAvailableOptionsFromAdventures]);
 
   const filteredAdventures = useMemo(() => {
     return adventures.filter((adv) => {
@@ -269,14 +183,14 @@ export default function AdventuresClient({ initialAdventures }: AdventuresClient
         adv.focus,
         adv.world,
         ...(Array.isArray(adv.base_setting) ? adv.base_setting : [adv.base_setting]),
-        ...(Array.isArray(adv.tone) ? adv.tone : [adv.tone])
+        ...(Array.isArray(adv.genre) ? adv.genre : adv.genre ? [adv.genre] : []),
       ].filter(Boolean) as string[];
 
       const searchableText = searchableFields.map(field => normalizeForSearch(field)).join(" ");
 
       return queryWords.every(word => searchableText.includes(word));
     });
-  }, [adventures, filters, searchQuery]);
+  }, [adventures, filters, searchQuery, matchesFilter]);
 
   const toggleOption = (option: string) => {
     const stepId = currentStepData.id;
@@ -368,8 +282,9 @@ export default function AdventuresClient({ initialAdventures }: AdventuresClient
       const currentValues = prev[stepId] || [];
       const nextValues = currentValues.filter((v) => v !== value);
       if (nextValues.length === 0) {
-        const { [stepId]: _, ...rest } = prev;
-        return rest;
+        return Object.fromEntries(
+          Object.entries(prev).filter(([key]) => key !== stepId)
+        );
       }
       return { ...prev, [stepId]: nextValues };
     });
@@ -392,7 +307,7 @@ export default function AdventuresClient({ initialAdventures }: AdventuresClient
           <ChevronLeft size={16} className="sm:w-[18px] sm:h-[18px]" /> Назад
         </Link>
         <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold uppercase tracking-[0.2em] sm:tracking-[0.3em] md:tracking-[0.36em] text-amber-100 text-center order-1 sm:order-2">
-          Архив Приключений
+          Время приключений
         </h1>
         <div className="w-[100px] hidden md:block order-3"></div>
       </div>
@@ -551,39 +466,7 @@ export default function AdventuresClient({ initialAdventures }: AdventuresClient
         <div className="flex flex-wrap justify-center gap-2 sm:gap-3 md:gap-4 mb-8 sm:mb-10 md:mb-12 text-center">
           <AnimatePresence mode="wait">
             <motion.div key={currentStep} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="flex flex-wrap justify-center gap-2 sm:gap-3">
-              {currentStepData.id === "tone" ? (
-                Object.entries(TONE_TAGS).map(([tagGroup, tagOptions]) => {
-                  const availableOptions = tagOptions.filter(opt => currentStepData.options.includes(opt));
-                  if (availableOptions.length === 0) return null;
-                  
-                  return (
-                    <div key={tagGroup} className="flex gap-2 mb-2 sm:mb-0">
-                      {availableOptions.map((option) => {
-                        const isSelected = filters[currentStepData.id]?.includes(option);
-                        
-                        let buttonClass = "px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 md:py-3 border-2 uppercase font-black transition-all duration-300 text-xs sm:text-sm tracking-widest rounded-sm ";
-                        
-                        if (isSelected) {
-                          buttonClass += "bg-amber-700 border-amber-400 text-black shadow-[0_0_20px_rgba(245,158,11,0.3)]";
-                        } else {
-                          buttonClass += "border-amber-900/40 bg-transparent text-amber-900 hover:border-amber-700 hover:text-amber-600";
-                        }
-
-                        return (
-                          <button
-                            key={option}
-                            onClick={() => toggleOption(option)}
-                            className={buttonClass}
-                          >
-                            {option}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  );
-                })
-              ) : (
-                currentStepData.options.map((option) => {
+              {currentStepData.options.map((option) => {
                   const isSelected = filters[currentStepData.id]?.includes(option);
                   
                   let isMismatched = false;
@@ -619,8 +502,7 @@ export default function AdventuresClient({ initialAdventures }: AdventuresClient
                       {option}
                     </button>
                   );
-                })
-              )}
+                })}
             </motion.div>
           </AnimatePresence>
         </div>
@@ -671,7 +553,7 @@ export default function AdventuresClient({ initialAdventures }: AdventuresClient
           <div className="h-[1px] flex-1 bg-current" />
         </div>
 
-        <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
+        <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
           <AnimatePresence>
             {filteredAdventures.map((adv) => (
               <AdventureCard

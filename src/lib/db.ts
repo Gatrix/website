@@ -1,14 +1,19 @@
-// Types for the database tables
+// Типы данных (JSON-файлы на Object Storage)
 export interface Adventure {
   id: string;
   title: string;
   poster?: string;
   img_url?: string;
+  /** Предвычисленный URL изображения (подписанный или локальный) */
+  imageUrl?: string | null;
+  /** Описание для игроков на карточке приключения */
+  intro?: string;
+  /** Краткое описание сюжета от и до для ведущего */
   description?: string;
-  genre?: string | string[];
+  /** Жанры приключения (может быть несколько) */
+  genre?: string[];
   logline?: string;
   tone?: string | string[];
-  difficulty?: string;
   format?: string;
   durationHours?: string;
   durationMinutes?: number;
@@ -27,7 +32,17 @@ export interface Adventure {
   subsetting?: string;
   world?: string;
   focus?: string;
+  /** Сложность: 💀 (1), 💀💀 (2), 💀💀💀 (3) */
+  difficulty?: string;
+  /** Тип приключения: Ваншот (1 сессия), Приключение (до 10), Кампания (10+) */
+  adventure_type?: string;
+  /** Время одной игры (например "5-6 часов") */
+  session_duration?: string;
+  /** Количество игроков (например "4-6 игроков") */
+  player_count?: string;
+  /** @deprecated Используйте player_count */
   players?: string;
+  /** @deprecated Используйте session_duration */
   time?: string;
   created_at?: string;
 }

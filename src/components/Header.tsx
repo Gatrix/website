@@ -3,9 +3,10 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
-import { useSession } from "next-auth/react";
+// TODO: раскомментировать при включении авторизации
+// import { useSession } from "next-auth/react";
 
 const DiscordIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 127.14 96.36" className={className}>
@@ -19,78 +20,78 @@ const TelegramIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const VKIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className}>
+    <path d="M15.684 0H8.316C1.592 0 0 1.592 0 8.316v7.368C0 22.408 1.592 24 8.316 24h7.368C22.408 24 24 22.408 24 15.684V8.316C24 1.592 22.408 0 15.684 0zm3.692 17.123h-1.744c-.66 0-.862-.525-2.049-1.727-1.033-1-1.49-1.135-1.744-1.135-.356 0-.458.102-.458.593v1.269c0 .424-.135.678-1.253.678-1.846 0-3.896-1.118-5.335-3.202C4.624 10.857 4 8.559 4 8.305c0-.254.102-.491.593-.491h1.744c.44 0 .61.203.78.677.863 2.49 2.303 4.675 2.896 4.675.22 0 .322-.102.322-.66V9.383c-.068-1.186-.695-1.287-.695-1.71 0-.203.17-.407.44-.407h2.744c.373 0 .508.203.508.643v3.473c0 .372.17.508.271.508.22 0 .407-.136.813-.542 1.254-1.406 2.151-3.574 2.151-3.574.119-.254.322-.491.763-.491h1.744c.525 0 .644.27.525.643-.22 1.017-2.354 3.996-2.354 3.996-.186.305-.254.44 0 .78.186.254.796.779 1.203 1.253.745.847 1.32 1.558 1.473 2.049.17.491-.085.744-.576.744z" fill="currentColor"/>
+  </svg>
+);
+
 export default function Header() {
   const pathname = usePathname();
-  const router = useRouter();
-  const { data: session, status } = useSession();
+  // TODO: раскомментировать при включении авторизации
+  // const router = useRouter();
+  // const { data: session, status } = useSession();
   const isAdventuresPage = pathname === "/adventures";
   const isSchedulePage = pathname === "/schedule";
   const isAboutPage = pathname === "/about";
-  const isLoginPage = pathname === "/login";
-  const isProfilePage = pathname === "/profile";
+  // const isLoginPage = pathname === "/login";
+  // const isProfilePage = pathname === "/profile";
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
-  const isAuthenticated = !!session;
-  const loading = status === "loading";
+  // const isAuthenticated = !!session;
+  // const loading = status === "loading";
 
-  const towerLogo = "/logos/tower.webp";
-  const textLogo = "/logos/text.webp";
+  const agamaLogo = "/logos/agama-logo.webp";
+  const polygonLogo = "/logos/polygon-logo.webp";
 
   return (
     <>
       <nav className="fixed top-0 w-full z-50 bg-[#0f0d0c]/90 backdrop-blur-sm border-b border-amber-900/20 px-4 sm:px-6 py-2 sm:py-3 flex justify-between items-center shadow-2xl">
-        {/* Левая часть - Башня */}
+        {/* Левая часть — логотипы */}
         <div className="flex-1 flex justify-start items-center gap-3">
           <Link href="/" className="flex items-center gap-3" onClick={() => setMobileMenuOpen(false)}>
             <div className="relative p-1.5 sm:p-2 group transition-all duration-300">
               <div className="absolute inset-0 bg-amber-500/5 blur-xl rounded-full group-hover:bg-amber-500/10 transition-colors" />
-              {towerLogo ? (
-                <Image
-                  src={towerLogo}
-                  alt="Polygon Tower"
-                  width={60}
-                  height={60}
-                  className="h-10 sm:h-12 w-auto object-contain relative z-10 brightness-110 contrast-110 drop-shadow-[0_0_10px_rgba(251,191,36,0.3)]"
-                />
-              ) : (
-                <Image
-                  src="/logos/logo.png"
-                  alt="Polygon Logo"
-                  width={160}
-                  height={64}
-                  className="h-12 sm:h-16 w-auto object-contain relative z-10 grayscale invert brightness-200"
-                />
-              )}
+              <Image
+                src={agamaLogo}
+                alt="Agama Logo"
+                width={75}
+                height={75}
+                className="h-[50px] sm:h-[60px] w-auto object-contain relative z-10 brightness-110 contrast-110 drop-shadow-[0_0_10px_rgba(251,191,36,0.3)]"
+              />
             </div>
-            {/* Текстовый логотип */}
-            {textLogo && (
-              <div className="hidden sm:flex items-center pointer-events-none">
-                <Image 
-                  src={textLogo} 
-                  alt="Polygon Text" 
-                  width={350} 
-                  height={80} 
-                  className="h-10 md:h-12 lg:h-14 w-auto object-contain brightness-110 contrast-110 drop-shadow-[0_0_15px_rgba(251,191,36,0.4)]" 
-                />
-              </div>
-            )}
+            <div className="hidden sm:flex items-center">
+              <Image
+                src={polygonLogo}
+                alt="Polygon Logo"
+                width={280}
+                height={72}
+                className="h-10 md:h-12 w-auto object-contain brightness-110 contrast-110 drop-shadow-[0_0_12px_rgba(251,191,36,0.25)]"
+              />
+            </div>
           </Link>
 
-          {/* Social Icons (Desktop) - Vertical */}
-          <div className="hidden sm:flex flex-col gap-1.5 border-l border-amber-900/30 pl-3">
-            <a href="https://discord.gg/polygon" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#5865F2] transition-all hover:scale-110" title="Discord">
-              <DiscordIcon className="w-4 h-4" />
-            </a>
-            <a href="https://t.me/polygon_rpg" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#24A1DE] transition-all hover:scale-110" title="Telegram">
-              <TelegramIcon className="w-4 h-4" />
-            </a>
-          </div>
         </div>
 
-        {/* Правая часть - Навигация */}
+        {/* Центр/правая часть - Навигация */}
         <div className="flex-1 flex justify-end items-center">
           {/* Desktop Navigation */}
           <div className="hidden md:flex gap-6 lg:gap-10 text-[10px] lg:text-xs font-bold tracking-[0.2em] uppercase items-center text-amber-100/70">
+            <a href="https://discord.gg/polygon" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#5865F2] transition-all hover:scale-110" title="Discord">
+              <DiscordIcon className="w-5 h-5" />
+            </a>
+            <a href="https://t.me/polygon_rpg" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#24A1DE] transition-all hover:scale-110" title="Telegram">
+              <TelegramIcon className="w-5 h-5" />
+            </a>
+            <a href="https://vk.com/polygon_rpg" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#0077FF] transition-all hover:scale-110" title="ВКонтакте">
+              <VKIcon className="w-5 h-5" />
+            </a>
+            <Link
+              href="/#contacts"
+              className="hover:text-amber-500 transition-colors underline-offset-8 hover:underline"
+            >
+              Контакты
+            </Link>
             <Link
               href="/"
               className={`hover:text-amber-500 transition-colors underline-offset-8 ${
@@ -123,7 +124,8 @@ export default function Header() {
             >
               Гильдия
             </Link>
-            {!loading && (
+            {/* TODO: раскомментировать при включении авторизации и личных кабинетов */}
+            {/* {!loading && (
               isAuthenticated ? (
                 <Link
                   href="/profile"
@@ -147,7 +149,7 @@ export default function Header() {
                   ВХОД
                 </button>
               )
-            )}
+            )} */}
           </div>
 
           {/* Mobile Menu Button */}
@@ -171,6 +173,24 @@ export default function Header() {
         }`}
       >
         <div className="flex flex-col h-full pt-20 px-6">
+          <div className="flex gap-4 pb-4 border-b border-amber-900/30">
+            <a href="https://discord.gg/polygon" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#5865F2] transition-all" title="Discord">
+              <DiscordIcon className="w-6 h-6" />
+            </a>
+            <a href="https://t.me/polygon_rpg" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#24A1DE] transition-all" title="Telegram">
+              <TelegramIcon className="w-6 h-6" />
+            </a>
+            <a href="https://vk.com/polygon_rpg" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#0077FF] transition-all" title="ВКонтакте">
+              <VKIcon className="w-6 h-6" />
+            </a>
+          </div>
+          <Link
+            href="/#contacts"
+            onClick={() => setMobileMenuOpen(false)}
+            className="py-4 text-lg font-bold tracking-widest uppercase transition-colors border-b border-amber-900/30 text-amber-100/70 hover:text-amber-500"
+          >
+            Контакты
+          </Link>
           <Link
             href="/"
             onClick={() => setMobileMenuOpen(false)}
@@ -207,7 +227,8 @@ export default function Header() {
           >
             Гильдия
           </Link>
-          {!loading && (
+          {/* TODO: раскомментировать при включении авторизации и личных кабинетов */}
+          {/* {!loading && (
             isAuthenticated ? (
               <Link
                 href="/profile"
@@ -235,7 +256,7 @@ export default function Header() {
                 ВХОД
               </button>
             )
-          )}
+          )} */}
         </div>
       </div>
     </>

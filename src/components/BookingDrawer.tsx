@@ -36,7 +36,7 @@ export default function BookingDrawer({
   slot,
   adventures,
   initialAdventureId,
-  initialTier = "standard",
+  initialTier = "tavern",
   onClose,
 }: BookingDrawerProps) {
   const [adventureId, setAdventureId] = useState<string | "auto" | "">("");
@@ -109,8 +109,9 @@ export default function BookingDrawer({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isOpen, onClose]);
 
-  const perPlayer = getPricePerPlayer(tier);
-  const total = calculateTotalPrice(tier, players);
+  const durationMinutes = slot?.durationMinutes ?? 360; // 6 ч по умолчанию
+  const perPlayer = getPricePerPlayer(tier, durationMinutes);
+  const total = calculateTotalPrice(tier, players, durationMinutes);
   const isStorySuggestion = adventureId === "auto";
   const isCommentRequired = isStorySuggestion;
   const minPlayers = slot?.minPlayers ?? 1;
@@ -232,41 +233,45 @@ export default function BookingDrawer({
               {adventures.map((adv) => (
                 <option key={adv.id} value={adv.id}>
                   {adv.title}
-                  {adv.genre ? ` · ${adv.genre}` : ""}
+                  {adv.genre ? ` · ${Array.isArray(adv.genre) ? adv.genre.join(", ") : adv.genre}` : ""}
                 </option>
               ))}
             </select>
             {selectedAdventure && (
               <div className="text-xs text-amber-400/70">
-                {selectedAdventure.genre ?? selectedAdventure.focus}
+                {Array.isArray(selectedAdventure.genre)
+                  ? selectedAdventure.genre.join(", ")
+                  : selectedAdventure.genre ?? selectedAdventure.focus}
               </div>
             )}
           </div>
 
           <div className="space-y-3">
             <label className="text-[11px] uppercase tracking-[0.2em] text-amber-500/80 font-semibold">
-              Тариф
+              Формат игры
             </label>
-            <div className="grid grid-cols-2 gap-2">
-              {(["standard", "premium"] as Tier[]).map((value) => (
+            <div className="grid grid-cols-3 gap-2">
+              {(["city_square", "tavern", "royal"] as Tier[]).map((value) => (
                 <button
                   key={value}
                   type="button"
                   onClick={() => setTier(value)}
-                  className={`px-3 py-2 rounded-md border text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#14110f] ${
+                  className={`px-2 py-2 rounded-md border text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#14110f] ${
                     tier === value
                       ? "bg-amber-700 text-black border-amber-600 shadow-[0_0_12px_rgba(245,158,11,0.35)]"
                       : "bg-[#0f0d0c] border-amber-900/40 text-amber-200/70 hover:border-amber-700/70"
                   }`}
                 >
-                  {value === "standard" ? "Стандарт" : "Премиум"}
+                  {value === "city_square" ? "Площадь" : value === "tavern" ? "Таверна" : "Королевский"}
                 </button>
               ))}
             </div>
             <div className="text-xs text-amber-400/70">
-              {tier === "standard"
-                ? "Базовый пакет + помощь с персонажем."
-                : "Максимум атмосферы и постановки."}
+              {tier === "city_square"
+                ? "Свободный стол, игры клуба. 300 ₽/час."
+                : tier === "tavern"
+                ? "Свой сюжет и дата. 500 ₽/час."
+                : "Премиум: запахи, питание. 700 ₽/час."}
             </div>
           </div>
 
