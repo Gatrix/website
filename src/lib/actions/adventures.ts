@@ -1,30 +1,34 @@
 "use server";
 
-import { readJson, getStorageImageUrl } from "@/lib/storage-client";
-import type { Adventure } from "@/lib/db";
-
-export interface AdventureOptions {
-  base_setting: string[];
-  setting_relations: Record<string, string[]>;
-  subsetting: string[];
-  genre: string[];
-  universe: string[];
-  session_duration?: string[];
-  player_count?: string[];
-}
+import { getStorageImageUrl } from "@/lib/storage-client";
+import type { Adventure, AdventureOptions } from "@/lib/db";
+import {
+  fetchAdventuresFromDatabase,
+  fetchAdventureOptionsFromDatabase,
+  fetchAdventureOptionsFromObjectStorage,
+} from "@/lib/adventures-db";
 
 let adventuresCache: Adventure[] | null = null;
-let optionsCache: AdventureOptions | null = null;
+/** undefined — ещё не грузили; null — в БД нет/пусто */
+let optionsCache: AdventureOptions | null | undefined = undefined;
+
+function resolveImagePathForStorage(a: Pick<Adventure, "poster" | "img_url">): string | null {
+  const raw = a.img_url?.trim() || a.poster?.trim();
+  if (!raw) return null;
+  if (raw.startsWith("http") || raw.startsWith("/")) return raw;
+  if (!raw.includes("/")) return `posters/${raw}`;
+  return raw;
+}
 
 async function loadAdventures(): Promise<Adventure[]> {
   if (adventuresCache) return adventuresCache;
   try {
-    const data = await readJson<Adventure[]>("adventures.json");
-    adventuresCache = Array.isArray(data) ? data : [];
+    adventuresCache = await fetchAdventuresFromDatabase();
     return adventuresCache;
   } catch (err) {
-    console.error("Error loading adventures.json:", err);
-    return [];
+    console.error("Error loading adventures from PostgreSQL:", err);
+    adventuresCache = [];
+    return adventuresCache;
   }
 }
 
@@ -47,7 +51,7 @@ export async function getAdventures(): Promise<Adventure[]> {
     genre: normalizeGenre(a.genre),
     player_count: a.player_count?.trim() || a.players?.trim() || "4-6 игроков",
     session_duration: a.session_duration?.trim() || a.time?.trim() || a.durationHours?.trim() || "5-6 часов",
-    imageUrl: getStorageImageUrl(a.img_url || a.poster) ?? null,
+    imageUrl: getStorageImageUrl(resolveImagePathForStorage(a)) ?? null,
   }));
 }
 
@@ -60,18 +64,15 @@ export async function getAdventureById(id: string): Promise<Adventure | null> {
     genre: normalizeGenre(a.genre),
     player_count: a.player_count?.trim() || a.players?.trim() || "4-6 игроков",
     session_duration: a.session_duration?.trim() || a.time?.trim() || a.durationHours?.trim() || "5-6 часов",
-    imageUrl: getStorageImageUrl(a.img_url || a.poster) ?? null,
+    imageUrl: getStorageImageUrl(resolveImagePathForStorage(a)) ?? null,
   };
 }
 
 export async function getAdventureOptions(): Promise<AdventureOptions | null> {
-  if (optionsCache) return optionsCache;
-  try {
-    const data = await readJson<AdventureOptions>("adventure-options.json");
-    optionsCache = data;
-    return data;
-  } catch (err) {
-    console.error("Error loading adventure-options.json:", err);
-    return null;
+  if (optionsCache !== undefined) return optionsCache;
+  optionsCache = await fetchAdventureOptionsFromDatabase();
+  if (optionsCache == null) {
+    optionsCache = await fetchAdventureOptionsFromObjectStorage();
   }
+  return optionsCache;
 }

@@ -4,7 +4,8 @@ import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { Menu, Phone, X } from "lucide-react";
+import { SITE_ADDRESS_SHORT, SITE_PHONE_DISPLAY, SITE_PHONE_TEL } from "@/lib/site-contact";
 // TODO: раскомментировать при включении авторизации
 // import { useSession } from "next-auth/react";
 
@@ -33,7 +34,6 @@ export default function Header() {
   // const { data: session, status } = useSession();
   const isAdventuresPage = pathname === "/adventures";
   const isSchedulePage = pathname === "/schedule";
-  const isAboutPage = pathname === "/about";
   // const isLoginPage = pathname === "/login";
   // const isProfilePage = pathname === "/profile";
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -46,83 +46,90 @@ export default function Header() {
 
   return (
     <>
-      <nav className="fixed top-0 w-full z-50 bg-[#0f0d0c]/90 backdrop-blur-sm border-b border-amber-900/20 px-4 sm:px-6 py-2 sm:py-3 flex justify-between items-center shadow-2xl">
-        {/* Левая часть — логотипы */}
-        <div className="flex-1 flex justify-start items-center gap-3">
-          <Link href="/" className="flex items-center gap-3" onClick={() => setMobileMenuOpen(false)}>
-            <div className="relative p-1.5 sm:p-2 group transition-all duration-300">
-              <div className="absolute inset-0 bg-amber-500/5 blur-xl rounded-full group-hover:bg-amber-500/10 transition-colors" />
-              <Image
-                src={agamaLogo}
-                alt="Agama Logo"
-                width={75}
-                height={75}
-                className="h-[50px] sm:h-[60px] w-auto object-contain relative z-10 brightness-110 contrast-110 drop-shadow-[0_0_10px_rgba(251,191,36,0.3)]"
-              />
+      <nav className="fixed top-0 w-full z-50 bg-[#0f0d0c]/90 backdrop-blur-sm border-b border-amber-900/20 px-4 sm:px-6 py-2 sm:py-3 relative flex items-center justify-between shadow-2xl min-h-[56px] sm:min-h-[68px]">
+        {/* Левая колонка: соцсети + часть ссылок (десктоп) */}
+        <div className="flex-1 flex justify-start items-center min-w-0 z-10">
+          <div className="hidden md:flex items-center gap-4 lg:gap-6 xl:gap-8 text-[10px] lg:text-xs font-bold tracking-[0.2em] uppercase text-amber-100/70">
+            <div className="flex flex-col gap-0.5 shrink-0 min-w-0">
+              <a
+                href={`tel:${SITE_PHONE_TEL}`}
+                className="flex items-center gap-1.5 text-amber-200/90 hover:text-[#fde047] transition-colors tracking-[0.06em] lg:tracking-[0.1em] max-lg:text-[9px] lg:text-[10px]"
+                title="Позвонить"
+              >
+                <Phone className="w-3.5 h-3.5 opacity-80 shrink-0" strokeWidth={2.25} aria-hidden />
+                <span className="whitespace-nowrap">{SITE_PHONE_DISPLAY}</span>
+              </a>
+              <span className="pl-[22px] text-[9px] lg:text-[10px] font-semibold normal-case tracking-normal text-amber-100/45 leading-tight">
+                {SITE_ADDRESS_SHORT}
+              </span>
             </div>
-            <div className="hidden sm:flex items-center">
-              <Image
-                src={polygonLogo}
-                alt="Polygon Logo"
-                width={280}
-                height={72}
-                className="h-10 md:h-12 w-auto object-contain brightness-110 contrast-110 drop-shadow-[0_0_12px_rgba(251,191,36,0.25)]"
-              />
+            <div className="flex items-center gap-4 lg:gap-6 shrink-0">
+              <a href="https://discord.gg/polygon" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#5865F2] transition-all hover:scale-110 shrink-0" title="Discord">
+                <DiscordIcon className="w-5 h-5" />
+              </a>
+              <a href="https://t.me/polygon_rpg" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#24A1DE] transition-all hover:scale-110 shrink-0" title="Telegram">
+                <TelegramIcon className="w-5 h-5" />
+              </a>
+              <a href="https://vk.com/polygon_rpg" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#0077FF] transition-all hover:scale-110 shrink-0" title="ВКонтакте">
+                <VKIcon className="w-5 h-5" />
+              </a>
             </div>
-          </Link>
-
-        </div>
-
-        {/* Центр/правая часть - Навигация */}
-        <div className="flex-1 flex justify-end items-center">
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex gap-6 lg:gap-10 text-[10px] lg:text-xs font-bold tracking-[0.2em] uppercase items-center text-amber-100/70">
-            <a href="https://discord.gg/polygon" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#5865F2] transition-all hover:scale-110" title="Discord">
-              <DiscordIcon className="w-5 h-5" />
-            </a>
-            <a href="https://t.me/polygon_rpg" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#24A1DE] transition-all hover:scale-110" title="Telegram">
-              <TelegramIcon className="w-5 h-5" />
-            </a>
-            <a href="https://vk.com/polygon_rpg" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#0077FF] transition-all hover:scale-110" title="ВКонтакте">
-              <VKIcon className="w-5 h-5" />
-            </a>
             <Link
               href="/#contacts"
-              className="hover:text-amber-500 transition-colors underline-offset-8 hover:underline"
+              className="hover:text-amber-500 transition-colors underline-offset-8 hover:underline shrink-0"
             >
               Контакты
             </Link>
-            <Link
-              href="/"
-              className={`hover:text-amber-500 transition-colors underline-offset-8 ${
-                pathname === "/" ? "text-amber-500 underline" : "hover:underline"
-              }`}
-            >
-              Главная
-            </Link>
+          </div>
+          {/* Мобильный баланс слева от центрального логотипа */}
+          <div className="w-10 shrink-0 md:hidden" aria-hidden />
+        </div>
+
+        {/* Логотип по центру экрана */}
+        <Link
+          href="/"
+          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 sm:gap-3 z-20 pointer-events-auto"
+          onClick={() => setMobileMenuOpen(false)}
+        >
+          <div className="relative p-1 sm:p-1.5 group transition-all duration-300">
+            <div className="absolute inset-0 bg-amber-500/5 blur-xl rounded-full group-hover:bg-amber-500/10 transition-colors" />
+            <Image
+              src={agamaLogo}
+              alt="Agama Logo"
+              width={75}
+              height={75}
+              className="h-[44px] sm:h-[52px] md:h-[56px] w-auto object-contain relative z-10 brightness-110 contrast-110 drop-shadow-[0_0_10px_rgba(251,191,36,0.3)]"
+            />
+          </div>
+          <div className="flex items-center">
+            <Image
+              src={polygonLogo}
+              alt="ПОЛИГОН"
+              width={280}
+              height={72}
+              className="h-8 sm:h-9 md:h-11 w-auto max-w-[140px] sm:max-w-[200px] md:max-w-none object-contain brightness-110 contrast-110 drop-shadow-[0_0_12px_rgba(251,191,36,0.25)]"
+            />
+          </div>
+        </Link>
+
+        {/* Правая колонка: ссылки + меню */}
+        <div className="flex-1 flex justify-end items-center min-w-0 z-10">
+          <div className="hidden md:flex gap-6 lg:gap-10 text-[10px] lg:text-xs font-bold tracking-[0.2em] uppercase items-center text-amber-100/70">
             <Link
               href="/adventures"
-              className={`hover:text-amber-500 transition-colors underline-offset-8 ${
+              className={`shrink-0 hover:text-amber-500 transition-colors underline-offset-8 ${
                 isAdventuresPage ? "text-amber-500 underline" : "hover:underline"
               }`}
             >
-              Сюжеты
+              Приключения
             </Link>
             <Link
               href="/schedule"
-              className={`hover:text-amber-500 transition-colors underline-offset-8 ${
+              className={`shrink-0 hover:text-amber-500 transition-colors underline-offset-8 ${
                 isSchedulePage ? "text-amber-500 underline" : "hover:underline"
               }`}
             >
               Расписание
-            </Link>
-            <Link
-              href="/about"
-              className={`hover:text-amber-500 transition-colors underline-offset-8 ${
-                isAboutPage ? "text-amber-500 underline" : "hover:underline"
-              }`}
-            >
-              Гильдия
             </Link>
             {/* TODO: раскомментировать при включении авторизации и личных кабинетов */}
             {/* {!loading && (
@@ -173,7 +180,19 @@ export default function Header() {
         }`}
       >
         <div className="flex flex-col h-full pt-20 px-6">
-          <div className="flex gap-4 pb-4 border-b border-amber-900/30">
+          <div className="py-3 border-b border-amber-900/30">
+            <a
+              href={`tel:${SITE_PHONE_TEL}`}
+              className="flex items-center gap-2 text-amber-200/90 hover:text-[#fde047] font-bold tracking-widest text-sm"
+            >
+              <Phone className="w-5 h-5 shrink-0" aria-hidden />
+              {SITE_PHONE_DISPLAY}
+            </a>
+            <p className="mt-1.5 pl-7 text-xs font-semibold normal-case tracking-normal text-amber-100/50">
+              {SITE_ADDRESS_SHORT}
+            </p>
+          </div>
+          <div className="flex gap-4 py-4 border-b border-amber-900/30">
             <a href="https://discord.gg/polygon" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#5865F2] transition-all" title="Discord">
               <DiscordIcon className="w-6 h-6" />
             </a>
@@ -192,22 +211,13 @@ export default function Header() {
             Контакты
           </Link>
           <Link
-            href="/"
-            onClick={() => setMobileMenuOpen(false)}
-            className={`py-4 text-lg font-bold tracking-widest uppercase transition-colors border-b border-amber-900/30 ${
-              pathname === "/" ? "text-amber-500" : "text-amber-100/70 hover:text-amber-500"
-            }`}
-          >
-            Главная
-          </Link>
-          <Link
             href="/adventures"
             onClick={() => setMobileMenuOpen(false)}
             className={`py-4 text-lg font-bold tracking-widest uppercase transition-colors border-b border-amber-900/30 ${
               isAdventuresPage ? "text-amber-500" : "text-amber-100/70 hover:text-amber-500"
             }`}
           >
-            Сюжеты
+            Приключения
           </Link>
           <Link
             href="/schedule"
@@ -217,15 +227,6 @@ export default function Header() {
             }`}
           >
             Расписание
-          </Link>
-          <Link
-            href="/about"
-            onClick={() => setMobileMenuOpen(false)}
-            className={`py-4 text-lg font-bold tracking-widest uppercase transition-colors border-b border-amber-900/30 ${
-              isAboutPage ? "text-amber-500" : "text-amber-100/70 hover:text-amber-500"
-            }`}
-          >
-            Гильдия
           </Link>
           {/* TODO: раскомментировать при включении авторизации и личных кабинетов */}
           {/* {!loading && (

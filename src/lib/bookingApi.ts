@@ -1,7 +1,7 @@
 export type BookingPayload = {
   slotId: string;
   adventureId?: string | null;
-  tier: "city_square" | "tavern" | "royal";
+  tier: "tavern" | "royal";
   players: number;
   name: string;
   contact: string;

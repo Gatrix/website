@@ -8,6 +8,32 @@ import { useSearchParams } from "next/navigation";
 // TODO: раскомментировать при включении бронирования
 // import BookingDrawer, { type BookingSlot } from "@/components/BookingDrawer";
 import type { Adventure } from "@/hooks/useAdventures";
+import { SITE_PHONE_DISPLAY, SITE_PHONE_TEL } from "@/lib/site-contact";
+
+const DiscordGlyph = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 127.14 96.36" className={className} aria-hidden>
+    <path
+      d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.06,72.06,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.71,32.65-1.82,56.6.48,80.21h0A105.73,105.73,0,0,0,32.47,96.36,77.7,77.7,0,0,0,39.2,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.73,11.1,105.33,105.33,0,0,0,32.05-16.15h0C130.41,50.8,121.77,27,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5.12-12.67,11.41-12.67S54,46,53.86,53,48.74,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5.12-12.67,11.44-12.67S96.23,46,96.11,53,91,65.69,84.69,65.69Z"
+      fill="currentColor"
+    />
+  </svg>
+);
+const TelegramGlyph = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} aria-hidden>
+    <path
+      d="M20.665 3.717l-17.73 6.837c-1.21.486-1.203 1.161-.222 1.462l4.552 1.42l10.532-6.645c.498-.303.953-.14.579.192l-8.533 7.701l-.321 4.816c.47 0 .677-.216.941-.469l2.259-2.193l4.702 3.473c.866.478 1.489.231 1.704-.799l3.084-14.538c.316-1.267-.478-1.841-1.309-1.46z"
+      fill="currentColor"
+    />
+  </svg>
+);
+const VKGlyph = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} aria-hidden>
+    <path
+      d="M15.684 0H8.316C1.592 0 0 1.592 0 8.316v7.368C0 22.408 1.592 24 8.316 24h7.368C22.408 24 24 22.408 24 15.684V8.316C24 1.592 22.408 0 15.684 0zm3.692 17.123h-1.744c-.66 0-.862-.525-2.049-1.727-1.033-1-1.49-1.135-1.744-1.135-.356 0-.458.102-.458.593v1.269c0 .424-.135.678-1.253.678-1.846 0-3.896-1.118-5.335-3.202C4.624 10.857 4 8.559 4 8.305c0-.254.102-.491.593-.491h1.744c.44 0 .61.203.78.677.863 2.49 2.303 4.675 2.896 4.675.22 0 .322-.102.322-.66V9.383c-.068-1.186-.695-1.287-.695-1.71 0-.203.17-.407.44-.407h2.744c.373 0 .508.203.508.643v3.473c0 .372.17.508.271.508.22 0 .407-.136.813-.542 1.254-1.406 2.151-3.574 2.151-3.574.119-.254.322-.491.763-.491h1.744c.525 0 .644.27.525.643-.22 1.017-2.354 3.996-2.354 3.996-.186.305-.254.44 0 .78.186.254.796.779 1.203 1.253.745.847 1.32 1.558 1.473 2.049.17.491-.085.744-.576.744z"
+      fill="currentColor"
+    />
+  </svg>
+);
 
 // Types for our schedule
 type SlotStatus = "available" | "partial" | "booked" | "on-request";
@@ -16,17 +42,21 @@ interface ScheduleClientProps {
   initialAdventures: Adventure[];
 }
 
-const SLOT_DEFINITIONS = {
-  daytime: { label: "ДЕНЬ", timeRange: "11:00–17:00", timeStart: "11:00", durationMinutes: 360 },
-  evening: { label: "ВЕЧЕР", timeRange: "18:00–00:00", timeStart: "18:00", durationMinutes: 360 },
-} as const;
+/** Три слота по 4 часа (вместо «день / вечер»). */
+const SCHEDULE_SLOTS = [
+  { id: "slot_11_15", label: "11:00–15:00" },
+  { id: "slot_15_19", label: "15:00–19:00" },
+  { id: "slot_19_23", label: "19:00–23:00" },
+] as const;
+
+type ScheduleSlotId = (typeof SCHEDULE_SLOTS)[number]["id"];
 const MONTH_NAMES = [
   "ЯНВАРЬ", "ФЕВРАЛЬ", "МАРТ", "АПРЕЛЬ", "МАЙ", "ИЮНЬ",
   "ИЮЛЬ", "АВГУСТ", "СЕНТЯБРЬ", "ОКТЯБРЬ", "НОЯБРЬ", "ДЕКАБРЬ"
 ];
 const DAYS_OF_WEEK = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"];
 
-export default function ScheduleClient({ initialAdventures }: ScheduleClientProps) {
+export default function ScheduleClient({ initialAdventures: _initialAdventures }: ScheduleClientProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const searchParams = useSearchParams();
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
@@ -60,13 +90,12 @@ export default function ScheduleClient({ initialAdventures }: ScheduleClientProp
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
 
-  // Mock data for special dates (open tables or booked slots)
-  const getSlotStatus = (day: number, time: "daytime" | "evening"): SlotStatus => {
-    if (day === 10 && time === "evening") return "on-request";
-    if (day === 15 && time === "daytime") return "booked";
-    if (day === 20 && time === "evening") return "partial";
-    return "available";
-  };
+  /** Сейчас все слоты отображаются как «по запросу» (яркий жёлтый). */
+  const getSlotStatus = (_day: number, _slotId: ScheduleSlotId): SlotStatus => "on-request";
+
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const isCalendarDayPast = (dayNum: number) =>
+    new Date(year, month, dayNum).getTime() < startOfToday.getTime();
 
   useEffect(() => {
     const wantsCalendar = window.location.hash === "#calendar" || searchParams.get("view") === "calendar";
@@ -86,89 +115,126 @@ export default function ScheduleClient({ initialAdventures }: ScheduleClientProp
     const moveBy = event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : event.key === "ArrowDown" ? 7 : event.key === "ArrowUp" ? -7 : 0;
     if (moveBy === 0) return;
     event.preventDefault();
-    const nextDay = day + moveBy;
-    if (nextDay < 1 || nextDay > daysInMonth) return;
+    const step = moveBy > 0 ? 1 : -1;
+    let nextDay = day + moveBy;
+    const guard = daysInMonth + 2;
+    let hops = 0;
+    while (nextDay >= 1 && nextDay <= daysInMonth && isCalendarDayPast(nextDay) && hops < guard) {
+      nextDay += step;
+      hops += 1;
+    }
+    if (nextDay < 1 || nextDay > daysInMonth || isCalendarDayPast(nextDay)) return;
     dayRefs.current[nextDay]?.focus();
     setSelectedDay(nextDay);
   };
 
   return (
-    <main className="relative min-h-screen text-[#d1c7bc] font-serif selection:bg-amber-900/50 pt-32 sm:pt-40 pb-12 px-4">
+    <main className="relative min-h-screen text-stone-200 font-serif selection:bg-yellow-500/25 pt-24 sm:pt-28 pb-12 px-4">
       <AtmosphericBackground />
       
       <div className="max-w-6xl mx-auto relative z-10">
-        <header className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold mb-8 text-amber-50 uppercase tracking-widest">
+        <header className="text-center mb-10 sm:mb-12">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-8 text-stone-50 uppercase tracking-[0.2em] sm:tracking-[0.28em] drop-shadow-[0_0_24px_rgba(255,255,255,0.08)]">
             СВОБОДНЫЕ ДАТЫ
           </h1>
-          {/* TODO: раскомментировать при включении бронирования
-          {selectedAdventureId && (
-            <div className="mb-6 text-amber-300/80 text-xs sm:text-sm uppercase tracking-[0.2em]">
-              Вы выбрали: {selectedAdventure?.title ?? `#${selectedAdventureId}`}
+
+          <div className="max-w-3xl mx-auto mb-8 rounded-lg border border-yellow-500/35 bg-[#0f0d0c]/90 px-5 py-6 sm:px-8 sm:py-8 shadow-[0_0_40px_rgba(0,0,0,0.45)]">
+            <p className="font-sans text-sm sm:text-base font-bold text-stone-100 leading-relaxed tracking-wide">
+              В данный момент запись на игры проходит через личные сообщения с ведущим!
+            </p>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-6 sm:gap-10 font-sans">
+              <a
+                href="https://vk.com/polygon_rpg"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-[#fde047] hover:text-yellow-200 transition-colors font-bold text-xs sm:text-sm uppercase tracking-widest drop-shadow-[0_0_12px_rgba(253,224,71,0.45)]"
+              >
+                <VKGlyph className="w-5 h-5 sm:w-6 sm:h-6 shrink-0" />
+                ВКонтакте
+              </a>
+              <a
+                href="https://t.me/polygon_rpg"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-[#fde047] hover:text-yellow-200 transition-colors font-bold text-xs sm:text-sm uppercase tracking-widest drop-shadow-[0_0_12px_rgba(253,224,71,0.45)]"
+              >
+                <TelegramGlyph className="w-5 h-5 sm:w-6 sm:h-6 shrink-0" />
+                Telegram
+              </a>
+              <a
+                href="https://discord.gg/polygon"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-[#fde047] hover:text-yellow-200 transition-colors font-bold text-xs sm:text-sm uppercase tracking-widest drop-shadow-[0_0_12px_rgba(253,224,71,0.45)]"
+              >
+                <DiscordGlyph className="w-5 h-5 sm:w-6 sm:h-6 shrink-0" />
+                Discord
+              </a>
             </div>
-          )}
-          <button className="btn btn-secondary text-sm uppercase mb-8">
-            ЗАПИСАТЬСЯ
-          </button>
-          */}
-          <div className="space-y-2 text-[#8c8279] text-xs uppercase tracking-[0.2em] font-sans font-bold">
-            <p>НАЧАЛО ДНЕВНЫХ ИГР 11:00, НАЧАЛО ВЕЧЕРНИХ ИГР 18:00</p>
+            <div className="mt-6 pt-6 border-t border-yellow-500/25 text-center w-full">
+              <p className="font-sans text-[10px] sm:text-xs font-bold uppercase tracking-[0.25em] text-stone-500 mb-2">
+                Телефон
+              </p>
+              <a
+                href={`tel:${SITE_PHONE_TEL}`}
+                className="inline-block font-serif text-base sm:text-lg font-bold text-[#fde047] hover:text-yellow-200 transition-colors drop-shadow-[0_0_14px_rgba(253,224,71,0.35)]"
+              >
+                {SITE_PHONE_DISPLAY}
+              </a>
+            </div>
           </div>
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-4 text-xs uppercase tracking-[0.2em] text-amber-300/80">
+
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-[10px] sm:text-xs uppercase tracking-[0.2em] font-sans font-bold text-stone-300">
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]"></span>
+              <span className="w-2.5 h-2.5 rounded-full bg-lime-400 shadow-[0_0_10px_rgba(163,230,53,0.65)]" />
               Свободно
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.5)]"></span>
-              Частично
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"></span>
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.55)]" />
               Занято
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]"></span>
+              <span className="w-2.5 h-2.5 rounded-full bg-[#facc15] shadow-[0_0_12px_rgba(250,204,21,0.75)]" />
               По запросу
             </div>
           </div>
           {selectedDay && (
-            <div className="mt-4 text-xs uppercase tracking-[0.2em] text-amber-400/80">
+            <div className="mt-4 text-xs uppercase tracking-[0.2em] text-yellow-300/90">
               Выбран день: {selectedDay} {MONTH_NAMES[month].toLowerCase()}
             </div>
           )}
           {showOnlyAvailable && (
-            <div className="mt-2 text-[10px] uppercase tracking-[0.2em] text-amber-400/70">
+            <div className="mt-2 text-[10px] uppercase tracking-[0.2em] text-yellow-400/80">
               Показаны доступные слоты
             </div>
           )}
         </header>
 
         {/* Month Navigation */}
-        <div className="flex items-center justify-center gap-8 mb-12 py-6 border-y border-amber-900/20">
+        <div className="flex items-center justify-center gap-6 sm:gap-10 mb-10 py-5 border-y border-yellow-900/25">
           <button 
             onClick={prevMonth}
             disabled={currentDate <= minDate}
-            className={`p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0a09] ${currentDate <= minDate ? 'opacity-0 pointer-events-none' : 'text-amber-600 hover:text-amber-400'}`}
+            className={`p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0a09] ${currentDate <= minDate ? 'opacity-0 pointer-events-none' : 'text-yellow-400 hover:text-yellow-200'}`}
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
           
-          <h2 className="text-xl md:text-2xl font-bold text-amber-100 tracking-[0.3em] min-w-[240px] text-center uppercase">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-stone-50 tracking-[0.25em] sm:tracking-[0.3em] min-w-[200px] sm:min-w-[240px] text-center uppercase drop-shadow-[0_0_18px_rgba(255,255,255,0.06)]">
             {MONTH_NAMES[month]} {year}
           </h2>
           
           <button 
             onClick={nextMonth}
             disabled={currentDate >= maxDate}
-            className={`p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0a09] ${currentDate >= maxDate ? 'opacity-0 pointer-events-none' : 'text-amber-600 hover:text-amber-400'}`}
+            className={`p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0a09] ${currentDate >= maxDate ? 'opacity-0 pointer-events-none' : 'text-yellow-400 hover:text-yellow-200'}`}
           >
             <ChevronRight className="w-6 h-6" />
           </button>
         </div>
 
         {/* Calendar Grid */}
-        <div id="calendar" role="grid" aria-label="Календарь свободных дат" className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-px bg-amber-900/10 border border-amber-900/10">
+        <div id="calendar" role="grid" aria-label="Календарь свободных дат" className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-px bg-yellow-900/15 border border-yellow-800/20">
           {Array.from({ length: firstDay }).map((_, i) => (
             <div key={`empty-${i}`} className="hidden lg:block aspect-square bg-[#0f0d0c]/30"></div>
           ))}
@@ -177,11 +243,17 @@ export default function ScheduleClient({ initialAdventures }: ScheduleClientProp
             const dayNum = i + 1;
             const dayOfWeekIndex = (firstDay + i) % 7;
             const isToday = today.getDate() === dayNum && today.getMonth() === month && today.getFullYear() === year;
-            const daytimeStatus = getSlotStatus(dayNum, "daytime");
-            const eveningStatus = getSlotStatus(dayNum, "evening");
-            const hideDaytime = showOnlyAvailable && (daytimeStatus === "booked" || daytimeStatus === "on-request");
-            const hideEvening = showOnlyAvailable && (eveningStatus === "booked" || eveningStatus === "on-request");
-            const hasVisibleSlots = !(hideDaytime && hideEvening);
+            const isPast = isCalendarDayPast(dayNum);
+            const slotStatuses = SCHEDULE_SLOTS.map((s) => {
+              const status = getSlotStatus(dayNum, s.id);
+              return {
+                id: s.id,
+                label: s.label,
+                status,
+                hide: showOnlyAvailable && status === "booked",
+              };
+            });
+            const hasVisibleSlots = slotStatuses.some((s) => !s.hide);
 
             return (
               <div
@@ -190,35 +262,59 @@ export default function ScheduleClient({ initialAdventures }: ScheduleClientProp
                   dayRefs.current[dayNum] = el;
                 }}
                 role="gridcell"
-                tabIndex={0}
+                tabIndex={isPast ? -1 : 0}
                 aria-selected={selectedDay === dayNum}
-                aria-label={`День ${dayNum} ${MONTH_NAMES[month].toLowerCase()}`}
-                onClick={() => setSelectedDay(dayNum)}
-                onKeyDown={(event) => handleDayKeyDown(event, dayNum)}
-                className={`relative bg-[#0f0d0c]/80 p-4 flex flex-col justify-between transition-all hover:bg-[#1a1614] min-h-[160px] group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0a09] ${isToday ? 'bg-amber-950/10' : ''} ${selectedDay === dayNum ? 'ring-2 ring-amber-500/50' : ''}`}
+                aria-disabled={isPast}
+                aria-label={
+                  isPast
+                    ? `День ${dayNum} ${MONTH_NAMES[month].toLowerCase()}, прошедшая дата`
+                    : `День ${dayNum} ${MONTH_NAMES[month].toLowerCase()}`
+                }
+                onClick={() => {
+                  if (!isPast) setSelectedDay(dayNum);
+                }}
+                onKeyDown={(event) => {
+                  if (isPast) return;
+                  handleDayKeyDown(event, dayNum);
+                }}
+                className={`relative bg-[#0f0d0c]/80 p-3 sm:p-4 flex flex-col justify-between min-h-[220px] sm:min-h-[260px] group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0a09] transition-all ${
+                  isPast
+                    ? "opacity-[0.38] grayscale-[0.35] pointer-events-none cursor-default border border-stone-800/30"
+                    : "hover:bg-[#1a1614]/95"
+                } ${isToday && !isPast ? "bg-yellow-950/15 ring-1 ring-yellow-500/25" : ""} ${
+                  selectedDay === dayNum && !isPast ? "ring-2 ring-yellow-400/45" : ""
+                }`}
               >
                 <div className="flex justify-between items-start font-sans">
-                  <span className={`text-3xl font-light ${isToday ? 'text-amber-500 font-bold' : 'text-amber-50/80'}`}>{dayNum}</span>
-                  <span className="text-[10px] uppercase text-amber-500/80 font-bold tracking-wider">
+                  <span
+                    className={`text-3xl font-light ${
+                      isPast
+                        ? "text-stone-500"
+                        : isToday
+                          ? "text-[#facc15] font-bold drop-shadow-[0_0_12px_rgba(250,204,21,0.4)]"
+                          : "text-stone-100"
+                    }`}
+                  >
+                    {dayNum}
+                  </span>
+                  <span
+                    className={`text-[10px] uppercase font-bold tracking-wider ${
+                      isPast ? "text-stone-600" : "text-stone-400"
+                    }`}
+                  >
                     {DAYS_OF_WEEK[dayOfWeekIndex]}
                   </span>
                 </div>
 
-                <div className="flex flex-col gap-3 mt-8">
-                  {!hideDaytime && (
-                    <SlotButton 
-                      label="ДЕНЬ" 
-                      status={daytimeStatus}
-                    />
-                  )}
-                  {!hideEvening && (
-                    <SlotButton 
-                      label="ВЕЧЕР" 
-                      status={eveningStatus}
-                    />
+                <div className="flex flex-col gap-2 sm:gap-2.5 mt-4 sm:mt-6">
+                  {slotStatuses.map(
+                    (s) =>
+                      !s.hide && (
+                        <SlotButton key={s.id} label={s.label} status={s.status} muted={isPast} />
+                      )
                   )}
                   {!hasVisibleSlots && (
-                    <div className="text-[10px] uppercase tracking-[0.2em] text-amber-500/50">
+                    <div className="text-[10px] uppercase tracking-[0.2em] text-stone-500">
                       Нет доступных слотов
                     </div>
                   )}
@@ -246,16 +342,23 @@ export default function ScheduleClient({ initialAdventures }: ScheduleClientProp
 function SlotButton({
   label,
   status,
+  muted = false,
 }: {
   label: string;
   status: SlotStatus;
+  muted?: boolean;
 }) {
-  const baseStyles = "text-[11px] font-black tracking-[0.2em] py-1 px-2 transition-all text-left flex items-center gap-2.5 font-sans rounded-sm relative";
+  const baseStyles =
+    "text-[9px] sm:text-[10px] font-black tracking-[0.12em] sm:tracking-[0.18em] py-1 px-1.5 sm:px-2 transition-all text-left flex items-center gap-2 font-sans rounded-sm relative leading-tight";
+
+  const mute = muted ? " opacity-60 saturate-[0.65]" : "";
 
   if (status === "booked") {
     return (
-      <div className={`${baseStyles} bg-red-950/40 text-red-400 border border-red-900/30 cursor-not-allowed`}>
-        <div className="w-2 h-2 rounded-full bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.5)]"></div>
+      <div
+        className={`${baseStyles} bg-red-950/40 text-red-400 border border-red-900/30 cursor-not-allowed${mute}`}
+      >
+        <div className="w-2 h-2 rounded-full bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.5)]" />
         <span className="line-through decoration-red-900/50">{label} (ЗАНЯТО)</span>
       </div>
     );
@@ -263,25 +366,33 @@ function SlotButton({
 
   if (status === "on-request") {
     return (
-      <div className={`${baseStyles} text-amber-400 drop-shadow-sm`}>
-        <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(245,158,11,0.8)]"></div>
-        {label} (ПО ЗАПРОСУ)
+      <div
+        className={`${baseStyles} text-[#fde047] border border-yellow-500/25 bg-yellow-950/15 drop-shadow-[0_0_10px_rgba(250,204,21,0.35)]${mute}`}
+      >
+        <div className="w-2 h-2 shrink-0 bg-[#facc15] rounded-full shadow-[0_0_12px_rgba(250,204,21,0.85)]" />
+        <span>
+          • {label} <span className="text-[#fef08a]/95">(ПО ЗАПРОСУ)</span>
+        </span>
       </div>
     );
   }
 
   if (status === "partial") {
     return (
-      <div className={`${baseStyles} bg-amber-950/20 text-amber-300 border border-amber-800/40 drop-shadow-sm`}>
-        <div className="w-2 h-2 bg-yellow-500 rounded-full shadow-[0_0_8px_rgba(234,179,8,0.5)]"></div>
+      <div
+        className={`${baseStyles} bg-yellow-950/20 text-yellow-200 border border-yellow-600/35 drop-shadow-[0_0_8px_rgba(234,179,8,0.35)]${mute}`}
+      >
+        <div className="w-2 h-2 bg-[#facc15] rounded-full shadow-[0_0_8px_rgba(250,204,21,0.6)]" />
         {label} (ЧАСТИЧНО)
       </div>
     );
   }
 
   return (
-    <div className={`${baseStyles} bg-green-950/20 text-green-400 border border-green-900/20 drop-shadow-sm`}>
-      <div className="w-2 h-2 bg-green-500 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.4)]"></div>
+    <div
+      className={`${baseStyles} bg-lime-950/25 text-lime-300 border border-lime-700/25 drop-shadow-[0_0_8px_rgba(163,230,53,0.25)]${mute}`}
+    >
+      <div className="w-2 h-2 bg-lime-400 rounded-full shadow-[0_0_8px_rgba(163,230,53,0.45)]" />
       {label}
     </div>
   );

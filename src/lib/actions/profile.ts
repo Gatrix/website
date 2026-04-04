@@ -1,11 +1,17 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { hash } from "bcryptjs";
 import { auth } from "@/auth";
 import type { Profile } from "@/lib/db";
 import type { UserRecord } from "@/lib/data/users";
 import { invalidateUsersCache } from "@/lib/data/users";
-import { readJson, writeJson } from "@/lib/storage-client";
+import {
+  dbGetUserById,
+  dbInsertUser,
+  dbUpdateUserPassword,
+  dbUpdateUserProfile,
+} from "@/lib/users-db";
 
 function userToProfile(u: UserRecord): Profile {
   return {
@@ -24,8 +30,7 @@ export async function getProfile(): Promise<Profile | null> {
   if (!userId) return null;
 
   try {
-    const users = (await readJson<UserRecord[]>("users.json")) ?? [];
-    const user = users.find((u) => u.id === userId);
+    const user = await dbGetUserById(userId);
     return user ? userToProfile(user) : null;
   } catch (err) {
     console.error("Error fetching profile:", err);
@@ -40,21 +45,20 @@ export async function createProfile(profileData: Partial<Profile>): Promise<Prof
   if (!userId) return null;
 
   try {
-    const users = (await readJson<UserRecord[]>("users.json")) ?? [];
-    const user = users.find((u) => u.id === userId);
-    if (user) return userToProfile(user);
+    const existing = await dbGetUserById(userId);
+    if (existing) return userToProfile(existing);
 
+    const ghostHash = await hash(randomUUID(), 10);
     const newUser: UserRecord = {
       id: userId,
       email: userEmail || "",
-      passwordHash: "",
+      passwordHash: ghostHash,
       player_name: profileData.player_name || userEmail?.split("@")[0] || "Игрок",
       avatar_url: profileData.avatar_url || null,
       games_count: 0,
       level: 1,
     };
-    users.push(newUser);
-    await writeJson("users.json", users);
+    await dbInsertUser(newUser);
     invalidateUsersCache();
     return userToProfile(newUser);
   } catch (err) {
@@ -69,16 +73,12 @@ export async function updateProfile(profileData: Partial<Profile>): Promise<Prof
   if (!userId) return null;
 
   try {
-    const users = (await readJson<UserRecord[]>("users.json")) ?? [];
-    const idx = users.findIndex((u) => u.id === userId);
-    if (idx < 0) return null;
-
-    if (profileData.player_name !== undefined) users[idx].player_name = profileData.player_name;
-    if (profileData.avatar_url !== undefined) users[idx].avatar_url = profileData.avatar_url;
-
-    await writeJson("users.json", users);
+    const updated = await dbUpdateUserProfile(userId, {
+      player_name: profileData.player_name,
+      avatar_url: profileData.avatar_url,
+    });
     invalidateUsersCache();
-    return userToProfile(users[idx]);
+    return updated ? userToProfile(updated) : null;
   } catch (err) {
     console.error("Error updating profile:", err);
     return null;
@@ -95,12 +95,9 @@ export async function changePassword(newPassword: string): Promise<{ success: bo
   }
 
   try {
-    const users = (await readJson<UserRecord[]>("users.json")) ?? [];
-    const idx = users.findIndex((u) => u.id === userId);
-    if (idx < 0) return { success: false, error: "Пользователь не найден" };
-
-    users[idx].passwordHash = await hash(newPassword, 10);
-    await writeJson("users.json", users);
+    const passwordHash = await hash(newPassword, 10);
+    const ok = await dbUpdateUserPassword(userId, passwordHash);
+    if (!ok) return { success: false, error: "Пользователь не найден" };
     invalidateUsersCache();
     return { success: true };
   } catch (err) {

@@ -1,15 +1,14 @@
 /** Сегменты формата игры */
-export type Tier = "city_square" | "tavern" | "royal";
+export type Tier = "tavern" | "royal";
 
 /** Цена за 1 час с человека (₽) */
 export const PRICE_PER_HOUR: Record<Tier, number> = {
-  city_square: 300,
-  tavern: 500,
-  royal: 700,
+  tavern: 300,
+  royal: 500,
 };
 
-/** Стандартная длительность игры в часах (для отображения на карточках) */
-export const STANDARD_HOURS = 6;
+/** Стандартная длительность игры в часах (для расчёта суммы по умолчанию) */
+export const STANDARD_HOURS = 4;
 
 export function getPricePerPlayer(tier: Tier, durationMinutes?: number): number {
   const hours = durationMinutes ? durationMinutes / 60 : STANDARD_HOURS;

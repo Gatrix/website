@@ -1,4 +1,3 @@
-// Типы данных (JSON-файлы на Object Storage)
 export interface Adventure {
   id: string;
   title: string;
@@ -45,6 +44,19 @@ export interface Adventure {
   /** @deprecated Используйте session_duration */
   time?: string;
   created_at?: string;
+}
+
+/** Справочник фильтров на странице приключений (PostgreSQL / Object Storage JSON). */
+export interface AdventureOptions {
+  base_setting: string[];
+  setting_relations: Record<string, string[]>;
+  subsetting: string[];
+  genre: string[];
+  universe: string[];
+  session_duration?: string[];
+  player_count?: string[];
+  /** Опционально из JSON: типы сюжета (oneshot → «Ваншот» и т.д.) */
+  adventure_type?: { id: string; label: string; sessions?: string }[];
 }
 
 export interface Profile {

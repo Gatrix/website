@@ -3,8 +3,8 @@
 import { hash } from "bcryptjs";
 import { signIn } from "@/auth";
 import { invalidateUsersCache } from "@/lib/data/users";
-import { readJson, writeJson } from "@/lib/storage-client";
 import type { UserRecord } from "@/lib/data/users";
+import { dbFindUserByEmail, dbInsertUser } from "@/lib/users-db";
 
 export async function register(formData: FormData) {
   const email = (formData.get("email") as string)?.trim();
@@ -15,9 +15,7 @@ export async function register(formData: FormData) {
   }
 
   try {
-    const users = (await readJson<UserRecord[]>("users.json")) ?? [];
-
-    const exists = users.some((u) => u.email.toLowerCase() === email.toLowerCase());
+    const exists = await dbFindUserByEmail(email);
     if (exists) {
       return { error: "Пользователь с таким email уже существует" };
     }
@@ -33,8 +31,7 @@ export async function register(formData: FormData) {
       level: 1,
     };
 
-    users.push(newUser);
-    await writeJson("users.json", users);
+    await dbInsertUser(newUser);
     invalidateUsersCache();
 
     await signIn("credentials", {
@@ -44,7 +41,11 @@ export async function register(formData: FormData) {
     });
 
     return { success: true };
-  } catch (err) {
+  } catch (err: unknown) {
+    const pg = err as { code?: string };
+    if (pg.code === "23505") {
+      return { error: "Пользователь с таким email уже существует" };
+    }
     console.error("Registration error:", err);
     return { error: err instanceof Error ? err.message : "Ошибка регистрации" };
   }

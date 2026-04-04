@@ -109,7 +109,7 @@ export default function BookingDrawer({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isOpen, onClose]);
 
-  const durationMinutes = slot?.durationMinutes ?? 360; // 6 ч по умолчанию
+  const durationMinutes = slot?.durationMinutes ?? 240; // 4 ч по умолчанию
   const perPlayer = getPricePerPlayer(tier, durationMinutes);
   const total = calculateTotalPrice(tier, players, durationMinutes);
   const isStorySuggestion = adventureId === "auto";
@@ -250,8 +250,8 @@ export default function BookingDrawer({
             <label className="text-[11px] uppercase tracking-[0.2em] text-amber-500/80 font-semibold">
               Формат игры
             </label>
-            <div className="grid grid-cols-3 gap-2">
-              {(["city_square", "tavern", "royal"] as Tier[]).map((value) => (
+            <div className="grid grid-cols-2 gap-2">
+              {(["tavern", "royal"] as Tier[]).map((value) => (
                 <button
                   key={value}
                   type="button"
@@ -262,16 +262,14 @@ export default function BookingDrawer({
                       : "bg-[#0f0d0c] border-amber-900/40 text-amber-200/70 hover:border-amber-700/70"
                   }`}
                 >
-                  {value === "city_square" ? "Площадь" : value === "tavern" ? "Таверна" : "Королевский"}
+                  {value === "tavern" ? "Таверна" : "Королевский"}
                 </button>
               ))}
             </div>
             <div className="text-xs text-amber-400/70">
-              {tier === "city_square"
-                ? "Свободный стол, игры клуба. 300 ₽/час."
-                : tier === "tavern"
-                ? "Свой сюжет и дата. 500 ₽/час."
-                : "Премиум: запахи, питание. 700 ₽/час."}
+              {tier === "tavern"
+                ? "Свой сюжет и дата. 300 ₽/час."
+                : "Премиум: запахи, питание. 500 ₽/час."}
             </div>
           </div>
 
