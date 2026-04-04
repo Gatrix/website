@@ -12,6 +12,9 @@ let adventuresCache: Adventure[] | null = null;
 /** undefined — ещё не грузили; null — в БД нет/пусто */
 let optionsCache: AdventureOptions | null | undefined = undefined;
 
+/** Единая подпись длительности сессии на сайте (не берётся из БД). */
+const DISPLAY_SESSION_DURATION = "4/6/8 часов";
+
 function resolveImagePathForStorage(a: Pick<Adventure, "poster" | "img_url">): string | null {
   const raw = a.img_url?.trim() || a.poster?.trim();
   if (!raw) return null;
@@ -50,7 +53,7 @@ export async function getAdventures(): Promise<Adventure[]> {
     ...a,
     genre: normalizeGenre(a.genre),
     player_count: a.player_count?.trim() || a.players?.trim() || "4-6 игроков",
-    session_duration: a.session_duration?.trim() || a.time?.trim() || a.durationHours?.trim() || "5-6 часов",
+    session_duration: DISPLAY_SESSION_DURATION,
     imageUrl: getStorageImageUrl(resolveImagePathForStorage(a)) ?? null,
   }));
 }
@@ -63,7 +66,7 @@ export async function getAdventureById(id: string): Promise<Adventure | null> {
     ...a,
     genre: normalizeGenre(a.genre),
     player_count: a.player_count?.trim() || a.players?.trim() || "4-6 игроков",
-    session_duration: a.session_duration?.trim() || a.time?.trim() || a.durationHours?.trim() || "5-6 часов",
+    session_duration: DISPLAY_SESSION_DURATION,
     imageUrl: getStorageImageUrl(resolveImagePathForStorage(a)) ?? null,
   };
 }

@@ -144,7 +144,7 @@ export default function ScheduleClient({ initialAdventures: _initialAdventures }
             </p>
             <div className="mt-6 flex flex-wrap items-center justify-center gap-6 sm:gap-10 font-sans">
               <a
-                href="https://vk.com/polygon_rpg"
+                href="https://t.me/gatriks"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 text-[#fde047] hover:text-yellow-200 transition-colors font-bold text-xs sm:text-sm uppercase tracking-widest drop-shadow-[0_0_12px_rgba(253,224,71,0.45)]"
@@ -153,7 +153,7 @@ export default function ScheduleClient({ initialAdventures: _initialAdventures }
                 ВКонтакте
               </a>
               <a
-                href="https://t.me/polygon_rpg"
+                href="https://t.me/gatriks"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 text-[#fde047] hover:text-yellow-200 transition-colors font-bold text-xs sm:text-sm uppercase tracking-widest drop-shadow-[0_0_12px_rgba(253,224,71,0.45)]"
@@ -162,7 +162,7 @@ export default function ScheduleClient({ initialAdventures: _initialAdventures }
                 Telegram
               </a>
               <a
-                href="https://discord.gg/polygon"
+                href="https://t.me/gatriks"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 text-[#fde047] hover:text-yellow-200 transition-colors font-bold text-xs sm:text-sm uppercase tracking-widest drop-shadow-[0_0_12px_rgba(253,224,71,0.45)]"

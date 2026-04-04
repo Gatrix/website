@@ -64,13 +64,13 @@ export default function Header() {
               </span>
             </div>
             <div className="flex items-center gap-4 lg:gap-6 shrink-0">
-              <a href="https://discord.gg/polygon" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#5865F2] transition-all hover:scale-110 shrink-0" title="Discord">
+              <a href="https://t.me/gatriks" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#5865F2] transition-all hover:scale-110 shrink-0" title="Discord">
                 <DiscordIcon className="w-5 h-5" />
               </a>
-              <a href="https://t.me/polygon_rpg" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#24A1DE] transition-all hover:scale-110 shrink-0" title="Telegram">
+              <a href="https://t.me/gatriks" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#24A1DE] transition-all hover:scale-110 shrink-0" title="Telegram">
                 <TelegramIcon className="w-5 h-5" />
               </a>
-              <a href="https://vk.com/polygon_rpg" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#0077FF] transition-all hover:scale-110 shrink-0" title="ВКонтакте">
+              <a href="https://t.me/gatriks" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#0077FF] transition-all hover:scale-110 shrink-0" title="ВКонтакте">
                 <VKIcon className="w-5 h-5" />
               </a>
             </div>
@@ -193,13 +193,13 @@ export default function Header() {
             </p>
           </div>
           <div className="flex gap-4 py-4 border-b border-amber-900/30">
-            <a href="https://discord.gg/polygon" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#5865F2] transition-all" title="Discord">
+            <a href="https://t.me/gatriks" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#5865F2] transition-all" title="Discord">
               <DiscordIcon className="w-6 h-6" />
             </a>
-            <a href="https://t.me/polygon_rpg" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#24A1DE] transition-all" title="Telegram">
+            <a href="https://t.me/gatriks" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#24A1DE] transition-all" title="Telegram">
               <TelegramIcon className="w-6 h-6" />
             </a>
-            <a href="https://vk.com/polygon_rpg" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#0077FF] transition-all" title="ВКонтакте">
+            <a href="https://t.me/gatriks" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#0077FF] transition-all" title="ВКонтакте">
               <VKIcon className="w-6 h-6" />
             </a>
           </div>

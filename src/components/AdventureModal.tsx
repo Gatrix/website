@@ -284,7 +284,7 @@ export default function AdventureModal({
                     </div>
                   </div>
 
-                  {/* Правая панель — вступительный текст, длительность, игроки, архетипы, кнопка */}
+                  {/* Правая панель — вступительный текст, длительность, игроки, кнопка */}
                   <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
                     <button
                       onClick={onClose}
@@ -303,6 +303,7 @@ export default function AdventureModal({
                           {displayText}
                         </p>
                       )}
+                      {/* Блок «Архетипичные персонажи» — временно отключён (данные не подключены)
                       <div className="mt-6">
                         <h3 className="text-amber-300/90 font-semibold text-sm sm:text-base uppercase tracking-wide mb-3 text-center">
                           Архетипичные персонажи
@@ -320,6 +321,7 @@ export default function AdventureModal({
                           ))}
                         </div>
                       </div>
+                      */}
                     </div>
                     <div className="flex-shrink-0 p-4 sm:p-[min(1.5rem,2vw)] md:p-[min(2rem,2.5vw)] pt-0">
                       <button

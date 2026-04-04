@@ -31,8 +31,8 @@ export default function HomeClient({
   const [adventures] = useState<Adventure[]>(initialAdventures);
   const [selectedAdventure, setSelectedAdventure] = useState<Adventure | null>(null);
   
-  const pushToSchedule = () => {
-    router.push("/schedule#calendar");
+  const goToAdventures = () => {
+    router.push("/adventures");
   };
 
   useEffect(() => {
@@ -159,11 +159,11 @@ export default function HomeClient({
                 </div>
               </div>
               <button
-                onClick={() => pushToSchedule()}
+                onClick={() => goToAdventures()}
                 className="relative mt-4 flex-shrink-0 w-full px-4 py-2.5 bg-amber-700/80 text-black font-bold uppercase text-xs tracking-wider hover:bg-amber-600 transition-all rounded border border-amber-600/50"
-                aria-label="Смотреть расписание"
+                aria-label="Перейти к приключениям"
               >
-                Расписание
+                Приключения
               </button>
             </div>
 
@@ -190,11 +190,11 @@ export default function HomeClient({
                 </div>
               </div>
               <button
-                onClick={() => pushToSchedule()}
+                onClick={() => goToAdventures()}
                 className="relative z-10 mt-4 flex-shrink-0 w-full px-4 py-2.5 bg-gradient-to-r from-amber-600 to-amber-700 text-black font-black uppercase text-xs tracking-widest hover:from-amber-500 hover:to-amber-600 transition-all rounded-lg shadow-[0_4px_14px_rgba(245,158,11,0.4)]"
-                aria-label="Смотреть расписание"
+                aria-label="Перейти к приключениям"
               >
-                Расписание
+                Приключения
               </button>
             </div>
           </div>
@@ -266,7 +266,7 @@ export default function HomeClient({
                 </h3>
                 <div className="flex flex-wrap gap-x-8 gap-y-3 font-sans text-sm sm:text-base font-semibold">
                   <a
-                    href="https://t.me/polygon_rpg"
+                    href="https://t.me/gatriks"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-amber-800/90 hover:text-amber-600 transition-colors"
@@ -274,7 +274,7 @@ export default function HomeClient({
                     Telegram
                   </a>
                   <a
-                    href="https://discord.gg/polygon"
+                    href="https://t.me/gatriks"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-amber-800/90 hover:text-amber-600 transition-colors"
@@ -282,7 +282,7 @@ export default function HomeClient({
                     Discord
                   </a>
                   <a
-                    href="https://vk.com/polygon_rpg"
+                    href="https://t.me/gatriks"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-amber-800/90 hover:text-amber-600 transition-colors"
