@@ -29,7 +29,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # Добавляем наш скрипт который форсит порт 8080
 COPY --chown=nextjs:nodejs custom-server.js ./custom-server.js
 COPY --chown=nextjs:nodejs start.sh ./start.sh
-RUN chmod +x ./start.sh
+# Strip Windows CRLF so shebang stays /bin/sh (otherwise exit 127 in Linux)
+RUN sed -i 's/\r$//' ./start.sh && chmod +x ./start.sh
 
 USER nextjs
 

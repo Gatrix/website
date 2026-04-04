@@ -8,7 +8,8 @@ import {
   fetchAdventureOptionsFromObjectStorage,
 } from "@/lib/adventures-db";
 
-let adventuresCache: Adventure[] | null = null;
+/** undefined — успешный ответ ещё не кэшировали (ошибку БД не кэшируем, чтобы следующий запрос повторил загрузку). */
+let adventuresCache: Adventure[] | undefined = undefined;
 /** undefined — ещё не грузили; null — в БД нет/пусто */
 let optionsCache: AdventureOptions | null | undefined = undefined;
 
@@ -24,14 +25,13 @@ function resolveImagePathForStorage(a: Pick<Adventure, "poster" | "img_url">): s
 }
 
 async function loadAdventures(): Promise<Adventure[]> {
-  if (adventuresCache) return adventuresCache;
+  if (adventuresCache !== undefined) return adventuresCache;
   try {
     adventuresCache = await fetchAdventuresFromDatabase();
     return adventuresCache;
   } catch (err) {
     console.error("Error loading adventures from PostgreSQL:", err);
-    adventuresCache = [];
-    return adventuresCache;
+    return [];
   }
 }
 

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Adventure } from "@/hooks/useAdventures";
 import { useRouter } from "next/navigation";
@@ -29,9 +29,50 @@ export default function AdventureModal({
   const router = useRouter();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const leftScrollRef = useRef<HTMLDivElement>(null);
+  const rightScrollRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
   const scrollPositionRef = useRef(0);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const [slideDirection, setSlideDirection] = useState(1);
+
+  const canSwipeUpClose = () => {
+    const left = leftScrollRef.current?.scrollTop ?? 0;
+    const right = rightScrollRef.current?.scrollTop ?? 0;
+    return left <= 8 && right <= 8;
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    touchStartRef.current = { x: t.clientX, y: t.clientY };
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const start = touchStartRef.current;
+    touchStartRef.current = null;
+    if (!start) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
+    if (absX < 24 && absY < 24) return;
+
+    if (absX >= absY && absX > 48) {
+      if (dx > 0 && hasPrevious && onPrevious) {
+        setSlideDirection(-1);
+        onPrevious();
+      } else if (dx < 0 && hasNext && onNext) {
+        setSlideDirection(1);
+        onNext();
+      }
+      return;
+    }
+
+    if (absY > absX && dy < -56 && canSwipeUpClose()) {
+      onClose();
+    }
+  };
 
   // Управление с клавиатуры (Escape, стрелки влево/вправо)
   useEffect(() => {
@@ -201,33 +242,10 @@ export default function AdventureModal({
               aria-labelledby="adventure-title"
               aria-describedby={displayText ? "adventure-description" : undefined}
               onKeyDown={handleDialogKeyDown}
-              className="relative w-[min(94vw,85rem)] h-[min(90vh,52rem)] max-h-[90vh] bg-[#14110f] border-2 border-amber-700/40 rounded-lg sm:rounded-xl overflow-hidden shadow-2xl pointer-events-auto flex flex-col"
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              className="relative w-[min(94vw,85rem)] h-[min(90vh,52rem)] max-h-[90vh] bg-[#14110f] border-2 border-amber-700/40 rounded-lg sm:rounded-xl overflow-hidden shadow-2xl pointer-events-auto flex flex-col touch-manipulation"
             >
-              {/* Стрелки навигации — прикреплены к карточке, на всю высоту */}
-              {hasPrevious && onPrevious && (
-                <button
-                  onClick={() => {
-                    setSlideDirection(-1);
-                    onPrevious();
-                  }}
-                  aria-label="Предыдущее приключение"
-                  className="absolute left-0 top-0 bottom-0 z-30 w-20 sm:w-24 flex items-center justify-center bg-amber-950/60 hover:bg-amber-900/40 border-r border-amber-800/50 text-amber-500 hover:text-amber-400 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-inset"
-                >
-                  <ChevronLeft size={24} className="sm:w-6 sm:h-6" />
-                </button>
-              )}
-              {hasNext && onNext && (
-                <button
-                  onClick={() => {
-                    setSlideDirection(1);
-                    onNext();
-                  }}
-                  aria-label="Следующее приключение"
-                  className="absolute right-0 top-0 bottom-0 z-30 w-20 sm:w-24 flex items-center justify-center bg-amber-950/60 hover:bg-amber-900/40 border-l border-amber-800/50 text-amber-500 hover:text-amber-400 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-inset"
-                >
-                  <ChevronRight size={24} className="sm:w-6 sm:h-6" />
-                </button>
-              )}
               {/* Декоративные углы */}
               <div className="absolute top-0 left-0 w-4 h-4 sm:w-6 md:w-8 border-t-2 border-l-2 border-amber-500/60 z-20" />
               <div className="absolute top-0 right-0 w-4 h-4 sm:w-6 md:w-8 border-t-2 border-r-2 border-amber-500/60 z-20" />
@@ -241,12 +259,64 @@ export default function AdventureModal({
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: slideDirection * -40 }}
                   transition={{ duration: 0.2, ease: "easeOut" }}
-                  className="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden pl-20 sm:pl-24 pr-20 sm:pr-24"
+                  className="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden"
                 >
-                  {/* Левая панель — постер и параметры */}
-                  <div className="relative w-full md:w-[40.84%] md:min-w-[284px] md:max-w-[392px] md:h-full bg-[#0f0d0c] border-b md:border-b-0 md:border-r border-amber-900/30 min-h-0 md:flex-none md:flex-shrink-0 flex flex-col p-[min(1rem,2vw)] sm:p-4 md:pt-[min(2rem,3vh)] md:pb-0">
-                    <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
-                      <div className="relative w-full max-w-[min(337px,85%)] min-w-[198px] aspect-[3/4] max-h-[min(47vh, 416px)] flex items-center justify-center overflow-hidden rounded-md shadow-inner mb-4 sm:mb-6 flex-shrink-0 self-center mx-auto">
+                  {/* Мобилка: order-1 — заголовок и вступление; md: правая колонка */}
+                  <div className="order-1 md:order-2 flex flex-none md:flex-1 min-h-0 flex-col overflow-hidden relative bg-[#14110f] md:bg-transparent">
+                    <button
+                      onClick={onClose}
+                      aria-label="Закрыть"
+                      ref={closeButtonRef}
+                      className="absolute top-4 right-4 z-40 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center bg-[#14110f]/90 border border-amber-900/30 rounded-md text-amber-600/70 hover:text-amber-500/90 hover:bg-amber-950/30 hover:border-amber-800/30 transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-700/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#14110f]"
+                    >
+                      <X size={18} className="sm:w-5 sm:h-5" />
+                    </button>
+                    <div
+                      ref={rightScrollRef}
+                      className="max-h-[min(38vh,22rem)] md:max-h-none flex-1 min-h-0 p-4 sm:p-[min(1.5rem,2vw)] md:p-[min(2rem,2.5vw)] pr-14 sm:pr-16 overflow-y-auto"
+                    >
+                      <h2 id="adventure-title" className="text-[clamp(1.125rem,2.5vw,2.25rem)] md:text-[clamp(1.5rem,3vw,2.5rem)] font-extrabold uppercase tracking-tight text-amber-100 leading-tight mb-4">
+                        {adventure.title}
+                      </h2>
+                      {displayText && (
+                        <p id="adventure-description" className="text-[clamp(0.875rem,1.5vw,1.125rem)] md:text-[clamp(1rem,1.8vw,1.25rem)] text-amber-200/80 leading-relaxed whitespace-pre-line">
+                          {displayText}
+                        </p>
+                      )}
+                      {/* Блок «Архетипичные персонажи» — временно отключён (данные не подключены)
+                      <div className="mt-6">
+                        <h3 className="text-amber-300/90 font-semibold text-sm sm:text-base uppercase tracking-wide mb-3 text-center">
+                          Архетипичные персонажи
+                        </h3>
+                        <div className="grid grid-cols-4 gap-5 sm:gap-8 w-[67.5%] mx-auto">
+                          {Array.from({ length: 8 }, (_, idx) => (
+                            <div
+                              key={`archetype-slot-${idx + 1}`}
+                              className="relative aspect-square w-full rounded-md border border-amber-800/60 bg-[#14110f] overflow-hidden flex items-center justify-center text-center"
+                            >
+                              <span className="text-amber-500/60 text-xs sm:text-sm font-medium uppercase tracking-wide">
+                                {idx + 1}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      */}
+                    </div>
+                    <div className="hidden md:block flex-shrink-0 p-4 sm:p-[min(1.5rem,2vw)] md:p-[min(2rem,2.5vw)] pt-0">
+                      <button
+                        onClick={handleChooseDate}
+                        className="btn btn-primary w-full focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#14110f]"
+                      >
+                        Записаться
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Мобилка: order-2 — постер и параметры; md: левая колонка */}
+                  <div className="order-2 md:order-1 relative w-full md:w-[40.84%] md:min-w-[284px] md:max-w-[392px] flex-1 min-h-0 md:h-full bg-[#0f0d0c] border-b md:border-b-0 md:border-r border-amber-900/30 md:flex-none md:flex-shrink-0 flex flex-col p-[min(1rem,2vw)] sm:p-4 md:pt-[min(2rem,3vh)] md:pb-0">
+                    <div ref={leftScrollRef} className="flex-1 min-h-0 overflow-y-auto flex flex-col">
+                      <div className="relative w-full max-w-[min(337px,85%)] min-w-[198px] aspect-[3/4] max-h-[min(47vh,416px)] flex items-center justify-center overflow-hidden rounded-md shadow-inner mb-4 sm:mb-6 flex-shrink-0 self-center mx-auto">
                         {imageUrl ? (
                           <Image
                             src={imageUrl}
@@ -284,53 +354,14 @@ export default function AdventureModal({
                     </div>
                   </div>
 
-                  {/* Правая панель — вступительный текст, длительность, игроки, кнопка */}
-                  <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
+                  {/* Мобилка: order-3 — CTA под постером; на md скрыто (кнопка в правой колонке) */}
+                  <div className="order-3 md:hidden flex-shrink-0 p-4 sm:p-[min(1.5rem,2vw)] pt-0 border-t border-amber-900/25 bg-[#14110f]">
                     <button
-                      onClick={onClose}
-                      aria-label="Закрыть"
-                      ref={closeButtonRef}
-                      className="absolute top-4 right-4 z-40 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center bg-[#14110f]/90 border border-amber-900/30 rounded-md text-amber-600/70 hover:text-amber-500/90 hover:bg-amber-950/30 hover:border-amber-800/30 transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-700/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#14110f]"
+                      onClick={handleChooseDate}
+                      className="btn btn-primary w-full focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#14110f]"
                     >
-                      <X size={18} className="sm:w-5 sm:h-5" />
+                      Записаться
                     </button>
-                    <div className="flex-1 p-4 sm:p-[min(1.5rem,2vw)] md:p-[min(2rem,2.5vw)] pr-14 sm:pr-16 overflow-y-auto">
-                      <h2 id="adventure-title" className="text-[clamp(1.125rem,2.5vw,2.25rem)] md:text-[clamp(1.5rem,3vw,2.5rem)] font-extrabold uppercase tracking-tight text-amber-100 leading-tight mb-4">
-                        {adventure.title}
-                      </h2>
-                      {displayText && (
-                        <p id="adventure-description" className="text-[clamp(0.875rem,1.5vw,1.125rem)] md:text-[clamp(1rem,1.8vw,1.25rem)] text-amber-200/80 leading-relaxed whitespace-pre-line">
-                          {displayText}
-                        </p>
-                      )}
-                      {/* Блок «Архетипичные персонажи» — временно отключён (данные не подключены)
-                      <div className="mt-6">
-                        <h3 className="text-amber-300/90 font-semibold text-sm sm:text-base uppercase tracking-wide mb-3 text-center">
-                          Архетипичные персонажи
-                        </h3>
-                        <div className="grid grid-cols-4 gap-5 sm:gap-8 w-[67.5%] mx-auto">
-                          {Array.from({ length: 8 }, (_, idx) => (
-                            <div
-                              key={`archetype-slot-${idx + 1}`}
-                              className="relative aspect-square w-full rounded-md border border-amber-800/60 bg-[#14110f] overflow-hidden flex items-center justify-center text-center"
-                            >
-                              <span className="text-amber-500/60 text-xs sm:text-sm font-medium uppercase tracking-wide">
-                                {idx + 1}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      */}
-                    </div>
-                    <div className="flex-shrink-0 p-4 sm:p-[min(1.5rem,2vw)] md:p-[min(2rem,2.5vw)] pt-0">
-                      <button
-                        onClick={handleChooseDate}
-                        className="btn btn-primary w-full focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#14110f]"
-                      >
-                        Записаться
-                      </button>
-                    </div>
                   </div>
                 </motion.div>
               </AnimatePresence>

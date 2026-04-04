@@ -1,0 +1,2 @@
+# Shell scripts must use LF so Linux containers (Yandex Cloud, Docker) get a valid shebang.
+*.sh text eol=lf
