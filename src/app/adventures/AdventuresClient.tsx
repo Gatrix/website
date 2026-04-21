@@ -104,12 +104,19 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
   const [conflictMessage, setConflictMessage] = useState<string | null>(null);
   const adventures = initialAdventures;
   const [selectedAdventure, setSelectedAdventure] = useState<Adventure | null>(null);
+  const [longListExpanded, setLongListExpanded] = useState(false);
+  const [longListOverflows, setLongListOverflows] = useState(false);
+  const optionsGridRef = useRef<HTMLDivElement>(null);
 
   // Очистка сообщения о конфликте при смене шага
-  const handleSetStep = (step: number) => {
+  const handleSetStep = useCallback((step: number) => {
     setConflictMessage(null);
+    setLongListExpanded(false);
+    const nextStepId = FILTER_STEPS[step]?.id;
+    const nextIsCollapsible = nextStepId === "focus" || nextStepId === "world";
+    if (!nextIsCollapsible) setLongListOverflows(false);
     setCurrentStep(step);
-  };
+  }, [FILTER_STEPS]);
 
   // Функция для получения значения поля из приключения
   const getAdventureFieldValue = useCallback((adv: Adventure, fieldId: string): string | string[] | null => {
@@ -335,7 +342,7 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
       const firstUnfilled = idxs.find((i) => !(filters[FILTER_STEPS[i].id]?.length));
       handleSetStep(firstUnfilled ?? idxs[0]);
     },
-    [filters, FILTER_STEPS]
+    [filters, FILTER_STEPS, PROGRESS_GROUPS, handleSetStep]
   );
 
   const groupIsCurrent = (g: (typeof PROGRESS_GROUPS)[number]) =>
@@ -362,19 +369,11 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
 
   const collapsibleStep =
     currentStepData.id === "focus" || currentStepData.id === "world";
-  const [longListExpanded, setLongListExpanded] = useState(false);
-  const optionsGridRef = useRef<HTMLDivElement>(null);
-  const [longListOverflows, setLongListOverflows] = useState(false);
 
   const optionsFingerprint = currentStepData.options.join("\u0000");
 
   useLayoutEffect(() => {
-    setLongListExpanded(false);
-  }, [currentStep]);
-
-  useLayoutEffect(() => {
     if (!collapsibleStep) {
-      setLongListOverflows(false);
       return;
     }
     const el = optionsGridRef.current;
@@ -466,7 +465,7 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
                             : isCompleted
                               ? "text-yellow-300"
                               : "text-yellow-600"
-                        } w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 [&>svg]:stroke-[2.25px]`}
+                        } flex items-center justify-center leading-none w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 [&>svg]:block [&>svg]:w-full [&>svg]:h-full [&>svg]:stroke-[2.25px]`}
                       >
                         {group.icon}
                       </span>
@@ -688,7 +687,7 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
           <div className="h-px flex-1 bg-current" />
         </div>
 
-        <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8">
+        <motion.div layout className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
           <AnimatePresence>
             {filteredAdventures.map((adv) => (
               <AdventureCard

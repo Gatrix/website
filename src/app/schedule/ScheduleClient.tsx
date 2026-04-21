@@ -36,7 +36,7 @@ const VKGlyph = ({ className }: { className?: string }) => (
 );
 
 // Types for our schedule
-type SlotStatus = "available" | "partial" | "booked" | "on-request";
+type SlotStatus = "available" | "booked";
 
 interface ScheduleClientProps {
   initialAdventures: Adventure[];
@@ -90,8 +90,14 @@ export default function ScheduleClient({ initialAdventures: _initialAdventures }
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
 
-  /** Сейчас все слоты отображаются как «по запросу» (яркий жёлтый). */
-  const getSlotStatus = (_day: number, _slotId: ScheduleSlotId): SlotStatus => "on-request";
+  const isFullyBookedDay = (dayNum: number) => {
+    // Явно отмеченные занятые даты (все слоты заняты)
+    return year === 2026 && month === 3 && [23, 25, 26, 29].includes(dayNum);
+  };
+
+  /** По умолчанию все даты свободны, кроме явно занятых. */
+  const getSlotStatus = (dayNum: number, _slotId: ScheduleSlotId): SlotStatus =>
+    isFullyBookedDay(dayNum) ? "booked" : "available";
 
   const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const isCalendarDayPast = (dayNum: number) =>
@@ -183,26 +189,6 @@ export default function ScheduleClient({ initialAdventures: _initialAdventures }
               </a>
             </div>
           </div>
-
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-[10px] sm:text-xs uppercase tracking-[0.2em] font-sans font-bold text-stone-300">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-lime-400 shadow-[0_0_10px_rgba(163,230,53,0.65)]" />
-              Свободно
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.55)]" />
-              Занято
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#facc15] shadow-[0_0_12px_rgba(250,204,21,0.75)]" />
-              По запросу
-            </div>
-          </div>
-          {selectedDay && (
-            <div className="mt-4 text-xs uppercase tracking-[0.2em] text-yellow-300/90">
-              Выбран день: {selectedDay} {MONTH_NAMES[month].toLowerCase()}
-            </div>
-          )}
           {showOnlyAvailable && (
             <div className="mt-2 text-[10px] uppercase tracking-[0.2em] text-yellow-400/80">
               Показаны доступные слоты
@@ -236,7 +222,11 @@ export default function ScheduleClient({ initialAdventures: _initialAdventures }
         {/* Calendar Grid */}
         <div id="calendar" role="grid" aria-label="Календарь свободных дат" className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-px bg-yellow-900/15 border border-yellow-800/20">
           {Array.from({ length: firstDay }).map((_, i) => (
-            <div key={`empty-${i}`} className="hidden lg:block aspect-square bg-[#0f0d0c]/30"></div>
+            <div
+              key={`empty-${i}`}
+              className="hidden lg:block bg-[#0f0d0c]/30 min-h-[44px] sm:min-h-[52px]"
+              aria-hidden
+            />
           ))}
 
           {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -277,17 +267,21 @@ export default function ScheduleClient({ initialAdventures: _initialAdventures }
                   if (isPast) return;
                   handleDayKeyDown(event, dayNum);
                 }}
-                className={`relative bg-[#0f0d0c]/80 p-3 sm:p-4 flex flex-col justify-between min-h-[220px] sm:min-h-[260px] group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0a09] transition-all ${
+                className={`relative bg-[#0f0d0c]/80 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0a09] transition-all ${
                   isPast
-                    ? "opacity-[0.38] grayscale-[0.35] pointer-events-none cursor-default border border-stone-800/30"
-                    : "hover:bg-[#1a1614]/95"
+                    ? "px-2 py-1 sm:px-2.5 sm:py-1.5 flex flex-col justify-center min-h-[44px] sm:min-h-[52px] opacity-[0.38] grayscale-[0.35] pointer-events-none cursor-default border border-stone-800/30"
+                    : "p-2 sm:p-3 flex flex-col justify-between min-h-[150px] sm:min-h-[180px] hover:bg-[#1a1614]/95"
                 } ${isToday && !isPast ? "bg-yellow-950/15 ring-1 ring-yellow-500/25" : ""} ${
                   selectedDay === dayNum && !isPast ? "ring-2 ring-yellow-400/45" : ""
                 }`}
               >
-                <div className="flex justify-between items-start font-sans">
+                <div
+                  className={`font-sans ${
+                    isPast ? "w-full flex justify-between items-center" : "flex justify-between items-start"
+                  }`}
+                >
                   <span
-                    className={`text-3xl font-light ${
+                    className={`${isPast ? "text-xl sm:text-2xl leading-none" : "text-2xl sm:text-3xl"} font-light ${
                       isPast
                         ? "text-stone-500"
                         : isToday
@@ -298,7 +292,7 @@ export default function ScheduleClient({ initialAdventures: _initialAdventures }
                     {dayNum}
                   </span>
                   <span
-                    className={`text-[10px] uppercase font-bold tracking-wider ${
+                    className={`${isPast ? "text-xl sm:text-2xl leading-none" : "text-2xl sm:text-3xl"} uppercase font-light tracking-wider ${
                       isPast ? "text-stone-600" : "text-stone-400"
                     }`}
                   >
@@ -306,19 +300,21 @@ export default function ScheduleClient({ initialAdventures: _initialAdventures }
                   </span>
                 </div>
 
-                <div className="flex flex-col gap-2 sm:gap-2.5 mt-4 sm:mt-6">
-                  {slotStatuses.map(
-                    (s) =>
-                      !s.hide && (
-                        <SlotButton key={s.id} label={s.label} status={s.status} muted={isPast} />
-                      )
-                  )}
-                  {!hasVisibleSlots && (
-                    <div className="text-[10px] uppercase tracking-[0.2em] text-stone-500">
-                      Нет доступных слотов
-                    </div>
-                  )}
-                </div>
+                {!isPast && (
+                  <div className="flex flex-col gap-1.5 sm:gap-2 mt-2 sm:mt-3">
+                    {slotStatuses.map(
+                      (s) =>
+                        !s.hide && (
+                          <SlotButton key={s.id} label={s.label} status={s.status} muted={isPast} />
+                        )
+                    )}
+                    {!hasVisibleSlots && (
+                      <div className="text-[10px] uppercase tracking-[0.2em] text-stone-500">
+                        Нет доступных слотов
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -349,7 +345,7 @@ function SlotButton({
   muted?: boolean;
 }) {
   const baseStyles =
-    "text-[9px] sm:text-[10px] font-black tracking-[0.12em] sm:tracking-[0.18em] py-1 px-1.5 sm:px-2 transition-all text-left flex items-center gap-2 font-sans rounded-sm relative leading-tight";
+    "text-[8px] sm:text-[9px] font-black tracking-[0.12em] sm:tracking-[0.18em] py-0.5 px-1.5 sm:px-2 transition-all text-left flex items-center gap-2 font-sans rounded-sm relative leading-tight";
 
   const mute = muted ? " opacity-60 saturate-[0.65]" : "";
 
@@ -359,31 +355,7 @@ function SlotButton({
         className={`${baseStyles} bg-red-950/40 text-red-400 border border-red-900/30 cursor-not-allowed${mute}`}
       >
         <div className="w-2 h-2 rounded-full bg-red-600 shadow-[0_0_8px_rgba(220,38,38,0.5)]" />
-        <span className="line-through decoration-red-900/50">{label} (ЗАНЯТО)</span>
-      </div>
-    );
-  }
-
-  if (status === "on-request") {
-    return (
-      <div
-        className={`${baseStyles} text-[#fde047] border border-yellow-500/25 bg-yellow-950/15 drop-shadow-[0_0_10px_rgba(250,204,21,0.35)]${mute}`}
-      >
-        <div className="w-2 h-2 shrink-0 bg-[#facc15] rounded-full shadow-[0_0_12px_rgba(250,204,21,0.85)]" />
-        <span>
-          • {label} <span className="text-[#fef08a]/95">(ПО ЗАПРОСУ)</span>
-        </span>
-      </div>
-    );
-  }
-
-  if (status === "partial") {
-    return (
-      <div
-        className={`${baseStyles} bg-yellow-950/20 text-yellow-200 border border-yellow-600/35 drop-shadow-[0_0_8px_rgba(234,179,8,0.35)]${mute}`}
-      >
-        <div className="w-2 h-2 bg-[#facc15] rounded-full shadow-[0_0_8px_rgba(250,204,21,0.6)]" />
-        {label} (ЧАСТИЧНО)
+        <span className="line-through decoration-red-900/50">{label}</span>
       </div>
     );
   }

@@ -133,41 +133,69 @@ export default function HomeClient({
           <div className="flex items-center gap-2 sm:gap-4 mb-6 sm:mb-8">
             <div className="h-[1px] flex-1 bg-amber-900/30"></div>
             <h2 className="text-lg sm:text-xl md:text-2xl font-bold uppercase tracking-[0.2em] sm:tracking-[0.3em] md:tracking-[0.4em] text-amber-800 px-2">
-              Форматы игры
+              Форматы
             </h2>
             <div className="h-[1px] flex-1 bg-amber-900/30"></div>
           </div>
-          <div className="grid gap-6 sm:grid-cols-2 items-stretch max-w-5xl mx-auto">
-            {/* Посиделки в таверне */}
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 items-stretch max-w-6xl mx-auto">
+            {/* Аренда клуба */}
             <div className="flex flex-col relative overflow-hidden bg-gradient-to-b from-[#1a1614] to-[#12100f] border border-amber-800/50 p-5 sm:p-6 rounded-lg shadow-[0_0_30px_rgba(120,83,45,0.2)] hover:shadow-[0_0_45px_rgba(180,120,60,0.3)] transition-all hover:border-amber-700/60 group">
               <div className="absolute top-0 right-0 w-24 h-24 bg-amber-600/10 rounded-bl-full" />
               <div className="relative flex-1 min-h-0 flex flex-col">
                 {/* Placeholder для иконки/текстуры: <Image src="/icons/tavern.webp" className="..." /> */}
                 <div className="relative w-14 h-14 rounded-xl bg-amber-900/40 border border-amber-700/40 mb-4 flex items-center justify-center text-amber-500 text-2xl shadow-inner flex-shrink-0">
-                  🍺
+                  🏠
                 </div>
-                <h3 className="relative min-h-[2.6em] text-base sm:text-lg font-bold text-amber-500 uppercase mb-1 tracking-wide">Посиделки в таверне</h3>
-              <p className="relative text-xl sm:text-2xl font-black text-amber-500 mb-1">300 ₽ / час за человека</p>
-              <p className="relative text-[0.9rem] text-amber-400/90 mb-4">за 4 часа — 1 200 ₽ с человека</p>
+                <h3 className="relative min-h-[2.6em] text-base sm:text-lg font-bold text-amber-500 uppercase mb-1 tracking-wide">
+                  АРЕНДА КЛУБА
+                </h3>
+                <p className="relative text-xl sm:text-2xl font-black text-amber-500 mb-1">
+                  2 000 ₽ за слот <span className="text-amber-400/70 font-black">·</span> 4 часа
+                </p>
                 <div className="relative text-sm text-[#b8b0a8] leading-relaxed space-y-3">
-                  <p>
-                    Выбирайте приключение, время и приходите со своей компанией играть!
+                  <p className="text-[#c8c0b6]">
+                    У вас своя компания и свой мастер? Забирайте стол — а мы позаботимся об остальном.
                   </p>
-                  <p>
-                    Не хватает народу? Напишите — поищем вместе.
-                  </p>
+                  <ul className="space-y-2">
+                    <li className="flex gap-3">
+                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600/80 shrink-0" />
+                      Отдельный стол до 8 человек в тематическом зале
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600/80 shrink-0" />
+                      Цифровая библиотека рулбуков D&amp;D 5e, Pathfinder, Call of Cthulhu и других систем
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600/80 shrink-0" />
+                      Вам также доступны продвинутые формы управления светом, звуком, а также платформа Foundry VTT
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600/80 shrink-0" />
+                      Физический реквизит в комплекте: наборы дайсов, карты, маркеры, поле для миниатюр
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600/80 shrink-0" />
+                      Чай, кофе, вода, снеки, холодильник, микроволновка — без ограничений
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600/80 shrink-0" />
+                      Продление: 400 ₽/час
+                    </li>
+                  </ul>
                 </div>
               </div>
-              <button
-                onClick={() => goToAdventures()}
-                className="relative mt-4 flex-shrink-0 w-full px-4 py-2.5 bg-amber-700/80 text-black font-bold uppercase text-xs tracking-wider hover:bg-amber-600 transition-all rounded border border-amber-600/50"
-                aria-label="Перейти к приключениям"
+              <a
+                href="https://t.me/gatriks"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="relative mt-4 flex-shrink-0 w-full px-4 py-2.5 bg-amber-700/80 text-black font-bold uppercase text-xs tracking-wider hover:bg-amber-600 transition-all rounded border border-amber-600/50 text-center"
+                aria-label="Забронировать стол в Telegram"
               >
-                Приключения
-              </button>
+                → ЗАБРОНИРОВАТЬ СТОЛ
+              </a>
             </div>
 
-            {/* Королевский приём */}
+            {/* Игра с клубным мастером */}
             <div className="flex flex-col relative overflow-hidden bg-gradient-to-br from-amber-950/60 via-[#1a1614] to-[#0f0d0c] border-2 border-amber-700/60 p-5 sm:p-6 rounded-xl shadow-[0_0_40px_rgba(180,120,60,0.25),inset_0_1px_0_rgba(255,255,255,0.05)] hover:shadow-[0_0_60px_rgba(245,158,11,0.35)] transition-all hover:border-amber-600/70 hover:scale-[1.02]">
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(245,158,11,0.08),transparent_50%)]" />
               <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/15 rounded-bl-[100px]" />
@@ -177,16 +205,37 @@ export default function HomeClient({
                 <div className="relative z-10 w-14 h-14 rounded-xl bg-gradient-to-br from-amber-700/50 to-amber-900/50 border-2 border-amber-600/50 mb-4 flex items-center justify-center text-amber-300 text-2xl shadow-lg flex-shrink-0">
                   👑
                 </div>
-                <h3 className="relative z-10 min-h-[2.6em] text-base sm:text-lg font-bold text-amber-300 uppercase mb-1 tracking-widest drop-shadow-sm">Королевский приём</h3>
-              <p className="relative z-10 text-xl sm:text-2xl font-black text-amber-400 mb-1">500 ₽ / час за человека</p>
-              <p className="relative z-10 text-[0.9rem] text-amber-300/80 mb-4">за 4 часа — 2 000 ₽ с человека</p>
+                <h3 className="relative z-10 min-h-[2.6em] text-base sm:text-lg font-bold text-amber-300 uppercase mb-1 tracking-widest drop-shadow-sm">
+                  ИГРА С КЛУБНЫМ МАСТЕРОМ
+                </h3>
+                <p className="relative z-10 text-xl sm:text-2xl font-black text-amber-400 mb-1">
+                  1 600 ₽ с человека <span className="text-amber-300/70 font-black">·</span> 4 часа
+                </p>
                 <div className="relative z-10 text-sm text-[#c8c0b6] leading-relaxed space-y-3">
                   <p>
-                    Когда-нибудь пробовали сливовый пенчекряк на зуб? Хотите узнать, чем пахнет желатиновый куб?
+                    Хотите попробовать настольные ролевые игры, но не знаете с чего начать? Или соскучились по хорошей сессии, а своего мастера нет?
                   </p>
                   <p>
-                    Окунитесь в мир ароматов и вкуса — и все пять чувств запомнят эту игру.
+                    Наш мастер проведёт вас через приключение — от создания персонажа до финальной битвы. Ничего заранее знать не нужно: правила объясним за столом (есть упрощенная одностраничная система), персонажей поможем собрать.
                   </p>
+                  <ul className="space-y-2 pt-1">
+                    <li className="flex gap-3">
+                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-500/80 shrink-0" />
+                      Группы от 4 до 6 игроков
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-500/80 shrink-0" />
+                      Можно прийти одному — подсадим к компании, либо своей командой
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-500/80 shrink-0" />
+                      Готовые приключения на 1 вечер или кампании на несколько встреч
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-500/80 shrink-0" />
+                      Продление: 400 ₽/час
+                    </li>
+                  </ul>
                 </div>
               </div>
               <button
@@ -194,8 +243,59 @@ export default function HomeClient({
                 className="relative z-10 mt-4 flex-shrink-0 w-full px-4 py-2.5 bg-gradient-to-r from-amber-600 to-amber-700 text-black font-black uppercase text-xs tracking-widest hover:from-amber-500 hover:to-amber-600 transition-all rounded-lg shadow-[0_4px_14px_rgba(245,158,11,0.4)]"
                 aria-label="Перейти к приключениям"
               >
-                Приключения
+                → ВЫБРАТЬ ПРИКЛЮЧЕНИЕ
               </button>
+            </div>
+
+            {/* Знакомство с НРИ */}
+            <div className="flex flex-col relative overflow-hidden bg-gradient-to-b from-[#141312] to-[#0f0d0c] border border-amber-800/45 p-5 sm:p-6 rounded-lg shadow-[0_0_30px_rgba(120,83,45,0.16)] hover:shadow-[0_0_45px_rgba(180,120,60,0.26)] transition-all hover:border-amber-700/60 group">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-amber-600/10 rounded-bl-full" />
+              <div className="relative flex-1 min-h-0 flex flex-col">
+                <div className="relative w-14 h-14 rounded-xl bg-amber-900/35 border border-amber-700/35 mb-4 flex items-center justify-center text-amber-400 text-2xl shadow-inner flex-shrink-0">
+                  🎲
+                </div>
+                <h3 className="relative min-h-[2.6em] text-base sm:text-lg font-bold text-amber-400 uppercase mb-1 tracking-wide">
+                  ЗНАКОМСТВО С НРИ
+                </h3>
+                <p className="relative text-xl sm:text-2xl font-black text-amber-400 mb-1">
+                  500 ₽ с человека <span className="text-amber-300/70 font-black">·</span> 2–3 часа
+                </p>
+                <div className="relative text-sm text-[#c8c0b6] leading-relaxed space-y-3 mt-2">
+                  <p className="text-[#c8c0b6]">
+                    Никогда не играли, но интересно? Это ваш формат.
+                  </p>
+                  <p>
+                    Короткая ознакомительная сессия специально для новичков: мы покажем, как это устроено, дадим готовых персонажей и проведём через небольшое приключение. Без обязательств и без подготовки — просто приходите.
+                  </p>
+                  <ul className="space-y-2 pt-1">
+                    <li className="flex gap-3">
+                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600/80 shrink-0" />
+                      Группы новичков по 3–6 человек
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600/80 shrink-0" />
+                      Всё объясним с нуля
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600/80 shrink-0" />
+                      По четвергам в 19:00
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600/80 shrink-0" />
+                      После сессии — скидка 25% на первую «большую» игру
+                    </li>
+                  </ul>
+                </div>
+              </div>
+              <a
+                href="https://t.me/gatriks"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="relative mt-4 flex-shrink-0 w-full px-4 py-2.5 bg-amber-700/80 text-black font-bold uppercase text-xs tracking-wider hover:bg-amber-600 transition-all rounded border border-amber-600/50 text-center"
+                aria-label="Записаться на знакомство в Telegram"
+              >
+                → ЗАПИСАТЬСЯ НА ЗНАКОМСТВО
+              </a>
             </div>
           </div>
         </div>

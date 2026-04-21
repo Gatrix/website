@@ -63,23 +63,25 @@ export default function Header() {
                 {SITE_ADDRESS_SHORT}
               </span>
             </div>
-            <div className="flex items-center gap-4 lg:gap-6 shrink-0">
-              <a href="https://t.me/gatriks" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#5865F2] transition-all hover:scale-110 shrink-0" title="Discord">
-                <DiscordIcon className="w-5 h-5" />
-              </a>
-              <a href="https://t.me/gatriks" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#24A1DE] transition-all hover:scale-110 shrink-0" title="Telegram">
-                <TelegramIcon className="w-5 h-5" />
-              </a>
-              <a href="https://t.me/gatriks" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#0077FF] transition-all hover:scale-110 shrink-0" title="ВКонтакте">
-                <VKIcon className="w-5 h-5" />
-              </a>
+            <div className="flex flex-col items-center gap-2 shrink-0">
+              <div className="flex items-center gap-4 lg:gap-6 shrink-0">
+                <a href="https://t.me/gatriks" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#5865F2] transition-all hover:scale-110 shrink-0" title="Discord">
+                  <DiscordIcon className="w-5 h-5" />
+                </a>
+                <a href="https://t.me/gatriks" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#24A1DE] transition-all hover:scale-110 shrink-0" title="Telegram">
+                  <TelegramIcon className="w-5 h-5" />
+                </a>
+                <a href="https://t.me/gatriks" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#0077FF] transition-all hover:scale-110 shrink-0" title="ВКонтакте">
+                  <VKIcon className="w-5 h-5" />
+                </a>
+              </div>
+              <Link
+                href="/#contacts"
+                className="hover:text-amber-500 transition-colors underline-offset-8 hover:underline shrink-0"
+              >
+                Контакты
+              </Link>
             </div>
-            <Link
-              href="/#contacts"
-              className="hover:text-amber-500 transition-colors underline-offset-8 hover:underline shrink-0"
-            >
-              Контакты
-            </Link>
           </div>
           {/* Мобильный баланс слева от центрального логотипа */}
           <div className="w-10 shrink-0 md:hidden" aria-hidden />
@@ -88,26 +90,27 @@ export default function Header() {
         {/* Логотип по центру экрана */}
         <Link
           href="/"
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 sm:gap-3 z-20 pointer-events-auto"
+          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 sm:gap-3 z-20 pointer-events-auto group"
           onClick={() => setMobileMenuOpen(false)}
         >
-          <div className="relative p-1 sm:p-1.5 group transition-all duration-300">
+          <div className="relative p-1 sm:p-1.5 transition-all duration-300">
+            <div className="absolute inset-0 bg-amber-500/5 blur-xl rounded-full group-hover:bg-amber-500/10 transition-colors" />
+            <Image
+              src={polygonLogo}
+              alt="ПОЛИГОН"
+              width={280}
+              height={72}
+              className="h-8 sm:h-9 md:h-11 w-auto max-w-[140px] sm:max-w-[200px] md:max-w-none object-contain relative z-10 brightness-110 contrast-110 drop-shadow-[0_0_12px_rgba(251,191,36,0.25)] transition-all duration-300 group-hover:brightness-125"
+            />
+          </div>
+          <div className="relative p-1 sm:p-1.5 transition-all duration-300">
             <div className="absolute inset-0 bg-amber-500/5 blur-xl rounded-full group-hover:bg-amber-500/10 transition-colors" />
             <Image
               src={agamaLogo}
               alt="Agama Logo"
               width={75}
               height={75}
-              className="h-[44px] sm:h-[52px] md:h-[56px] w-auto object-contain relative z-10 brightness-110 contrast-110 drop-shadow-[0_0_10px_rgba(251,191,36,0.3)]"
-            />
-          </div>
-          <div className="flex items-center">
-            <Image
-              src={polygonLogo}
-              alt="ПОЛИГОН"
-              width={280}
-              height={72}
-              className="h-8 sm:h-9 md:h-11 w-auto max-w-[140px] sm:max-w-[200px] md:max-w-none object-contain brightness-110 contrast-110 drop-shadow-[0_0_12px_rgba(251,191,36,0.25)]"
+              className="h-[44px] sm:h-[52px] md:h-[56px] w-auto object-contain relative z-10 brightness-110 contrast-110 drop-shadow-[0_0_10px_rgba(251,191,36,0.3)] transition-all duration-300 group-hover:brightness-125"
             />
           </div>
         </Link>

@@ -21,8 +21,9 @@ export const SITE_ADDRESS_LINE =
 /** Короткая строка для шапки сайта */
 export const SITE_ADDRESS_SHORT = "Сурикова, 6, цоколь";
 
+/** Карта из конструктора Яндекса (клуб); переопределение: NEXT_PUBLIC_YANDEX_MAP_EMBED_SRC */
 const DEFAULT_YANDEX_EMBED =
-  "https://yandex.ru/map-widget/v1/?ll=92.873428%2C56.009683&z=17&pt=92.873428%2C56.009683%2Cpm2rdm";
+  "https://yandex.ru/map-widget/v1/?um=constructor%3A72e917290bee63c069d2e37aa31a9d06f757fc0cd6265c9d199ab06733a87909&source=constructor";
 
 export function getYandexMapEmbedSrc(): string {
   if (typeof process !== "undefined" && process.env.NEXT_PUBLIC_YANDEX_MAP_EMBED_SRC?.trim()) {
