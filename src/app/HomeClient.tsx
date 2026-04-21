@@ -8,7 +8,6 @@ import AtmosphericBackground from "@/components/AtmosphericBackground";
 import FAQSection from "@/components/FAQSection";
 import type { Adventure } from "@/hooks/useAdventures";
 import AdventuresCarousel from "@/components/AdventuresCarousel";
-import PhotoCarousel from "@/components/PhotoCarousel";
 import {
   SITE_ADDRESS_LINE,
   SITE_PHONE_DISPLAY,
@@ -18,14 +17,12 @@ import {
 
 interface HomeClientProps {
   initialAdventures: Adventure[];
-  frontpagePhotos: string[];
-  heroPosterUrl: string | null;
+  tablePhotoUrl: string | null;
 }
 
 export default function HomeClient({
   initialAdventures,
-  frontpagePhotos,
-  heroPosterUrl,
+  tablePhotoUrl,
 }: HomeClientProps) {
   const router = useRouter();
   const [adventures] = useState<Adventure[]>(initialAdventures);
@@ -41,22 +38,24 @@ export default function HomeClient({
   }, [router]);
 
   return (
-    <main className="relative min-h-screen text-[#d1c7bc] font-serif selection:bg-amber-900/50 overflow-x-hidden">
+    <main className="relative min-h-screen text-[#d1c7bc] font-fantasy-sans selection:bg-amber-900/50 overflow-x-hidden">
       <AtmosphericBackground />
 
       {/* Блок 1: HERO (Винтажный вид) */}
-      <section id="hero" className="pt-20 sm:pt-28 md:pt-32 pb-12 sm:pb-16 md:pb-24 px-4 sm:px-6 max-w-7xl mx-auto">
-        <div className="grid lg:grid-cols-2 gap-8 sm:gap-10 lg:gap-12 xl:gap-16 items-center">
-          <div
-            className="min-w-0 transition-opacity duration-500 ease-in-out lg:max-w-xl xl:max-w-2xl"
-          >
+      <section
+        id="hero"
+        className="pt-16 sm:pt-20 md:pt-24 pb-10 sm:pb-12 md:pb-16 px-4 sm:px-6 max-w-7xl mx-auto"
+      >
+        <div className="min-w-0 transition-opacity duration-500 ease-in-out">
+          <div className="max-w-4xl">
             <div className="inline-block px-2 sm:px-3 py-1.5 border border-amber-900/50 text-amber-600 text-xs sm:text-sm tracking-[0.3em] uppercase mb-3 sm:mb-4">
               Место твоих лучших историй
             </div>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold mb-4 sm:mb-6 md:mb-8 leading-[1.1] text-amber-50 shadow-amber-950 text-shadow-sm uppercase tracking-tight break-words max-w-full">
-              Испытай свою <br /> фантазию
+            <h1 className="font-fantasy-serif text-3xl sm:text-4xl md:text-[2.75rem] lg:text-6xl xl:text-7xl font-bold mb-3 sm:mb-4 md:mb-5 leading-[1.05] text-amber-50 shadow-amber-950 text-shadow-sm uppercase tracking-tight break-words max-w-full">
+              <span className="hidden md:inline whitespace-nowrap">Испытай свою фантазию</span>
+              <span className="md:hidden">Испытай свою фантазию</span>
             </h1>
-            <p className="text-base sm:text-lg text-[#8c8279] mb-6 sm:mb-8 md:mb-10 max-w-md leading-relaxed break-words">
+            <p className="text-base sm:text-lg text-[#c8c0b6] mb-5 sm:mb-6 md:mb-7 leading-relaxed break-words">
               Офлайн-клуб настольных ролевых игр в Красноярске. Играем в D&D, Зов Ктулху и другие системы. Приходи один или с компанией — научим, покажем, дадим кубики.
             </p>
             <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:gap-4">
@@ -69,45 +68,28 @@ export default function HomeClient({
                 <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-2 transition-transform" />
               </button>
             </div>
-            <ul className="mt-6 space-y-2 text-sm sm:text-base text-amber-200/80">
-              <li className="flex items-start gap-3">
-                <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600" />
-                Живые сессии с ведущим: сюжет, актёрка, напряжение.
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600" />
-                Подбор по уровню: от новичков до опытных партий.
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600" />
-                Безопасная атмосфера: границы проговариваются до игры.
-              </li>
-            </ul>
-          </div>
-
-          {/* Постер справа (~половина ряда по ширине, выше блока текста — см. макет) */}
-          <div className="relative min-w-0 flex justify-center lg:justify-end lg:items-center">
-            {heroPosterUrl ? (
-              <Image
-                src={heroPosterUrl}
-                alt="Гильдия настольных ролевых игр — постер клуба"
-                width={650}
-                height={928}
-                className="h-auto w-auto max-w-full object-contain rounded-md border border-amber-900/40 shadow-[0_24px_60px_rgba(0,0,0,0.5)] max-h-[min(72vh,540px)] sm:max-h-[min(78vh,620px)] lg:max-h-[min(92vh,900px)] xl:max-h-[min(92vh,960px)]"
-                unoptimized
-                priority
-                sizes="(max-width: 1024px) 92vw, (max-width: 1280px) 45vw, 640px"
-              />
-            ) : frontpagePhotos.length > 0 ? (
-              <div className="w-full max-w-lg mx-auto lg:max-w-none">
-                <PhotoCarousel photos={frontpagePhotos} />
-              </div>
-            ) : null}
           </div>
         </div>
 
+        {tablePhotoUrl ? (
+          <div className="mt-7 sm:mt-8 md:mt-10">
+            <div className="relative w-full overflow-hidden rounded-lg border border-amber-900/35 bg-[#12100f] shadow-[0_24px_60px_rgba(0,0,0,0.5)]">
+              <Image
+                src={tablePhotoUrl}
+                alt="Игровой стол в клубе"
+                width={1600}
+                height={900}
+                className="w-full h-auto object-cover"
+                unoptimized
+                priority
+                sizes="(max-width: 768px) 92vw, (max-width: 1280px) 90vw, 1200px"
+              />
+            </div>
+          </div>
+        ) : null}
+
         {/* Карточки-сюжеты в стиле "игровых карт" */}
-        <div id="adventures" className="mt-20 sm:mt-28 md:mt-40">
+        <div id="adventures" className="mt-16 sm:mt-20 md:mt-28">
           <div className="flex items-center gap-2 sm:gap-4 mb-8 sm:mb-10 md:mb-12">
             <div className="h-[1px] flex-1 bg-amber-900/30"></div>
             <h2 className="text-lg sm:text-xl md:text-2xl font-bold uppercase tracking-[0.2em] sm:tracking-[0.3em] md:tracking-[0.4em] text-amber-800 px-2">Время Приключений</h2>

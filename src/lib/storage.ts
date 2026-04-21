@@ -6,6 +6,13 @@
 const IMAGES_BASE = process.env.NEXT_PUBLIC_YC_STORAGE_IMAGES_BASE;
 const IMAGES_PREFIX = process.env.NEXT_PUBLIC_YC_STORAGE_IMAGES_PREFIX ?? "";
 
+function encodeStoragePath(path: string): string {
+  return path
+    .split("/")
+    .map((seg) => encodeURIComponent(seg))
+    .join("/");
+}
+
 export function getStorageImageUrl(
   filename: string | null | undefined
 ): string | null {
@@ -17,8 +24,8 @@ export function getStorageImageUrl(
   if (IMAGES_BASE) {
     const base = IMAGES_BASE.replace(/\/$/, "");
     const path = IMAGES_PREFIX ? `${IMAGES_PREFIX}${filename}` : filename;
-    return `${base}/${path}`;
+    return `${base}/${encodeStoragePath(path)}`;
   }
 
-  return `/${filename}`;
+  return `/${encodeStoragePath(filename)}`;
 }

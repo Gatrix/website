@@ -15,6 +15,17 @@ const IMAGES_PREFIX = process.env.YC_STORAGE_IMAGES_PREFIX ?? "";
 /** Ключи для presigned URL — работают и в dev (`npm run dev`), если заданы в .env.local */
 const canPresignObjectGet = Boolean(BUCKET && ACCESS_KEY && SECRET_KEY);
 
+/**
+ * AWS4 canonical URI expects each path segment URL-encoded.
+ * This also makes plain public URLs work for object keys with spaces.
+ */
+function encodeS3Path(path: string): string {
+  return path
+    .split("/")
+    .map((seg) => encodeURIComponent(seg))
+    .join("/");
+}
+
 function sha256hex(data: string): string {
   return createHash("sha256").update(data, "utf-8").digest("hex");
 }
@@ -44,7 +55,7 @@ async function s3SignedGetObject(objectKey: string): Promise<Response> {
   const amzDate = now.toISOString().replace(/[:\-]/g, "").replace(/\.\d{3}Z$/, "Z");
   const dateStamp = amzDate.slice(0, 8);
   const payloadHash = sha256hex("");
-  const path = `/${BUCKET}/${objectKey}`;
+  const path = `/${BUCKET}/${encodeS3Path(objectKey)}`;
   const service = "s3";
 
   const headers: Record<string, string> = {
@@ -154,7 +165,7 @@ export function getPresignedGetUrl(
     .map((k) => `${k}=${encodeURIComponent(params[k])}`)
     .join("&");
 
-  const canonicalUri = `/${BUCKET}/${objectKey}`;
+  const canonicalUri = `/${BUCKET}/${encodeS3Path(objectKey)}`;
   const canonicalRequest = [
     "GET",
     canonicalUri,

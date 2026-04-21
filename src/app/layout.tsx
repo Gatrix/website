@@ -1,18 +1,26 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Cormorant_Garamond, Geist_Mono, Manrope } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 // TODO: раскомментировать при включении авторизации
 // import SessionProvider from "@/components/SessionProvider";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+// Главная: атмосферные шрифты с кириллицей (подключаем как переменные, не включаем глобально по умолчанию)
+const fantasySerif = Cormorant_Garamond({
+  variable: "--font-fantasy-serif",
+  subsets: ["cyrillic", "latin"],
+  weight: ["400", "500", "600", "700"],
+});
+
+const fantasySans = Manrope({
+  variable: "--font-fantasy-sans",
+  subsets: ["cyrillic", "latin"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
@@ -34,7 +42,7 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistMono.variable} ${fantasySerif.variable} ${fantasySans.variable} antialiased`}
       >
         {/* TODO: обернуть в SessionProvider при включении авторизации */}
         <Header />

@@ -51,6 +51,14 @@
 }
 
 @layer components {
+  .font-fantasy-serif {
+    font-family: var(--font-fantasy-serif), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  }
+
+  .font-fantasy-sans {
+    font-family: var(--font-fantasy-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+  }
+
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-md font-black uppercase tracking-wider transition-all;
     @apply min-h-[44px] px-5 py-2.5;
