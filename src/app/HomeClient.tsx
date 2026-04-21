@@ -252,7 +252,7 @@ export default function HomeClient({
                   <ul className="space-y-2 pt-1">
                     <li className="flex gap-3">
                       <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600/80 shrink-0" />
-                      Группы новичков по 3–6 человек
+                      Группы новичков по 4–6 человек
                     </li>
                     <li className="flex gap-3">
                       <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600/80 shrink-0" />
