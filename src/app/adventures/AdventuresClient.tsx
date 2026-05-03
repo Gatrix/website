@@ -20,6 +20,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import AdventureModal from "@/components/AdventureModal";
 import AtmosphericBackground from "@/components/AtmosphericBackground";
 import AdventureCard from "@/components/AdventureCard";
+import GameBookingNotice from "@/components/GameBookingNotice";
 import type { Adventure } from "@/hooks/useAdventures";
 import type { AdventureOptions } from "@/lib/db";
 
@@ -394,17 +395,22 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
   }, [collapsibleStep, optionsFingerprint]);
 
   return (
-    <main className="relative min-h-screen text-yellow-100 font-serif selection:bg-yellow-500/30 p-4 sm:p-6 md:p-12">
+    <main className="relative min-h-screen text-yellow-100 font-serif selection:bg-yellow-500/30 px-4 pb-4 sm:px-6 sm:pb-6 md:px-12 md:pb-12">
       <AtmosphericBackground />
 
-      <div className="max-w-7xl mx-auto mb-6 sm:mb-8 md:mb-10 pt-16 sm:pt-20 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0 border-b border-yellow-500/35 pb-3 sm:pb-5 md:pb-6">
-        <Link href="/" className="flex items-center gap-2 text-yellow-300 hover:text-yellow-200 transition-colors uppercase text-[10px] sm:text-xs tracking-widest font-bold order-2 sm:order-1 drop-shadow-[0_0_12px_rgba(250,204,21,0.25)]">
-          <ChevronLeft size={16} className="sm:w-[18px] sm:h-[18px]" /> Назад
-        </Link>
-        <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold uppercase tracking-[0.2em] sm:tracking-[0.3em] md:tracking-[0.36em] text-yellow-50 text-center order-1 sm:order-2 drop-shadow-[0_0_20px_rgba(253,224,71,0.45)]">
-          Время приключений
-        </h1>
-        <div className="w-[100px] hidden md:block order-3"></div>
+      {/* Отступ до первого блока: ~половина прежнего зазора под фикс. шапку (ровно между старым offset и высотой nav) */}
+      <div className="max-w-7xl mx-auto relative z-10 pt-[4.625rem] sm:pt-[5.375rem] md:pt-[6.375rem]">
+        <GameBookingNotice className="mb-6 sm:mb-10" />
+
+        <div className="mb-6 sm:mb-8 md:mb-10 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0 border-b border-yellow-500/35 pb-3 sm:pb-5 md:pb-6">
+          <Link href="/" className="flex items-center gap-2 text-yellow-300 hover:text-yellow-200 transition-colors uppercase text-[10px] sm:text-xs tracking-widest font-bold order-2 sm:order-1 drop-shadow-[0_0_12px_rgba(250,204,21,0.25)]">
+            <ChevronLeft size={16} className="sm:w-[18px] sm:h-[18px]" /> Назад
+          </Link>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold uppercase tracking-[0.2em] sm:tracking-[0.3em] md:tracking-[0.36em] text-yellow-50 text-center order-1 sm:order-2 drop-shadow-[0_0_20px_rgba(253,224,71,0.45)]">
+            Время приключений
+          </h1>
+          <div className="w-[100px] hidden md:block order-3" aria-hidden />
+        </div>
       </div>
 
       <div className="max-w-4xl mx-auto mb-8">

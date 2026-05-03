@@ -5,7 +5,7 @@ import Image from "next/image";
 import { X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Adventure } from "@/hooks/useAdventures";
-import { useRouter } from "next/navigation";
+import { SITE_TELEGRAM_BOOKING_URL } from "@/lib/site-contact";
 
 interface AdventureModalProps {
   adventure: Adventure | null;
@@ -26,7 +26,6 @@ export default function AdventureModal({
   hasPrevious = false,
   hasNext = false,
 }: AdventureModalProps) {
-  const router = useRouter();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const leftScrollRef = useRef<HTMLDivElement>(null);
@@ -187,12 +186,6 @@ export default function AdventureModal({
     return items;
   }, [adventure, durationLabel, playersLabel]);
 
-  const handleChooseDate = () => {
-    if (!adventure) return;
-    onClose();
-    router.push("/schedule#calendar");
-  };
-
   const handleDialogKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "Tab") return;
     const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
@@ -304,12 +297,15 @@ export default function AdventureModal({
                       */}
                     </div>
                     <div className="hidden md:block flex-shrink-0 p-4 sm:p-[min(1.5rem,2vw)] md:p-[min(2rem,2.5vw)] pt-0">
-                      <button
-                        onClick={handleChooseDate}
-                        className="btn btn-primary w-full focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#14110f]"
+                      <a
+                        href={SITE_TELEGRAM_BOOKING_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => onClose()}
+                        className="btn btn-primary w-full inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#14110f]"
                       >
                         Записаться
-                      </button>
+                      </a>
                     </div>
                   </div>
 
@@ -356,12 +352,15 @@ export default function AdventureModal({
 
                   {/* Мобилка: order-3 — CTA под постером; на md скрыто (кнопка в правой колонке) */}
                   <div className="order-3 md:hidden flex-shrink-0 p-4 sm:p-[min(1.5rem,2vw)] pt-0 border-t border-amber-900/25 bg-[#14110f]">
-                    <button
-                      onClick={handleChooseDate}
-                      className="btn btn-primary w-full focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#14110f]"
+                    <a
+                      href={SITE_TELEGRAM_BOOKING_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => onClose()}
+                      className="btn btn-primary w-full inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#14110f]"
                     >
                       Записаться
-                    </button>
+                    </a>
                   </div>
                 </motion.div>
               </AnimatePresence>

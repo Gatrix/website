@@ -15,6 +15,15 @@ export const SITE_PHONE_DISPLAY = "+7 (950) 976-25-14";
 /** Для ссылок tel: */
 export const SITE_PHONE_TEL = "+79509762514";
 
+/** Telegram ведущего — запись на игры, кнопки «Записаться» и т.п. */
+export const SITE_TELEGRAM_BOOKING_URL = "https://t.me/gatriks";
+
+/** Сообщество клуба во ВКонтакте */
+export const SITE_VK_URL = "https://vk.com/polygon20fun";
+
+/** Discord ведущего */
+export const SITE_DISCORD_URL = "https://discord.com/users/gatriks";
+
 export const SITE_ADDRESS_LINE =
   "г. Красноярск, ул. Сурикова, 6, цокольный этаж (слева от 1 подъезда)";
 

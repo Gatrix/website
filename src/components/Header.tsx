@@ -5,7 +5,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, Phone, X } from "lucide-react";
-import { SITE_ADDRESS_SHORT, SITE_PHONE_DISPLAY, SITE_PHONE_TEL } from "@/lib/site-contact";
+import {
+  SITE_ADDRESS_SHORT,
+  SITE_DISCORD_URL,
+  SITE_PHONE_DISPLAY,
+  SITE_PHONE_TEL,
+  SITE_TELEGRAM_BOOKING_URL,
+  SITE_VK_URL,
+} from "@/lib/site-contact";
 // TODO: раскомментировать при включении авторизации
 // import { useSession } from "next-auth/react";
 
@@ -33,7 +40,7 @@ export default function Header() {
   // const router = useRouter();
   // const { data: session, status } = useSession();
   const isAdventuresPage = pathname === "/adventures";
-  const isSchedulePage = pathname === "/schedule";
+  // const isSchedulePage = pathname === "/schedule";
   // const isLoginPage = pathname === "/login";
   // const isProfilePage = pathname === "/profile";
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -65,13 +72,13 @@ export default function Header() {
             </div>
             <div className="flex flex-col items-center gap-2 shrink-0">
               <div className="flex items-center gap-4 lg:gap-6 shrink-0">
-                <a href="https://t.me/gatriks" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#5865F2] transition-all hover:scale-110 shrink-0" title="Discord">
+                <a href={SITE_DISCORD_URL} target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#5865F2] transition-all hover:scale-110 shrink-0" title="Discord">
                   <DiscordIcon className="w-5 h-5" />
                 </a>
-                <a href="https://t.me/gatriks" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#24A1DE] transition-all hover:scale-110 shrink-0" title="Telegram">
+                <a href={SITE_TELEGRAM_BOOKING_URL} target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#24A1DE] transition-all hover:scale-110 shrink-0" title="Telegram">
                   <TelegramIcon className="w-5 h-5" />
                 </a>
-                <a href="https://t.me/gatriks" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#0077FF] transition-all hover:scale-110 shrink-0" title="ВКонтакте">
+                <a href={SITE_VK_URL} target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#0077FF] transition-all hover:scale-110 shrink-0" title="ВКонтакте">
                   <VKIcon className="w-5 h-5" />
                 </a>
               </div>
@@ -120,20 +127,22 @@ export default function Header() {
           <div className="hidden md:flex gap-6 lg:gap-10 text-[10px] lg:text-xs font-bold tracking-[0.2em] uppercase items-center text-amber-100/70">
             <Link
               href="/adventures"
-              className={`shrink-0 hover:text-amber-500 transition-colors underline-offset-8 ${
-                isAdventuresPage ? "text-amber-500 underline" : "hover:underline"
+              className={`shrink-0 transition-all underline-offset-8 rounded-sm px-3 py-2 lg:px-4 lg:py-2.5 text-xs lg:text-sm tracking-[0.18em] lg:tracking-[0.22em] border-2 font-black shadow-[0_0_18px_rgba(251,191,36,0.2)] ${
+                isAdventuresPage
+                  ? "text-amber-950 bg-amber-400 border-amber-300 underline"
+                  : "text-amber-100 border-amber-600/55 bg-amber-950/40 hover:bg-amber-500/20 hover:border-amber-400 hover:text-amber-50 hover:underline"
               }`}
             >
               Приключения
             </Link>
-            <Link
+            {/* <Link
               href="/schedule"
               className={`shrink-0 hover:text-amber-500 transition-colors underline-offset-8 ${
                 isSchedulePage ? "text-amber-500 underline" : "hover:underline"
               }`}
             >
               Расписание
-            </Link>
+            </Link> */}
             {/* TODO: раскомментировать при включении авторизации и личных кабинетов */}
             {/* {!loading && (
               isAuthenticated ? (
@@ -196,13 +205,13 @@ export default function Header() {
             </p>
           </div>
           <div className="flex gap-4 py-4 border-b border-amber-900/30">
-            <a href="https://t.me/gatriks" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#5865F2] transition-all" title="Discord">
+            <a href={SITE_DISCORD_URL} target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#5865F2] transition-all" title="Discord">
               <DiscordIcon className="w-6 h-6" />
             </a>
-            <a href="https://t.me/gatriks" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#24A1DE] transition-all" title="Telegram">
+            <a href={SITE_TELEGRAM_BOOKING_URL} target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#24A1DE] transition-all" title="Telegram">
               <TelegramIcon className="w-6 h-6" />
             </a>
-            <a href="https://t.me/gatriks" target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#0077FF] transition-all" title="ВКонтакте">
+            <a href={SITE_VK_URL} target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#0077FF] transition-all" title="ВКонтакте">
               <VKIcon className="w-6 h-6" />
             </a>
           </div>
@@ -216,13 +225,15 @@ export default function Header() {
           <Link
             href="/adventures"
             onClick={() => setMobileMenuOpen(false)}
-            className={`py-4 text-lg font-bold tracking-widest uppercase transition-colors border-b border-amber-900/30 ${
-              isAdventuresPage ? "text-amber-500" : "text-amber-100/70 hover:text-amber-500"
+            className={`py-4 text-xl font-black tracking-widest uppercase transition-colors border-b border-amber-900/30 border-l-4 pl-4 -ml-1 ${
+              isAdventuresPage
+                ? "text-amber-950 bg-amber-400/90 border-l-amber-300"
+                : "text-amber-100/90 border-l-amber-600/50 hover:text-amber-400 hover:border-l-amber-400"
             }`}
           >
             Приключения
           </Link>
-          <Link
+          {/* <Link
             href="/schedule"
             onClick={() => setMobileMenuOpen(false)}
             className={`py-4 text-lg font-bold tracking-widest uppercase transition-colors border-b border-amber-900/30 ${
@@ -230,7 +241,7 @@ export default function Header() {
             }`}
           >
             Расписание
-          </Link>
+          </Link> */}
           {/* TODO: раскомментировать при включении авторизации и личных кабинетов */}
           {/* {!loading && (
             isAuthenticated ? (

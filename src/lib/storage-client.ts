@@ -215,7 +215,7 @@ export function getStorageImageUrl(
       PUBLIC_IMAGES_PREFIX && !filename.startsWith(PUBLIC_IMAGES_PREFIX)
         ? `${PUBLIC_IMAGES_PREFIX}${filename}`
         : filename;
-    return `${base}/${path}`;
+    return `${base}/${encodeS3Path(path)}`;
   }
 
   if (canPresignObjectGet) {

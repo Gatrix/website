@@ -1,6 +1,5 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import AdventureModal from "@/components/AdventureModal";
@@ -8,21 +7,27 @@ import AtmosphericBackground from "@/components/AtmosphericBackground";
 import FAQSection from "@/components/FAQSection";
 import type { Adventure } from "@/hooks/useAdventures";
 import AdventuresCarousel from "@/components/AdventuresCarousel";
+import HeroFrontpageCarousel from "@/components/HeroFrontpageCarousel";
 import {
   SITE_ADDRESS_LINE,
+  SITE_DISCORD_URL,
   SITE_PHONE_DISPLAY,
   SITE_PHONE_TEL,
+  SITE_TELEGRAM_BOOKING_URL,
+  SITE_VK_URL,
   getYandexMapEmbedSrc,
 } from "@/lib/site-contact";
 
+export type HeroCarouselSlide = { src: string; alt: string };
+
 interface HomeClientProps {
   initialAdventures: Adventure[];
-  tablePhotoUrl: string | null;
+  heroCarouselSlides: HeroCarouselSlide[];
 }
 
 export default function HomeClient({
   initialAdventures,
-  tablePhotoUrl,
+  heroCarouselSlides,
 }: HomeClientProps) {
   const router = useRouter();
   const [adventures] = useState<Adventure[]>(initialAdventures);
@@ -56,7 +61,7 @@ export default function HomeClient({
               <span className="md:hidden">Испытай свою фантазию</span>
             </h1>
             <p className="text-base sm:text-lg text-[#c8c0b6] mb-5 sm:mb-6 md:mb-7 leading-relaxed break-words">
-              Офлайн-клуб настольных ролевых игр в Красноярске. Играем в D&D, Зов Ктулху и другие системы. Приходи один или с компанией — научим, покажем, дадим кубики.
+              Офлайн-клуб настольных ролевых игр в Красноярске. Играем в D&D, Зов Ктулху и другие системы. Приходи один или с компанией — научим, покажем, дадим кубики. А еще у нас есть маскот - бородатая агама Феникс (но все зовут его Феня, не дорос пока до крутых прозвищ)!
             </p>
             <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:gap-4">
               <button
@@ -71,22 +76,7 @@ export default function HomeClient({
           </div>
         </div>
 
-        {tablePhotoUrl ? (
-          <div className="mt-7 sm:mt-8 md:mt-10">
-            <div className="relative w-full overflow-hidden rounded-lg border border-amber-900/35 bg-[#12100f] shadow-[0_24px_60px_rgba(0,0,0,0.5)]">
-              <Image
-                src={tablePhotoUrl}
-                alt="Игровой стол в клубе"
-                width={1600}
-                height={900}
-                className="w-full h-auto object-cover"
-                unoptimized
-                priority
-                sizes="(max-width: 768px) 92vw, (max-width: 1280px) 90vw, 1200px"
-              />
-            </div>
-          </div>
-        ) : null}
+        <HeroFrontpageCarousel slides={heroCarouselSlides} />
 
         {/* Карточки-сюжеты в стиле "игровых карт" */}
         <div id="adventures" className="mt-16 sm:mt-20 md:mt-28">
@@ -128,11 +118,11 @@ export default function HomeClient({
                 <div className="relative w-14 h-14 rounded-xl bg-amber-900/40 border border-amber-700/40 mb-4 flex items-center justify-center text-amber-500 text-2xl shadow-inner flex-shrink-0">
                   🏠
                 </div>
-                <h3 className="relative min-h-[2.6em] text-base sm:text-lg font-bold text-amber-500 uppercase mb-1 tracking-wide">
+                <h3 className="relative min-h-[2.6em] text-xl sm:text-2xl font-bold text-amber-500 uppercase mb-1.5 tracking-wide leading-tight">
                   АРЕНДА КЛУБА
                 </h3>
-                <p className="relative text-xl sm:text-2xl font-black text-amber-500 mb-1">
-                  2 000 ₽ за слот <span className="text-amber-400/70 font-black">·</span> 4 часа
+                <p className="relative text-sm sm:text-base font-semibold text-amber-500 mb-1">
+                  1 600 ₽/4 часа (за стол)
                 </p>
                 <div className="relative text-sm text-[#b8b0a8] leading-relaxed space-y-3">
                   <p className="text-[#c8c0b6]">
@@ -167,7 +157,7 @@ export default function HomeClient({
                 </div>
               </div>
               <a
-                href="https://t.me/gatriks"
+                href={SITE_TELEGRAM_BOOKING_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="relative mt-4 flex-shrink-0 w-full px-4 py-2.5 bg-amber-700/80 text-black font-bold uppercase text-xs tracking-wider hover:bg-amber-600 transition-all rounded border border-amber-600/50 text-center"
@@ -187,11 +177,11 @@ export default function HomeClient({
                 <div className="relative z-10 w-14 h-14 rounded-xl bg-gradient-to-br from-amber-700/50 to-amber-900/50 border-2 border-amber-600/50 mb-4 flex items-center justify-center text-amber-300 text-2xl shadow-lg flex-shrink-0">
                   👑
                 </div>
-                <h3 className="relative z-10 min-h-[2.6em] text-base sm:text-lg font-bold text-amber-300 uppercase mb-1 tracking-widest drop-shadow-sm">
+                <h3 className="relative z-10 min-h-[2.6em] text-xl sm:text-2xl font-bold text-amber-300 uppercase mb-1.5 tracking-widest drop-shadow-sm leading-tight">
                   ИГРА С КЛУБНЫМ МАСТЕРОМ
                 </h3>
-                <p className="relative z-10 text-xl sm:text-2xl font-black text-amber-400 mb-1">
-                  1 600 ₽ с человека <span className="text-amber-300/70 font-black">·</span> 4 часа
+                <p className="relative z-10 text-sm sm:text-base font-semibold text-amber-400 mb-1">
+                  1 200 ₽/4 часа (за человека)
                 </p>
                 <div className="relative z-10 text-sm text-[#c8c0b6] leading-relaxed space-y-3">
                   <p>
@@ -215,7 +205,7 @@ export default function HomeClient({
                     </li>
                     <li className="flex gap-3">
                       <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-500/80 shrink-0" />
-                      Продление: 400 ₽/час
+                      Продление: 300 ₽/час
                     </li>
                   </ul>
                 </div>
@@ -236,11 +226,11 @@ export default function HomeClient({
                 <div className="relative w-14 h-14 rounded-xl bg-amber-900/35 border border-amber-700/35 mb-4 flex items-center justify-center text-amber-400 text-2xl shadow-inner flex-shrink-0">
                   🎲
                 </div>
-                <h3 className="relative min-h-[2.6em] text-base sm:text-lg font-bold text-amber-400 uppercase mb-1 tracking-wide">
+                <h3 className="relative min-h-[2.6em] text-xl sm:text-2xl font-bold text-amber-400 uppercase mb-1.5 tracking-wide leading-tight">
                   ЗНАКОМСТВО С НРИ
                 </h3>
-                <p className="relative text-xl sm:text-2xl font-black text-amber-400 mb-1">
-                  500 ₽ с человека <span className="text-amber-300/70 font-black">·</span> 2–3 часа
+                <p className="relative text-sm sm:text-base font-semibold text-amber-400 mb-1">
+                  400 ₽/2–3 часа (за человека)
                 </p>
                 <div className="relative text-sm text-[#c8c0b6] leading-relaxed space-y-3 mt-2">
                   <p className="text-[#c8c0b6]">
@@ -252,7 +242,7 @@ export default function HomeClient({
                   <ul className="space-y-2 pt-1">
                     <li className="flex gap-3">
                       <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600/80 shrink-0" />
-                      Группы новичков по 4–6 человек
+                      Группы новичков по 3–6 человек
                     </li>
                     <li className="flex gap-3">
                       <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600/80 shrink-0" />
@@ -270,7 +260,7 @@ export default function HomeClient({
                 </div>
               </div>
               <a
-                href="https://t.me/gatriks"
+                href={SITE_TELEGRAM_BOOKING_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="relative mt-4 flex-shrink-0 w-full px-4 py-2.5 bg-amber-700/80 text-black font-bold uppercase text-xs tracking-wider hover:bg-amber-600 transition-all rounded border border-amber-600/50 text-center"
@@ -348,7 +338,7 @@ export default function HomeClient({
                 </h3>
                 <div className="flex flex-wrap gap-x-8 gap-y-3 font-sans text-sm sm:text-base font-semibold">
                   <a
-                    href="https://t.me/gatriks"
+                    href={SITE_TELEGRAM_BOOKING_URL}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-amber-800/90 hover:text-amber-600 transition-colors"
@@ -356,7 +346,7 @@ export default function HomeClient({
                     Telegram
                   </a>
                   <a
-                    href="https://t.me/gatriks"
+                    href={SITE_DISCORD_URL}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-amber-800/90 hover:text-amber-600 transition-colors"
@@ -364,7 +354,7 @@ export default function HomeClient({
                     Discord
                   </a>
                   <a
-                    href="https://t.me/gatriks"
+                    href={SITE_VK_URL}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-amber-800/90 hover:text-amber-600 transition-colors"
