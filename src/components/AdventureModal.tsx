@@ -1,11 +1,20 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import { X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Adventure } from "@/hooks/useAdventures";
-import { SITE_TELEGRAM_BOOKING_URL } from "@/lib/site-contact";
+
+const AdventureBookingForm = dynamic(() => import("@/components/booking/AdventureBookingForm"), {
+  ssr: false,
+  loading: () => (
+    <p className="text-sm text-amber-200/70 py-4" role="status">
+      Загрузка формы…
+    </p>
+  ),
+});
 
 interface AdventureModalProps {
   adventure: Adventure | null;
@@ -34,6 +43,7 @@ export default function AdventureModal({
   const scrollPositionRef = useRef(0);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const [slideDirection, setSlideDirection] = useState(1);
+  const [bookingOpen, setBookingOpen] = useState(false);
 
   const canSwipeUpClose = () => {
     const left = leftScrollRef.current?.scrollTop ?? 0;
@@ -57,7 +67,7 @@ export default function AdventureModal({
     const absY = Math.abs(dy);
     if (absX < 24 && absY < 24) return;
 
-    if (absX >= absY && absX > 48) {
+    if (!bookingOpen && absX >= absY && absX > 48) {
       if (dx > 0 && hasPrevious && onPrevious) {
         setSlideDirection(-1);
         onPrevious();
@@ -78,18 +88,19 @@ export default function AdventureModal({
     if (!isOpen) return;
     const handleKeyboard = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onClose();
-      } else if (e.key === "ArrowLeft" && hasPrevious && onPrevious) {
+        if (bookingOpen) setBookingOpen(false);
+        else onClose();
+      } else if (!bookingOpen && e.key === "ArrowLeft" && hasPrevious && onPrevious) {
         e.preventDefault();
         onPrevious();
-      } else if (e.key === "ArrowRight" && hasNext && onNext) {
+      } else if (!bookingOpen && e.key === "ArrowRight" && hasNext && onNext) {
         e.preventDefault();
         onNext();
       }
     };
     window.addEventListener("keydown", handleKeyboard);
     return () => window.removeEventListener("keydown", handleKeyboard);
-  }, [isOpen, onClose, onPrevious, onNext, hasPrevious, hasNext]);
+  }, [isOpen, onClose, onPrevious, onNext, hasPrevious, hasNext, bookingOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -108,6 +119,10 @@ export default function AdventureModal({
       }
     };
   }, [isOpen]);
+
+  useEffect(() => {
+    setBookingOpen(false);
+  }, [adventure?.id]);
 
   // Предотвращение скролла фона + компенсация ширины скроллбара (убирает тряску при закрытии)
   useEffect(() => {
@@ -205,6 +220,27 @@ export default function AdventureModal({
 
   if (!adventure) return null;
 
+  const paramsBlock =
+    paramsList.length > 0 || adventure.contentWarnings?.length ? (
+      <div className="w-full max-w-[min(260px,75vw)] md:max-w-none space-y-2">
+        {paramsList.map(({ label, value }) => (
+          <p
+            key={label}
+            className="text-base sm:text-lg text-amber-200/90 leading-relaxed border-b border-amber-900/40 pb-2 last:border-b-0"
+          >
+            <span className="text-amber-500/80 font-medium">{label}: </span>
+            {value}
+          </p>
+        ))}
+        {adventure.contentWarnings?.length ? (
+          <p className="mt-2 text-base sm:text-lg text-amber-300/70">
+            <span className="text-amber-500/80 font-medium">Контент‑предупреждения: </span>
+            {adventure.contentWarnings.join(", ")}
+          </p>
+        ) : null}
+      </div>
+    ) : null;
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -237,7 +273,7 @@ export default function AdventureModal({
               onKeyDown={handleDialogKeyDown}
               onTouchStart={handleTouchStart}
               onTouchEnd={handleTouchEnd}
-              className="relative w-[min(94vw,85rem)] h-[min(90vh,52rem)] max-h-[90vh] bg-[#14110f] border-2 border-amber-700/40 rounded-lg sm:rounded-xl overflow-hidden shadow-2xl pointer-events-auto flex flex-col touch-manipulation"
+              className="relative w-[min(94vw,85rem)] h-[min(92vh,56rem)] max-h-[92vh] bg-[#14110f] border-2 border-amber-700/40 rounded-lg sm:rounded-xl overflow-hidden shadow-2xl pointer-events-auto flex flex-col touch-manipulation"
             >
               {/* Декоративные углы */}
               <div className="absolute top-0 left-0 w-4 h-4 sm:w-6 md:w-8 border-t-2 border-l-2 border-amber-500/60 z-20" />
@@ -254,8 +290,9 @@ export default function AdventureModal({
                   transition={{ duration: 0.2, ease: "easeOut" }}
                   className="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden"
                 >
-                  {/* Мобилка: order-1 — заголовок и вступление; md: правая колонка */}
-                  <div className="order-1 md:order-2 flex flex-none md:flex-1 min-h-0 flex-col overflow-hidden relative bg-[#14110f] md:bg-transparent">
+                  <>
+                  {/* Мобилка: order-1 — заголовок, описание и характеристики; md: правая колонка (только текст) */}
+                  <div className="order-1 md:order-2 flex flex-1 min-h-0 flex-col overflow-hidden relative bg-[#14110f] md:bg-transparent">
                     <button
                       onClick={onClose}
                       aria-label="Закрыть"
@@ -266,15 +303,29 @@ export default function AdventureModal({
                     </button>
                     <div
                       ref={rightScrollRef}
-                      className="max-h-[min(38vh,22rem)] md:max-h-none flex-1 min-h-0 p-4 sm:p-[min(1.5rem,2vw)] md:p-[min(2rem,2.5vw)] pr-14 sm:pr-16 overflow-y-auto"
+                      className="flex-1 min-h-0 p-4 sm:p-[min(1.5rem,2vw)] md:p-[min(2rem,2.5vw)] pr-14 sm:pr-16 overflow-y-auto"
                     >
                       <h2 id="adventure-title" className="text-[clamp(1.125rem,2.5vw,2.25rem)] md:text-[clamp(1.5rem,3vw,2.5rem)] font-extrabold uppercase tracking-tight text-amber-100 leading-tight mb-4">
                         {adventure.title}
                       </h2>
-                      {displayText && (
-                        <p id="adventure-description" className="text-[clamp(0.875rem,1.5vw,1.125rem)] md:text-[clamp(1rem,1.8vw,1.25rem)] text-amber-200/80 leading-relaxed whitespace-pre-line">
-                          {displayText}
-                        </p>
+                      {bookingOpen ? (
+                        <AdventureBookingForm adventure={adventure} onBack={() => setBookingOpen(false)} />
+                      ) : (
+                        <>
+                          {displayText ? (
+                            <p
+                              id="adventure-description"
+                              className="text-[clamp(0.875rem,1.5vw,1.125rem)] md:text-[clamp(1rem,1.8vw,1.25rem)] text-amber-200/80 leading-relaxed whitespace-pre-line"
+                            >
+                              {displayText}
+                            </p>
+                          ) : null}
+                          {paramsBlock ? (
+                            <div className="md:hidden mt-6 max-w-none mx-auto w-full">
+                              {paramsBlock}
+                            </div>
+                          ) : null}
+                        </>
                       )}
                       {/* Блок «Архетипичные персонажи» — временно отключён (данные не подключены)
                       <div className="mt-6">
@@ -296,23 +347,23 @@ export default function AdventureModal({
                       </div>
                       */}
                     </div>
-                    <div className="hidden md:block flex-shrink-0 p-4 sm:p-[min(1.5rem,2vw)] md:p-[min(2rem,2.5vw)] pt-0">
-                      <a
-                        href={SITE_TELEGRAM_BOOKING_URL}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => onClose()}
-                        className="btn btn-primary w-full inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#14110f]"
-                      >
-                        Записаться
-                      </a>
-                    </div>
+                    {!bookingOpen ? (
+                      <div className="hidden md:block flex-shrink-0 p-4 sm:p-[min(1.5rem,2vw)] md:p-[min(2rem,2.5vw)] pt-0">
+                        <button
+                          type="button"
+                          onClick={() => setBookingOpen(true)}
+                          className="btn btn-primary w-full inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#14110f]"
+                        >
+                          Забронировать игру
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
 
-                  {/* Мобилка: order-2 — постер и параметры; md: левая колонка */}
-                  <div className="order-2 md:order-1 relative w-full md:w-[40.84%] md:min-w-[284px] md:max-w-[392px] flex-1 min-h-0 md:h-full bg-[#0f0d0c] border-b md:border-b-0 md:border-r border-amber-900/30 md:flex-none md:flex-shrink-0 flex flex-col p-[min(1rem,2vw)] sm:p-4 md:pt-[min(2rem,3vh)] md:pb-0">
+                  {/* Мобилка: order-2 — постер; md: левая колонка (постер + параметры) */}
+                  <div className="order-2 md:order-1 relative w-full md:w-[40.84%] md:min-w-[284px] md:max-w-[392px] flex-none md:flex-1 min-h-0 md:h-full bg-[#0f0d0c] border-b md:border-b-0 md:border-r border-amber-900/30 md:flex-none md:flex-shrink-0 flex flex-col p-[min(1rem,2vw)] sm:p-4 md:pt-[min(2rem,3vh)] md:pb-0">
                     <div ref={leftScrollRef} className="flex-1 min-h-0 overflow-y-auto flex flex-col">
-                      <div className="relative w-full max-w-[min(337px,85%)] min-w-[198px] aspect-[3/4] max-h-[min(47vh,416px)] flex items-center justify-center overflow-hidden rounded-md shadow-inner mb-4 sm:mb-6 flex-shrink-0 self-center mx-auto">
+                      <div className="relative w-full max-w-[min(337px,85%)] min-w-[198px] aspect-[3/4] max-h-[min(47vh,416px)] flex items-center justify-center overflow-hidden rounded-md shadow-inner mb-0 md:mb-4 sm:mb-6 flex-shrink-0 self-center mx-auto">
                         {imageUrl ? (
                           <Image
                             src={imageUrl}
@@ -328,40 +379,27 @@ export default function AdventureModal({
                           </div>
                         )}
                       </div>
-                      {paramsList.length > 0 && (
-                        <div className="w-full max-w-[min(260px,75vw)] md:max-w-none mb-4 flex-shrink-0 space-y-2">
-                          {paramsList.map(({ label, value }) => (
-                            <p
-                              key={label}
-                              className="text-base sm:text-lg text-amber-200/90 leading-relaxed border-b border-amber-900/40 pb-2 last:border-b-0"
-                            >
-                              <span className="text-amber-500/80 font-medium">{label}: </span>
-                              {value}
-                            </p>
-                          ))}
-                          {adventure.contentWarnings?.length ? (
-                            <p className="mt-2 text-base sm:text-lg text-amber-300/70">
-                              <span className="text-amber-500/80 font-medium">Контент‑предупреждения: </span>
-                              {adventure.contentWarnings.join(", ")}
-                            </p>
-                          ) : null}
+                      {paramsBlock ? (
+                        <div className="hidden md:block mb-4 flex-shrink-0">
+                          {paramsBlock}
                         </div>
-                      )}
+                      ) : null}
                     </div>
                   </div>
 
                   {/* Мобилка: order-3 — CTA под постером; на md скрыто (кнопка в правой колонке) */}
-                  <div className="order-3 md:hidden flex-shrink-0 p-4 sm:p-[min(1.5rem,2vw)] pt-0 border-t border-amber-900/25 bg-[#14110f]">
-                    <a
-                      href={SITE_TELEGRAM_BOOKING_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => onClose()}
-                      className="btn btn-primary w-full inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#14110f]"
-                    >
-                      Записаться
-                    </a>
-                  </div>
+                  {!bookingOpen ? (
+                    <div className="order-3 md:hidden flex-shrink-0 p-4 sm:p-[min(1.5rem,2vw)] pt-0 border-t border-amber-900/25 bg-[#14110f]">
+                      <button
+                        type="button"
+                        onClick={() => setBookingOpen(true)}
+                        className="btn btn-primary w-full inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#14110f]"
+                      >
+                        Забронировать игру
+                      </button>
+                    </div>
+                  ) : null}
+                  </>
                 </motion.div>
               </AnimatePresence>
             </div>

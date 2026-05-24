@@ -87,6 +87,7 @@ SELECT
   COALESCE(a.title, '') AS title,
   a.intro,
   a.description,
+  a.theme,
   a.${posterCol} AS poster,
   bs.${cBase} AS base_setting,
   ss.${cSub} AS subsetting,
@@ -124,6 +125,7 @@ function normalizedSqlRowToAdventure(row: Record<string, unknown>): Adventure {
     poster: row.poster != null ? String(row.poster) : undefined,
     intro: row.intro != null ? String(row.intro) : undefined,
     description: row.description != null ? String(row.description) : undefined,
+    theme: row.theme != null ? String(row.theme).trim() || undefined : undefined,
     genre: genreArr,
     universe: universeStr,
     world: universeStr,
@@ -147,6 +149,12 @@ function rowToAdventure(row: Record<string, unknown>): Adventure {
     img_url: pick(row, "img_url", "imgUrl") as string | undefined,
     intro: pick(row, "intro") as string | undefined,
     description: pick(row, "description") as string | undefined,
+    theme: (() => {
+      const t = pick(row, "theme");
+      if (t == null) return undefined;
+      const s = String(t).trim();
+      return s || undefined;
+    })(),
     genre: normalizeGenre(pick(row, "genre")),
     logline: pick(row, "logline") as string | undefined,
     tone: pick(row, "tone") as string | string[] | undefined,

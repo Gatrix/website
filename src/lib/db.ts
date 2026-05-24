@@ -39,6 +39,8 @@ export interface Adventure {
   session_duration?: string;
   /** Количество игроков (например "4-6 игроков") */
   player_count?: string;
+  /** Тема/сеттинг для полоски на постере карточки */
+  theme?: string;
   /** @deprecated Используйте player_count */
   players?: string;
   /** @deprecated Используйте session_duration */

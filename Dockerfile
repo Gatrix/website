@@ -10,6 +10,8 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+ARG NEXT_PUBLIC_YANDEX_METRIKA_ID=109390759
+ENV NEXT_PUBLIC_YANDEX_METRIKA_ID=$NEXT_PUBLIC_YANDEX_METRIKA_ID
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN AUTH_SECRET=build-time-placeholder-secret-do-not-use-in-prod npm run build
 

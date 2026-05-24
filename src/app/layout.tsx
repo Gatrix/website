@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Cormorant_Garamond, Geist_Mono, Manrope } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
+import YandexMetrika from "@/components/YandexMetrika";
 // TODO: раскомментировать при включении авторизации
 // import SessionProvider from "@/components/SessionProvider";
 
@@ -47,6 +49,9 @@ export default function RootLayout({
         {/* TODO: обернуть в SessionProvider при включении авторизации */}
         <Header />
         {children}
+        <Suspense fallback={null}>
+          <YandexMetrika />
+        </Suspense>
       </body>
     </html>
   );

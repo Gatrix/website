@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 
-const AUTO_ADVANCE_MS = 4500;
+const AUTO_ADVANCE_MS = 3500;
 
 type CarouselSlide = { src: string; alt: string };
 

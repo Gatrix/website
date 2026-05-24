@@ -24,6 +24,16 @@
 | Медиа | Yandex Object Storage (постеры и фото; presigned или публичный URL) |
 | Развёртывание | Docker (Node 20 Alpine) |
 
+## Яндекс.Метрика
+
+Счётчик подключён в `src/components/YandexMetrika.tsx` (SPA: дополнительный `hit` при смене маршрута). Номер по умолчанию: **109390759**.
+
+| Переменная | Описание |
+|------------|----------|
+| `NEXT_PUBLIC_YANDEX_METRIKA_ID` | ID счётчика (в Docker передаётся на этапе `docker build` через `--build-arg`) |
+
+Статистика: [metrika.yandex.ru](https://metrika.yandex.ru). Локально можно не задавать переменную — подставится тот же ID; чтобы не портить отчёты, временно уберите компонент из `layout.tsx` или задайте пустой ID.
+
 ## PostgreSQL
 
 Контент сайта читается из БД: приключения, пользователи, опционально справочник фильтров (`adventure_options`), пути к фото главной (`site_settings`). Порядок для фильтров сюжетов: таблица `adventure_options` → иначе файл **`data/adventure-options.json` в Object Storage** (нужны `YC_STORAGE_*` и `YC_STORAGE_PREFIX=data/`) → иначе значения **выводятся из полей приключений**. Пример таблиц — `db/schema.sql`.
@@ -109,7 +119,7 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 Сборка и запуск через Docker (порт 8080):
 
 ```bash
-docker build -t my-rpg-club .
+docker build -t my-rpg-club --build-arg NEXT_PUBLIC_YANDEX_METRIKA_ID=109390759 .
 docker run -p 8080:8080 \
   -e DATABASE_URL=postgresql://... \
   -e AUTH_SECRET=... \

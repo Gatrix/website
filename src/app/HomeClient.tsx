@@ -8,6 +8,7 @@ import FAQSection from "@/components/FAQSection";
 import type { Adventure } from "@/hooks/useAdventures";
 import AdventuresCarousel from "@/components/AdventuresCarousel";
 import HeroFrontpageCarousel from "@/components/HeroFrontpageCarousel";
+import { scrollToContacts } from "@/lib/scroll-to-contacts";
 import {
   SITE_ADDRESS_LINE,
   SITE_DISCORD_URL,
@@ -41,6 +42,14 @@ export default function HomeClient({
     router.prefetch("/schedule");
     router.prefetch("/adventures");
   }, [router]);
+
+  useEffect(() => {
+    if (window.location.hash !== "#contacts") return;
+    const frame = requestAnimationFrame(() => {
+      scrollToContacts("auto");
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   return (
     <main className="relative min-h-screen text-[#d1c7bc] font-fantasy-sans selection:bg-amber-900/50 overflow-x-hidden">
@@ -110,14 +119,106 @@ export default function HomeClient({
             <div className="h-[1px] flex-1 bg-amber-900/30"></div>
           </div>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 items-stretch max-w-6xl mx-auto">
+            {/* Игра с мастером */}
+            <div className="flex flex-col relative overflow-hidden bg-gradient-to-br from-amber-950/60 via-[#1a1614] to-[#0f0d0c] border-2 border-amber-700/60 p-5 sm:p-6 rounded-xl shadow-[0_0_40px_rgba(180,120,60,0.25),inset_0_1px_0_rgba(255,255,255,0.05)] hover:shadow-[0_0_60px_rgba(245,158,11,0.35)] transition-all hover:border-amber-600/70 hover:scale-[1.02]">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(245,158,11,0.08),transparent_50%)]" />
+              <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/15 rounded-bl-[100px]" />
+              <div className="absolute bottom-0 left-0 w-20 h-20 bg-amber-600/10 rounded-tr-[80px]" />
+              <div className="relative z-10 flex-1 min-h-0 flex flex-col">
+                <h3 className="relative z-10 min-h-[2.6em] text-xl sm:text-2xl font-bold text-amber-300 uppercase mb-1.5 tracking-widest drop-shadow-sm leading-tight">
+                  ИГРА С МАСТЕРОМ
+                </h3>
+                <p className="relative z-10 text-sm sm:text-base font-semibold text-amber-400 mb-1">
+                  1 200 ₽/4 часа (за человека)
+                </p>
+                <div className="relative z-10 text-sm text-[#c8c0b6] leading-relaxed space-y-3">
+                  <p>
+                    Хотите попробовать настольные ролевые игры, но не знаете с чего начать? Или соскучились по хорошей сессии, а своего мастера нет?
+                  </p>
+                  <p>
+                    Наш мастер проведёт вас через приключение — от создания персонажа до финальной битвы. Ничего заранее знать не нужно: правила объясним за столом (есть упрощенная одностраничная система), персонажей поможем собрать.
+                  </p>
+                  <ul className="space-y-2 pt-1">
+                    <li className="flex gap-3">
+                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-500/80 shrink-0" />
+                      Группы от 4 до 6 игроков
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-500/80 shrink-0" />
+                      Можно прийти одному — подсадим к компании, либо своей командой
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-500/80 shrink-0" />
+                      Готовые приключения на 1 вечер или кампании на несколько встреч
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-500/80 shrink-0" />
+                      Продление: 300 ₽/час
+                    </li>
+                  </ul>
+                </div>
+              </div>
+              <button
+                onClick={() => goToAdventures()}
+                className="relative z-10 mt-4 flex-shrink-0 w-full px-4 py-2.5 bg-gradient-to-r from-amber-600 to-amber-700 text-black font-black uppercase text-xs tracking-widest hover:from-amber-500 hover:to-amber-600 transition-all rounded-lg shadow-[0_4px_14px_rgba(245,158,11,0.4)]"
+                aria-label="Перейти к приключениям"
+              >
+                → ВЫБРАТЬ ПРИКЛЮЧЕНИЕ
+              </button>
+            </div>
+
+            {/* Знакомство с НРИ */}
+            <div className="flex flex-col relative overflow-hidden bg-gradient-to-b from-[#141312] to-[#0f0d0c] border border-amber-800/45 p-5 sm:p-6 rounded-lg shadow-[0_0_30px_rgba(120,83,45,0.16)] hover:shadow-[0_0_45px_rgba(180,120,60,0.26)] transition-all hover:border-amber-700/60 group">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-amber-600/10 rounded-bl-full" />
+              <div className="relative flex-1 min-h-0 flex flex-col">
+                <h3 className="relative min-h-[2.6em] text-xl sm:text-2xl font-bold text-amber-400 uppercase mb-1.5 tracking-wide leading-tight">
+                  ЗНАКОМСТВО С НРИ
+                </h3>
+                <p className="relative text-sm sm:text-base font-semibold text-amber-400 mb-1">
+                  400 ₽/2 часа (за человека)
+                </p>
+                <div className="relative text-sm text-[#c8c0b6] leading-relaxed space-y-3 mt-2">
+                  <p className="text-[#c8c0b6]">
+                    Никогда не играли, но интересно? Это ваш формат.
+                  </p>
+                  <p>
+                    Короткая ознакомительная сессия специально для новичков: мы покажем, как это устроено, дадим готовых персонажей и проведём через небольшое приключение. Без обязательств и без подготовки — просто приходите.
+                  </p>
+                  <ul className="space-y-2 pt-1">
+                    <li className="flex gap-3">
+                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600/80 shrink-0" />
+                      Группы новичков по 3–6 человек
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600/80 shrink-0" />
+                      Всё объясним с нуля
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600/80 shrink-0" />
+                      По четвергам в 19:00
+                    </li>
+                    <li className="flex gap-3">
+                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600/80 shrink-0" />
+                      После сессии — скидка 25% на первую «большую» игру
+                    </li>
+                  </ul>
+                </div>
+              </div>
+              <a
+                href={SITE_TELEGRAM_BOOKING_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="relative mt-4 flex-shrink-0 w-full px-4 py-2.5 bg-amber-700/80 text-black font-bold uppercase text-xs tracking-wider hover:bg-amber-600 transition-all rounded border border-amber-600/50 text-center"
+                aria-label="Записаться на знакомство в Telegram"
+              >
+                → ЗАПИСАТЬСЯ НА ЗНАКОМСТВО
+              </a>
+            </div>
+
             {/* Аренда клуба */}
             <div className="flex flex-col relative overflow-hidden bg-gradient-to-b from-[#1a1614] to-[#12100f] border border-amber-800/50 p-5 sm:p-6 rounded-lg shadow-[0_0_30px_rgba(120,83,45,0.2)] hover:shadow-[0_0_45px_rgba(180,120,60,0.3)] transition-all hover:border-amber-700/60 group">
               <div className="absolute top-0 right-0 w-24 h-24 bg-amber-600/10 rounded-bl-full" />
               <div className="relative flex-1 min-h-0 flex flex-col">
-                {/* Placeholder для иконки/текстуры: <Image src="/icons/tavern.webp" className="..." /> */}
-                <div className="relative w-14 h-14 rounded-xl bg-amber-900/40 border border-amber-700/40 mb-4 flex items-center justify-center text-amber-500 text-2xl shadow-inner flex-shrink-0">
-                  🏠
-                </div>
                 <h3 className="relative min-h-[2.6em] text-xl sm:text-2xl font-bold text-amber-500 uppercase mb-1.5 tracking-wide leading-tight">
                   АРЕНДА КЛУБА
                 </h3>
@@ -166,109 +267,6 @@ export default function HomeClient({
                 → ЗАБРОНИРОВАТЬ СТОЛ
               </a>
             </div>
-
-            {/* Игра с клубным мастером */}
-            <div className="flex flex-col relative overflow-hidden bg-gradient-to-br from-amber-950/60 via-[#1a1614] to-[#0f0d0c] border-2 border-amber-700/60 p-5 sm:p-6 rounded-xl shadow-[0_0_40px_rgba(180,120,60,0.25),inset_0_1px_0_rgba(255,255,255,0.05)] hover:shadow-[0_0_60px_rgba(245,158,11,0.35)] transition-all hover:border-amber-600/70 hover:scale-[1.02]">
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(245,158,11,0.08),transparent_50%)]" />
-              <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/15 rounded-bl-[100px]" />
-              <div className="absolute bottom-0 left-0 w-20 h-20 bg-amber-600/10 rounded-tr-[80px]" />
-              <div className="relative z-10 flex-1 min-h-0 flex flex-col">
-                {/* Placeholder для иконки/текстуры: <Image src="/icons/royal.webp" className="relative z-10 ..." /> */}
-                <div className="relative z-10 w-14 h-14 rounded-xl bg-gradient-to-br from-amber-700/50 to-amber-900/50 border-2 border-amber-600/50 mb-4 flex items-center justify-center text-amber-300 text-2xl shadow-lg flex-shrink-0">
-                  👑
-                </div>
-                <h3 className="relative z-10 min-h-[2.6em] text-xl sm:text-2xl font-bold text-amber-300 uppercase mb-1.5 tracking-widest drop-shadow-sm leading-tight">
-                  ИГРА С КЛУБНЫМ МАСТЕРОМ
-                </h3>
-                <p className="relative z-10 text-sm sm:text-base font-semibold text-amber-400 mb-1">
-                  1 200 ₽/4 часа (за человека)
-                </p>
-                <div className="relative z-10 text-sm text-[#c8c0b6] leading-relaxed space-y-3">
-                  <p>
-                    Хотите попробовать настольные ролевые игры, но не знаете с чего начать? Или соскучились по хорошей сессии, а своего мастера нет?
-                  </p>
-                  <p>
-                    Наш мастер проведёт вас через приключение — от создания персонажа до финальной битвы. Ничего заранее знать не нужно: правила объясним за столом (есть упрощенная одностраничная система), персонажей поможем собрать.
-                  </p>
-                  <ul className="space-y-2 pt-1">
-                    <li className="flex gap-3">
-                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-500/80 shrink-0" />
-                      Группы от 4 до 6 игроков
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-500/80 shrink-0" />
-                      Можно прийти одному — подсадим к компании, либо своей командой
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-500/80 shrink-0" />
-                      Готовые приключения на 1 вечер или кампании на несколько встреч
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-500/80 shrink-0" />
-                      Продление: 300 ₽/час
-                    </li>
-                  </ul>
-                </div>
-              </div>
-              <button
-                onClick={() => goToAdventures()}
-                className="relative z-10 mt-4 flex-shrink-0 w-full px-4 py-2.5 bg-gradient-to-r from-amber-600 to-amber-700 text-black font-black uppercase text-xs tracking-widest hover:from-amber-500 hover:to-amber-600 transition-all rounded-lg shadow-[0_4px_14px_rgba(245,158,11,0.4)]"
-                aria-label="Перейти к приключениям"
-              >
-                → ВЫБРАТЬ ПРИКЛЮЧЕНИЕ
-              </button>
-            </div>
-
-            {/* Знакомство с НРИ */}
-            <div className="flex flex-col relative overflow-hidden bg-gradient-to-b from-[#141312] to-[#0f0d0c] border border-amber-800/45 p-5 sm:p-6 rounded-lg shadow-[0_0_30px_rgba(120,83,45,0.16)] hover:shadow-[0_0_45px_rgba(180,120,60,0.26)] transition-all hover:border-amber-700/60 group">
-              <div className="absolute top-0 right-0 w-24 h-24 bg-amber-600/10 rounded-bl-full" />
-              <div className="relative flex-1 min-h-0 flex flex-col">
-                <div className="relative w-14 h-14 rounded-xl bg-amber-900/35 border border-amber-700/35 mb-4 flex items-center justify-center text-amber-400 text-2xl shadow-inner flex-shrink-0">
-                  🎲
-                </div>
-                <h3 className="relative min-h-[2.6em] text-xl sm:text-2xl font-bold text-amber-400 uppercase mb-1.5 tracking-wide leading-tight">
-                  ЗНАКОМСТВО С НРИ
-                </h3>
-                <p className="relative text-sm sm:text-base font-semibold text-amber-400 mb-1">
-                  400 ₽/2–3 часа (за человека)
-                </p>
-                <div className="relative text-sm text-[#c8c0b6] leading-relaxed space-y-3 mt-2">
-                  <p className="text-[#c8c0b6]">
-                    Никогда не играли, но интересно? Это ваш формат.
-                  </p>
-                  <p>
-                    Короткая ознакомительная сессия специально для новичков: мы покажем, как это устроено, дадим готовых персонажей и проведём через небольшое приключение. Без обязательств и без подготовки — просто приходите.
-                  </p>
-                  <ul className="space-y-2 pt-1">
-                    <li className="flex gap-3">
-                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600/80 shrink-0" />
-                      Группы новичков по 3–6 человек
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600/80 shrink-0" />
-                      Всё объясним с нуля
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600/80 shrink-0" />
-                      По четвергам в 19:00
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600/80 shrink-0" />
-                      После сессии — скидка 25% на первую «большую» игру
-                    </li>
-                  </ul>
-                </div>
-              </div>
-              <a
-                href={SITE_TELEGRAM_BOOKING_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="relative mt-4 flex-shrink-0 w-full px-4 py-2.5 bg-amber-700/80 text-black font-bold uppercase text-xs tracking-wider hover:bg-amber-600 transition-all rounded border border-amber-600/50 text-center"
-                aria-label="Записаться на знакомство в Telegram"
-              >
-                → ЗАПИСАТЬСЯ НА ЗНАКОМСТВО
-              </a>
-            </div>
           </div>
         </div>
       </section>
@@ -298,7 +296,7 @@ export default function HomeClient({
 
       <section
         id="contacts"
-        className="py-16 sm:py-24 md:py-32 bg-[#0a0908] border-t border-amber-950/80"
+        className="scroll-mt-20 sm:scroll-mt-24 py-16 sm:py-24 md:py-32 bg-[#0a0908] border-t border-amber-950/80"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex items-center gap-3 sm:gap-6 mb-12 sm:mb-16 md:mb-20">

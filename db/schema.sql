@@ -1,4 +1,5 @@
 -- Опорная схема для сайта. Таблицу приключений вы можете уже иметь — сверяйте колонки с src/lib/adventures-db.ts.
+-- Форма «Записаться» (игровые системы, границы ползунков, предупреждения, заявки): см. booking-schema.sql.
 
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,

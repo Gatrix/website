@@ -13,7 +13,6 @@ import {
   SkipForward,
   Layers,
   Search,
-  AlertTriangle,
   Gamepad2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -41,13 +40,6 @@ const DEFAULT_OPTIONS: AdventureOptions = {
   universe: ["Вестерос", "Средиземье", "DnD Миры", "Тамриэль", "Город парового солнца"]
 };
 
-// Функция для нормализации строк при сравнении (ё/е, э/е)
-const normalizeSetting = (s: string) =>
-  s.toLowerCase()
-    .replace(/ё/g, "е")
-    .replace(/э/g, "е")
-    .replace(/[^a-zа-я0-9]/g, "");
-
 const normalizeForSearch = (s: string) =>
   s.toLowerCase().replace(/ё/g, "е");
 
@@ -61,9 +53,14 @@ interface AdventuresClientProps {
 
 export default function AdventuresClient({ initialAdventures, adventureOptions }: AdventuresClientProps) {
   const opts = adventureOptions ?? DEFAULT_OPTIONS;
-  const BASE_SETTINGS = opts.base_setting;
   const SETTING_RELATIONS = opts.setting_relations;
-  const SUB_SETTINGS_LIST = opts.subsetting.length > 0 ? opts.subsetting : Object.values(SETTING_RELATIONS).flat();
+  const baseSettingLabels = useMemo(
+    () => new Set<string>([...opts.base_setting, ...Object.keys(SETTING_RELATIONS)]),
+    [opts.base_setting, SETTING_RELATIONS]
+  );
+  const rawSubsettings =
+    opts.subsetting.length > 0 ? opts.subsetting : Object.values(SETTING_RELATIONS).flat();
+  const SUB_SETTINGS_LIST = rawSubsettings.filter((s) => !baseSettingLabels.has(s));
   const FOCUS_GENRES = opts.genre;
   const WORLDS = opts.universe;
 
@@ -79,30 +76,40 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
   const FILTER_STEPS = useMemo(
     () => [
       { id: "subsetting" as const, heading: "Сеттинг", icon: <Layers size={24} />, options: SUB_SETTINGS_LIST },
-      { id: "base_setting" as const, heading: "Базовый сеттинг", icon: <Layers size={24} />, options: BASE_SETTINGS },
       { id: "focus" as const, heading: "Фокус игры", icon: <Shield size={24} />, options: FOCUS_GENRES },
       { id: "world" as const, heading: "Мир", icon: <Target size={24} />, options: WORLDS },
       { id: "adventure_type" as const, heading: "Тип игры", icon: <Gamepad2 size={24} />, options: ADVENTURE_TYPE_OPTIONS },
     ],
-    [BASE_SETTINGS, SUB_SETTINGS_LIST, FOCUS_GENRES, WORLDS, ADVENTURE_TYPE_OPTIONS]
+    [SUB_SETTINGS_LIST, FOCUS_GENRES, WORLDS, ADVENTURE_TYPE_OPTIONS]
   );
 
-  /** Четыре сегмента прогресс-бара: «Сеттинг» — сначала под-сеттинг, затем базовый */
   const PROGRESS_GROUPS = useMemo(
     () =>
       [
-        { key: "setting" as const, barLabel: "Сеттинг", indices: [0, 1] as const, icon: <Layers size={24} /> },
-        { key: "genre" as const, barLabel: "Жанр", indices: [2] as const, icon: <Shield size={24} /> },
-        { key: "world" as const, barLabel: "Мир", indices: [3] as const, icon: <Target size={24} /> },
-        { key: "type" as const, barLabel: "Тип игры", indices: [4] as const, icon: <Gamepad2 size={24} /> },
+        { key: "setting" as const, barLabel: "Сеттинг", indices: [0] as const, icon: <Layers size={24} /> },
+        { key: "genre" as const, barLabel: "Жанр", indices: [1] as const, icon: <Shield size={24} /> },
+        { key: "world" as const, barLabel: "Мир", indices: [2] as const, icon: <Target size={24} /> },
+        { key: "type" as const, barLabel: "Тип игры", indices: [3] as const, icon: <Gamepad2 size={24} /> },
       ] as const,
     []
+  );
+
+  const stripBaseSettingFromFilters = useCallback(
+    (raw: Record<string, string[]>): Record<string, string[]> => {
+      const next: Record<string, string[]> = {};
+      for (const [key, values] of Object.entries(raw)) {
+        if (key === "base_setting") continue;
+        const cleaned = values.filter((v) => !baseSettingLabels.has(v));
+        if (cleaned.length > 0) next[key] = cleaned;
+      }
+      return next;
+    },
+    [baseSettingLabels]
   );
 
   const [currentStep, setCurrentStep] = useState(0);
   const [filters, setFilters] = useState<Record<string, string[]>>({});
   const [searchQuery, setSearchQuery] = useState("");
-  const [conflictMessage, setConflictMessage] = useState<string | null>(null);
   const adventures = initialAdventures;
   const [selectedAdventure, setSelectedAdventure] = useState<Adventure | null>(null);
   const [longListExpanded, setLongListExpanded] = useState(false);
@@ -111,7 +118,6 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
 
   // Очистка сообщения о конфликте при смене шага
   const handleSetStep = useCallback((step: number) => {
-    setConflictMessage(null);
     setLongListExpanded(false);
     const nextStepId = FILTER_STEPS[step]?.id;
     const nextIsCollapsible = nextStepId === "focus" || nextStepId === "world";
@@ -121,17 +127,6 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
 
   // Функция для получения значения поля из приключения
   const getAdventureFieldValue = useCallback((adv: Adventure, fieldId: string): string | string[] | null => {
-    if (fieldId === "base_setting") {
-      if (adv.base_setting) {
-        if (Array.isArray(adv.base_setting)) return adv.base_setting;
-        if (typeof adv.base_setting === 'string') {
-          return adv.base_setting.split(/[,;]/).map(b => b.trim()).filter(b => b);
-        }
-        return [adv.base_setting];
-      }
-      return null;
-    }
-    
     if (fieldId === "subsetting") {
       return adv.subsetting || null;
     }
@@ -156,12 +151,7 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
     const value = getAdventureFieldValue(adv, filterKey);
     
     if (!value) return false;
-    
-    if (filterKey === "base_setting") {
-      const advBases = Array.isArray(value) ? value : [value];
-      return selectedValues.some(selected => advBases.includes(selected));
-    }
-    
+
     if (Array.isArray(value)) {
       return selectedValues.some(selected => value.includes(selected));
     }
@@ -173,6 +163,7 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
   const getAvailableOptionsFromAdventures = useCallback((fieldId: string, currentFilters: Record<string, string[]>): string[] => {
     const filtered = adventures.filter((adv) => {
       return Object.entries(currentFilters).every(([key, selectedValues]) => {
+        if (key === "base_setting") return true;
         if (!selectedValues || selectedValues.length === 0 || key === fieldId) return true;
         return matchesFilter(adv, key, selectedValues);
       });
@@ -206,6 +197,7 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
   const filteredAdventures = useMemo(() => {
     return adventures.filter((adv) => {
       const matchesButtons = Object.entries(filters).every(([key, selectedValues]) => {
+        if (key === "base_setting") return true;
         if (!selectedValues || selectedValues.length === 0) return true;
         return matchesFilter(adv, key, selectedValues);
       });
@@ -250,53 +242,7 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
         delete newFilters[stepId];
       }
 
-      if (stepId === "subsetting" && nextValues.length > 0) {
-        const currentBaseSettings = prev["base_setting"] || [];
-        const requiredBaseSettings = new Set<string>(currentBaseSettings);
-        
-        nextValues.forEach(subValue => {
-          const baseForSub = Object.keys(SETTING_RELATIONS).find(base => 
-            SETTING_RELATIONS[base].some(sub => normalizeSetting(sub) === normalizeSetting(subValue))
-          );
-          if (baseForSub) {
-            requiredBaseSettings.add(baseForSub);
-          }
-        });
-        
-        if (requiredBaseSettings.size > currentBaseSettings.length) {
-          newFilters["base_setting"] = Array.from(requiredBaseSettings);
-          setConflictMessage(null); 
-        }
-      }
-
-      if (stepId === "base_setting") {
-        const selectedBaseSettings = nextValues;
-        const selectedSubsettings = prev["subsetting"] || [];
-
-        if (selectedSubsettings.length > 0 && selectedBaseSettings.length > 0) {
-          const validSubsettings = selectedSubsettings.filter(sub => 
-            selectedBaseSettings.some(base => 
-              SETTING_RELATIONS[base]?.some(s => normalizeSetting(s) === normalizeSetting(sub))
-            )
-          );
-
-          if (validSubsettings.length !== selectedSubsettings.length) {
-            if (validSubsettings.length === 0) {
-              setConflictMessage("Конкретные сеттинги сброшены из-за конфликта с базовыми сеттингами");
-              delete newFilters["subsetting"];
-            } else {
-              setConflictMessage("Некоторые конкретные сеттинги сброшены из-за конфликта");
-              newFilters["subsetting"] = validSubsettings;
-            }
-          } else {
-            setConflictMessage(null);
-          }
-        } else if (selectedBaseSettings.length > 0) {
-          setConflictMessage(null);
-        }
-      }
-
-      return newFilters;
+      return stripBaseSettingFromFilters(newFilters);
     });
   };
 
@@ -322,12 +268,11 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
     setFilters((prev) => {
       const currentValues = prev[stepId] || [];
       const nextValues = currentValues.filter((v) => v !== value);
-      if (nextValues.length === 0) {
-        return Object.fromEntries(
-          Object.entries(prev).filter(([key]) => key !== stepId)
-        );
-      }
-      return { ...prev, [stepId]: nextValues };
+      const next =
+        nextValues.length === 0
+          ? Object.fromEntries(Object.entries(prev).filter(([key]) => key !== stepId))
+          : { ...prev, [stepId]: nextValues };
+      return stripBaseSettingFromFilters(next);
     });
   };
 
@@ -335,6 +280,11 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
     setFilters({});
     handleSetStep(0);
   };
+
+  const visibleFilters = useMemo(
+    () => stripBaseSettingFromFilters(filters),
+    [filters, stripBaseSettingFromFilters]
+  );
 
   const goToProgressGroup = useCallback(
     (groupIndex: number) => {
@@ -354,7 +304,7 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
     const maxIdx = Math.max(...idxs);
     if (currentStep > maxIdx) return true;
     if (g.key === "setting") {
-      return !!(filters.subsetting?.length || filters.base_setting?.length);
+      return !!filters.subsetting?.length;
     }
     const fid = FILTER_STEPS[idxs[0]].id;
     return (filters[fid]?.length || 0) > 0;
@@ -365,7 +315,7 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
     return idxs.some((i) => !(filters[FILTER_STEPS[i].id]?.length));
   };
 
-  const hasActiveFilters = Object.keys(filters).length > 0;
+  const hasActiveFilters = Object.keys(visibleFilters).length > 0;
   const hasSelectionInStep = (filters[currentStepData.id]?.length || 0) > 0;
 
   const collapsibleStep =
@@ -510,7 +460,7 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
             <div className="flex flex-wrap gap-2 sm:gap-3 justify-center items-center">
               <span className="text-[9px] sm:text-[10px] text-yellow-400 font-semibold uppercase tracking-wider drop-shadow-[0_0_6px_rgba(250,204,21,0.35)]">Активные фильтры:</span>
               <AnimatePresence mode="popLayout">
-                {Object.entries(filters).map(([stepId, values]) => 
+                {Object.entries(visibleFilters).map(([stepId, values]) => 
                   values.map((value) => (
                     <motion.button
                       key={`${stepId}-${value}`}
@@ -539,23 +489,6 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
           </motion.div>
         )}
 
-        {/* Сообщение о конфликте */}
-        <AnimatePresence>
-          {conflictMessage && (
-            <motion.div
-              initial={{ opacity: 0, height: 0, y: -10 }}
-              animate={{ opacity: 1, height: "auto", y: 0 }}
-              exit={{ opacity: 0, height: 0, y: -10 }}
-              className="flex justify-center mb-8 overflow-hidden"
-            >
-              <div className="bg-yellow-400/95 text-yellow-950 px-4 sm:px-6 py-2 sm:py-3 rounded-sm flex items-center gap-3 font-black text-[10px] sm:text-xs uppercase tracking-[0.15em] shadow-[0_0_28px_rgba(253,224,71,0.45)] border border-yellow-200">
-                <AlertTriangle size={18} className="animate-pulse" />
-                {conflictMessage}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         <div className="text-center mb-4 sm:mb-6">
           <h2 className="text-base sm:text-lg md:text-xl font-bold uppercase tracking-[0.2em] text-yellow-50 drop-shadow-[0_0_18px_rgba(253,224,71,0.55)]">
             {currentStepData.heading}
@@ -581,39 +514,9 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
               {currentStepData.options.map((option) => {
                 const isSelected = filters[currentStepData.id]?.includes(option);
 
-                let isMismatched = false;
-
-                if (currentStepData.id === "subsetting") {
-                  const baseSettings = filters["base_setting"] || [];
-                  isMismatched = !!(
-                    baseSettings.length > 0 &&
-                    !baseSettings.some((base) =>
-                      SETTING_RELATIONS[base]?.some((sub) => normalizeSetting(sub) === normalizeSetting(option))
-                    )
-                  );
-                } else if (currentStepData.id === "base_setting") {
-                  const subsettings = filters["subsetting"] || [];
-                  isMismatched = !!(
-                    subsettings.length > 0 &&
-                    !subsettings.some((sub) =>
-                      SETTING_RELATIONS[option]?.some((s) => normalizeSetting(s) === normalizeSetting(sub))
-                    )
-                  );
-                }
-
-                let buttonClass =
-                  "px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 md:py-3 border-2 uppercase font-black transition-all duration-300 text-xs sm:text-sm tracking-widest rounded-sm ";
-
-                if (isSelected) {
-                  buttonClass +=
-                    "bg-yellow-500 border-yellow-200 text-yellow-950 shadow-[0_0_24px_rgba(253,224,71,0.55)]";
-                } else if (isMismatched) {
-                  buttonClass +=
-                    "border-yellow-900/20 bg-transparent text-yellow-900/40 hover:border-yellow-700/50 hover:text-yellow-600/70 hover:bg-yellow-950/20";
-                } else {
-                  buttonClass +=
-                    "border-yellow-600/45 bg-transparent text-yellow-200 hover:border-yellow-400 hover:text-yellow-50 hover:bg-yellow-950/25 shadow-[0_0_10px_rgba(0,0,0,0.2)]";
-                }
+                const buttonClass = isSelected
+                  ? "px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 md:py-3 border-2 uppercase font-black transition-all duration-300 text-xs sm:text-sm tracking-widest rounded-sm bg-yellow-500 border-yellow-200 text-yellow-950 shadow-[0_0_24px_rgba(253,224,71,0.55)]"
+                  : "px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 md:py-3 border-2 uppercase font-black transition-all duration-300 text-xs sm:text-sm tracking-widest rounded-sm border-yellow-600/45 bg-transparent text-yellow-200 hover:border-yellow-400 hover:text-yellow-50 hover:bg-yellow-950/25 shadow-[0_0_10px_rgba(0,0,0,0.2)]";
 
                 return (
                   <button key={option} type="button" onClick={() => toggleOption(option)} className={buttonClass}>

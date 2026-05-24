@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, Phone, X } from "lucide-react";
+import { scrollToContacts } from "@/lib/scroll-to-contacts";
 import {
   SITE_ADDRESS_SHORT,
   SITE_DISCORD_URL,
@@ -51,6 +52,15 @@ export default function Header() {
   const agamaLogo = "/logos/agama-logo.webp";
   const polygonLogo = "/logos/polygon-logo.webp";
 
+  const handleContactsClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    setMobileMenuOpen(false);
+    if (pathname !== "/") return;
+    e.preventDefault();
+    if (scrollToContacts()) {
+      window.history.replaceState(null, "", "#contacts");
+    }
+  };
+
   return (
     <>
       <nav className="fixed top-0 w-full z-50 bg-[#0f0d0c]/90 backdrop-blur-sm border-b border-amber-900/20 px-4 sm:px-6 py-2 sm:py-3 relative flex items-center justify-between shadow-2xl min-h-[56px] sm:min-h-[68px]">
@@ -60,13 +70,13 @@ export default function Header() {
             <div className="flex flex-col gap-0.5 shrink-0 min-w-0">
               <a
                 href={`tel:${SITE_PHONE_TEL}`}
-                className="flex items-center gap-1.5 text-amber-200/90 hover:text-[#fde047] transition-colors tracking-[0.06em] lg:tracking-[0.1em] max-lg:text-[9px] lg:text-[10px]"
+                className="flex items-center gap-1.5 text-amber-200/90 hover:text-[#fde047] transition-colors tracking-[0.06em] lg:tracking-[0.1em] text-xs lg:text-sm"
                 title="Позвонить"
               >
-                <Phone className="w-3.5 h-3.5 opacity-80 shrink-0" strokeWidth={2.25} aria-hidden />
+                <Phone className="w-4 h-4 opacity-80 shrink-0" strokeWidth={2.25} aria-hidden />
                 <span className="whitespace-nowrap">{SITE_PHONE_DISPLAY}</span>
               </a>
-              <span className="pl-[22px] text-[9px] lg:text-[10px] font-semibold normal-case tracking-normal text-amber-100/45 leading-tight">
+              <span className="pl-[22px] text-[11px] lg:text-xs font-semibold normal-case tracking-normal text-amber-100/45 leading-tight">
                 {SITE_ADDRESS_SHORT}
               </span>
             </div>
@@ -84,6 +94,7 @@ export default function Header() {
               </div>
               <Link
                 href="/#contacts"
+                onClick={handleContactsClick}
                 className="hover:text-amber-500 transition-colors underline-offset-8 hover:underline shrink-0"
               >
                 Контакты
@@ -217,7 +228,7 @@ export default function Header() {
           </div>
           <Link
             href="/#contacts"
-            onClick={() => setMobileMenuOpen(false)}
+            onClick={handleContactsClick}
             className="py-4 text-lg font-bold tracking-widest uppercase transition-colors border-b border-amber-900/30 text-amber-100/70 hover:text-amber-500"
           >
             Контакты
