@@ -97,6 +97,15 @@ CREATE TABLE IF NOT EXISTS adventure_gameformat (
   PRIMARY KEY (adventure_id, gameformat_id)
 );
 
+-- Смежная таблица для бронирования:
+-- какие игровые системы доступны именно для этого приключения.
+-- В gamesystems хранятся и полные, и упрощенные версии (id с суффиксом `-simple`).
+CREATE TABLE IF NOT EXISTS adventure_gamesystems (
+  adventure_id TEXT NOT NULL REFERENCES adventures (adventure_id) ON DELETE CASCADE,
+  gamesystem_id TEXT NOT NULL REFERENCES gamesystems (gamesystem_id) ON DELETE CASCADE,
+  PRIMARY KEY (adventure_id, gamesystem_id)
+);
+
 CREATE TABLE IF NOT EXISTS adventure_tags (
   adventure_id TEXT NOT NULL REFERENCES adventures (adventure_id) ON DELETE CASCADE,
   tag_id TEXT NOT NULL REFERENCES tags (tag_id) ON DELETE CASCADE,

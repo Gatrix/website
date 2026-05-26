@@ -37,8 +37,11 @@ export function ruleMatches(
   if (minPc !== undefined && state.playerCount < minPc) return false;
   if (maxPc !== undefined && state.playerCount > maxPc) return false;
 
-  const sys = num(match.gameSystemId);
-  if (sys !== undefined && state.gameSystemId !== sys) return false;
+  const sys = match.gameSystemId;
+  if (sys != null && String(sys) !== String(state.gameSystemId ?? "")) return false;
+
+  const diff = match.difficultyId;
+  if (diff != null && String(diff) !== String(state.difficultyId ?? "")) return false;
 
   return true;
 }

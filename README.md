@@ -38,11 +38,19 @@
 
 Контент сайта читается из БД: приключения, пользователи, опционально справочник фильтров (`adventure_options`), пути к фото главной (`site_settings`). Порядок для фильтров сюжетов: таблица `adventure_options` → иначе файл **`data/adventure-options.json` в Object Storage** (нужны `YC_STORAGE_*` и `YC_STORAGE_PREFIX=data/`) → иначе значения **выводятся из полей приключений**. Пример таблиц — `db/schema.sql`.
 
-**Нормализованная схема приключений:** в `adventures` хранятся FK (`base_setting_id`, `subsetting_id`, `universe_id`, жанры через `adventure_genres` → `genres`, `difficulty_id`, `adventure_type_id` как строка `oneshot` / `adventure` / `campaign`, и т.д.). Сайт делает JOIN к справочникам и подставляет **подписи** для карточек и фильтров. Файл `adventure-options.json` в бакете задаёт **полный список** вариантов фильтров и связи базовый/подсеттинг; в БД — только ссылки по id на строки тех же сущностей.
+**БД `adventurespool`:** каталог приключений в таблице `adventures` (`adventure_id`, `adventure_name`, `adventure_intro`) и справочники, связанные через M2M: `settings`, `subsettings`, `genres`, `universes`, `gameformat`, `gametime`, `difficulty`, `tags` (через `adventure_settings`, `adventure_subsettings`, `adventure_genres`, `adventure_universes`, `adventure_gameformat`, `adventure_gametime`, `adventure_difficulty`, `adventure_tags`).
 
-Если в справочнике колонка называется иначе, чем в коде по умолчанию, задайте переменные: `PG_LOOKUP_BASE_SETTINGS_COLUMN`, `PG_LOOKUP_SUBSETTINGS_COLUMN`, `PG_LOOKUP_UNIVERSES_COLUMN`, `PG_LOOKUP_GENRES_COLUMN` (часто `name`), `PG_LOOKUP_SESSION_DURATIONS_COLUMN`, `PG_LOOKUP_PLAYER_COUNTS_COLUMN` (часто `label`), `PG_LOOKUP_DIFFICULTIES_COLUMN` (по умолчанию временно `id` — лучше заменить на колонку с человекочитаемой сложностью). Отключить JOIN: `PG_ADVENTURES_NORMALIZED=0`. Постер: `PG_ADVENTURES_POSTER_COLUMN`. Запрос — `src/lib/adventures-db.ts`.
+Сайт читает каталог через JOIN в `src/lib/adventures-db.ts`. Постеры в Object Storage / `public/posters/`: ключ **`posters/{adventure_id}.webp`** (имя файла = `adventure_id`).
 
-Нужна переменная `DATABASE_URL`.
+Для бронирования используется тот же `adventurespool`: параметры формы берутся в `/api/adventures/[id]/booking-config` из `adventure_difficulty`+`difficulty`, `adventure_gametime`+`gametime`, `adventure_gameformat`+`gameformat`, а список доступных игровых систем на конкретное приключение — из `adventure_gamesystems`+`gamesystems` (в том числе `*-simple` упрощенные версии). Минимальная длительность сессии сейчас ограничена данными в `adventure_gametime`: там используются только `gametime_id` 4..8.
+
+| Переменная | Описание |
+|------------|----------|
+| `DATABASE_URL` | Подключение к PostgreSQL, например `postgresql://appuser:…@host:5432/adventurespool` |
+| `PG_ADVENTURES_TABLE` | Таблица приключений (по умолчанию `adventures`) |
+| `PG_ADVENTURES_SCHEMA` | `legacy` — старая плоская таблица; иначе схема adventurespool |
+
+Фильтры на странице сюжетов: таблица `adventure_options` → справочники adventurespool → `data/adventure-options.json` в бакете → значения из полей приключений.
 
 ## Yandex Cloud (Object Storage)
 

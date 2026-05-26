@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { X } from "lucide-react";
@@ -148,59 +148,6 @@ export default function AdventureModal({
   const playerIntro = adventure?.intro?.trim() || "";
   const fullDescription = adventure?.description?.trim() || adventure?.logline?.trim() || "";
   const displayText = playerIntro || fullDescription;
-  const adventureTypeLabel = (type?: string) => {
-    if (!type) return null;
-    const t = type.toLowerCase();
-    if (t === "oneshot" || t === "ваншот") return "Ваншот (1 игра)";
-    if (t === "adventure" || t === "приключение") return "Приключение (~5 игр)";
-    if (t === "campaign" || t === "кампания") return "Кампания (10+ игр)";
-    return type;
-  };
-  const universeDisplay = (v: string) => (v === "Иное" ? "Иной мир" : v);
-
-  const durationLabel = useMemo(() => {
-    if (!adventure) return "";
-    if (adventure.session_duration?.trim()) return adventure.session_duration.trim();
-    if (adventure.time?.trim()) return adventure.time.trim();
-    if (adventure.durationHours?.trim()) return adventure.durationHours.trim();
-    if (typeof adventure.durationMinutes === "number" && adventure.durationMinutes > 0) {
-      const hours = adventure.durationMinutes / 60;
-      return Number.isInteger(hours) ? `${hours} ч` : `${hours.toFixed(1)} ч`;
-    }
-    return "";
-  }, [adventure]);
-
-  const playersLabel = useMemo(() => {
-    if (!adventure) return "";
-    if (adventure.player_count?.trim()) return adventure.player_count.trim();
-    if (adventure.players?.trim()) return adventure.players.trim();
-    if (adventure.playerCount) return `${adventure.playerCount.min}-${adventure.playerCount.max} игроков`;
-    return "";
-  }, [adventure]);
-
-  const paramsList = useMemo(() => {
-    if (!adventure) return [];
-    const items: { label: string; value: string }[] = [];
-    if (adventure.universe)
-      items.push({ label: "Вселенная", value: universeDisplay(adventure.universe) });
-    const setting = adventure.subsetting?.trim() || "";
-    if (setting) items.push({ label: "Сеттинг", value: setting });
-    const genres = Array.isArray(adventure.genre)
-      ? adventure.genre
-      : adventure.genre
-        ? [adventure.genre]
-        : adventure.focus
-          ? [adventure.focus]
-          : [];
-    if (genres.length) items.push({ label: "Жанр", value: genres.join(", ") });
-    if (adventure.difficulty) items.push({ label: "Сложность", value: adventure.difficulty });
-    const advType = adventureTypeLabel(adventure.adventure_type ?? adventure.format);
-    if (advType) items.push({ label: "Тип", value: advType });
-    if (durationLabel) items.push({ label: "Длительность игры", value: durationLabel });
-    if (playersLabel) items.push({ label: "Количество игроков", value: playersLabel });
-    return items;
-  }, [adventure, durationLabel, playersLabel]);
-
   const handleDialogKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "Tab") return;
     const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
@@ -219,27 +166,6 @@ export default function AdventureModal({
   };
 
   if (!adventure) return null;
-
-  const paramsBlock =
-    paramsList.length > 0 || adventure.contentWarnings?.length ? (
-      <div className="w-full max-w-[min(260px,75vw)] md:max-w-none space-y-2">
-        {paramsList.map(({ label, value }) => (
-          <p
-            key={label}
-            className="text-base sm:text-lg text-amber-200/90 leading-relaxed border-b border-amber-900/40 pb-2 last:border-b-0"
-          >
-            <span className="text-amber-500/80 font-medium">{label}: </span>
-            {value}
-          </p>
-        ))}
-        {adventure.contentWarnings?.length ? (
-          <p className="mt-2 text-base sm:text-lg text-amber-300/70">
-            <span className="text-amber-500/80 font-medium">Контент‑предупреждения: </span>
-            {adventure.contentWarnings.join(", ")}
-          </p>
-        ) : null}
-      </div>
-    ) : null;
 
   return (
     <AnimatePresence>
@@ -288,11 +214,11 @@ export default function AdventureModal({
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: slideDirection * -40 }}
                   transition={{ duration: 0.2, ease: "easeOut" }}
-                  className="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden"
+                  className="flex-1 min-h-0 flex flex-col md:flex-row md:items-stretch overflow-hidden"
                 >
                   <>
                   {/* Мобилка: order-1 — заголовок, описание и характеристики; md: правая колонка (только текст) */}
-                  <div className="order-1 md:order-2 flex flex-1 min-h-0 flex-col overflow-hidden relative bg-[#14110f] md:bg-transparent">
+                  <div className="order-1 md:order-2 flex flex-1 min-h-0 min-w-0 md:basis-1/2 flex-col overflow-hidden relative bg-[#14110f] md:bg-transparent">
                     <button
                       onClick={onClose}
                       aria-label="Закрыть"
@@ -319,11 +245,6 @@ export default function AdventureModal({
                             >
                               {displayText}
                             </p>
-                          ) : null}
-                          {paramsBlock ? (
-                            <div className="md:hidden mt-6 max-w-none mx-auto w-full">
-                              {paramsBlock}
-                            </div>
                           ) : null}
                         </>
                       )}
@@ -360,17 +281,20 @@ export default function AdventureModal({
                     ) : null}
                   </div>
 
-                  {/* Мобилка: order-2 — постер; md: левая колонка (постер + параметры) */}
-                  <div className="order-2 md:order-1 relative w-full md:w-[40.84%] md:min-w-[284px] md:max-w-[392px] flex-none md:flex-1 min-h-0 md:h-full bg-[#0f0d0c] border-b md:border-b-0 md:border-r border-amber-900/30 md:flex-none md:flex-shrink-0 flex flex-col p-[min(1rem,2vw)] sm:p-4 md:pt-[min(2rem,3vh)] md:pb-0">
-                    <div ref={leftScrollRef} className="flex-1 min-h-0 overflow-y-auto flex flex-col">
-                      <div className="relative w-full max-w-[min(337px,85%)] min-w-[198px] aspect-[3/4] max-h-[min(47vh,416px)] flex items-center justify-center overflow-hidden rounded-md shadow-inner mb-0 md:mb-4 sm:mb-6 flex-shrink-0 self-center mx-auto">
+                  {/* Мобилка: order-2 — постер; md: левая колонка (постер на всю высоту блока) */}
+                  <div className="order-2 md:order-1 relative w-full min-h-0 min-w-0 md:basis-1/2 md:flex-1 flex flex-col bg-[#0f0d0c] border-b md:border-b-0 md:border-r border-amber-900/30 min-h-[min(52vh,520px)] md:min-h-0 p-3 sm:p-4 md:p-4">
+                    <div
+                      ref={leftScrollRef}
+                      className="flex-1 min-h-0 w-full h-full flex items-center justify-center"
+                    >
+                      <div className="relative h-full max-h-full w-auto max-w-full min-h-[280px] min-w-[min(200px,70vw)] aspect-[3/4] overflow-hidden rounded-md shadow-inner">
                         {imageUrl ? (
                           <Image
                             src={imageUrl}
                             alt={`Постер: ${adventure.title}`}
                             fill
-                            className="object-cover transition-transform duration-500"
-                            sizes="(max-width: 768px) 280px, 415px"
+                            className="object-contain transition-transform duration-500"
+                            sizes="(max-width: 768px) 94vw, 46vw"
                             unoptimized
                           />
                         ) : (
@@ -379,11 +303,6 @@ export default function AdventureModal({
                           </div>
                         )}
                       </div>
-                      {paramsBlock ? (
-                        <div className="hidden md:block mb-4 flex-shrink-0">
-                          {paramsBlock}
-                        </div>
-                      ) : null}
                     </div>
                   </div>
 

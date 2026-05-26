@@ -5,6 +5,7 @@ import type { Adventure, AdventureOptions } from "@/lib/db";
 import {
   fetchAdventuresFromDatabase,
   fetchAdventureOptionsFromDatabase,
+  fetchAdventureOptionsFromLookups,
   fetchAdventureOptionsFromObjectStorage,
 } from "@/lib/adventures-db";
 
@@ -13,15 +14,18 @@ let adventuresCache: Adventure[] | undefined = undefined;
 /** undefined — ещё не грузили; null — в БД нет/пусто */
 let optionsCache: AdventureOptions | null | undefined = undefined;
 
-/** Единая подпись длительности сессии на сайте (не берётся из БД). */
-const DISPLAY_SESSION_DURATION = "4/6/8 часов";
+const FALLBACK_SESSION_DURATION = "1–8 часов";
 
-function resolveImagePathForStorage(a: Pick<Adventure, "poster" | "img_url">): string | null {
+function resolveImagePathForStorage(a: Pick<Adventure, "id" | "poster" | "img_url">): string | null {
   const raw = a.img_url?.trim() || a.poster?.trim();
-  if (!raw) return null;
-  if (raw.startsWith("http") || raw.startsWith("/")) return raw;
-  if (!raw.includes("/")) return `posters/${raw}`;
-  return raw;
+  if (raw) {
+    if (raw.startsWith("http") || raw.startsWith("/")) return raw;
+    if (!raw.includes("/")) return `posters/${raw}`;
+    return raw;
+  }
+  const id = a.id?.trim();
+  if (id) return `posters/${id}.webp`;
+  return null;
 }
 
 async function loadAdventures(): Promise<Adventure[]> {
@@ -53,7 +57,7 @@ export async function getAdventures(): Promise<Adventure[]> {
     ...a,
     genre: normalizeGenre(a.genre),
     player_count: a.player_count?.trim() || a.players?.trim() || "4-6 игроков",
-    session_duration: DISPLAY_SESSION_DURATION,
+    session_duration: a.session_duration?.trim() || FALLBACK_SESSION_DURATION,
     imageUrl: getStorageImageUrl(resolveImagePathForStorage(a)) ?? null,
   }));
 }
@@ -66,7 +70,7 @@ export async function getAdventureById(id: string): Promise<Adventure | null> {
     ...a,
     genre: normalizeGenre(a.genre),
     player_count: a.player_count?.trim() || a.players?.trim() || "4-6 игроков",
-    session_duration: DISPLAY_SESSION_DURATION,
+    session_duration: a.session_duration?.trim() || FALLBACK_SESSION_DURATION,
     imageUrl: getStorageImageUrl(resolveImagePathForStorage(a)) ?? null,
   };
 }
@@ -74,6 +78,9 @@ export async function getAdventureById(id: string): Promise<Adventure | null> {
 export async function getAdventureOptions(): Promise<AdventureOptions | null> {
   if (optionsCache !== undefined) return optionsCache;
   optionsCache = await fetchAdventureOptionsFromDatabase();
+  if (optionsCache == null) {
+    optionsCache = await fetchAdventureOptionsFromLookups();
+  }
   if (optionsCache == null) {
     optionsCache = await fetchAdventureOptionsFromObjectStorage();
   }

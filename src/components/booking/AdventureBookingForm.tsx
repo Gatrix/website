@@ -1,19 +1,19 @@
 "use client";
 
-import React, { useCallback, useMemo, useState } from "react";
-import { Check, Dice5, ExternalLink, Hourglass, Sparkles, ScrollText, Swords, Users } from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
+import { Check, Dice5, ExternalLink, Hourglass, Shield, Sparkles, ScrollText, Swords, Users } from "lucide-react";
 import type { Adventure } from "@/hooks/useAdventures";
-import type { GameFormatId } from "@/lib/booking-types";
-import { getMockBookingConfig, getMockInitialValues } from "@/lib/booking-mock";
+import type { BookingConfigPayload, GameFormatId } from "@/lib/booking-types";
+import { getBookingInitialValues } from "@/lib/booking-config-utils";
+import { getMockBookingConfig } from "@/lib/booking-mock";
 import { BookingPanelFrame } from "@/components/booking/BookingDecor";
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
 }
 
-function snapHalfHour(h: number, min: number, max: number) {
-  const s = Math.round(h * 2) / 2;
-  return clamp(s, min, max);
+function snapHour(h: number, min: number, max: number) {
+  return clamp(Math.round(h), min, max);
 }
 
 function playerHint(count: number): string {
@@ -23,8 +23,8 @@ function playerHint(count: number): string {
 }
 
 function durationHint(hours: number): string {
-  if (hours <= 3.5) return "Плотный вечер с ярким финалом.";
-  if (hours <= 5.5) return "Спокойный ритм, место для сцен.";
+  if (hours <= 4) return "Плотный вечер с ярким финалом.";
+  if (hours <= 6) return "Спокойный ритм, место для сцен.";
   return "Длинная сессия для боёв и исследований.";
 }
 
@@ -40,31 +40,82 @@ type Props = {
 };
 
 export default function AdventureBookingForm({ adventure, onBack }: Props) {
-  const config = useMemo(() => getMockBookingConfig(adventure), [adventure]);
-  const initial = useMemo(() => getMockInitialValues(adventure), [adventure]);
-  const { bounds } = config;
+  const [config, setConfig] = useState<BookingConfigPayload | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const [gameSystemId, setGameSystemId] = useState(initial.gameSystemId);
-  const [difficultyId, setDifficultyId] = useState(initial.difficultyId);
-  const [playerCount, setPlayerCount] = useState(initial.playerCount);
-  const [durationHours, setDurationHours] = useState(initial.durationHours);
-  const [adventureType, setAdventureType] = useState<GameFormatId>(initial.adventureType ?? "adventure");
+  const [gameSystemId, setGameSystemId] = useState<string | null>(null);
+  const [difficultyId, setDifficultyId] = useState<string | null>(null);
+  const [playerCount, setPlayerCount] = useState(5);
+  const [durationHours, setDurationHours] = useState(5);
+  const [adventureType, setAdventureType] = useState<GameFormatId>("adventure");
   const [playerNote, setPlayerNote] = useState("");
 
-  const selectedSystem = config.systems.find((s) => s.id === gameSystemId) ?? null;
-  const selectedDifficulty = config.difficulties.find((d) => d.id === difficultyId) ?? null;
-  const selectedFormat = config.formats.find((f) => f.id === adventureType) ?? null;
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/adventures/${encodeURIComponent(adventure.id)}/booking-config`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as BookingConfigPayload;
+        if (cancelled) return;
+        setConfig(data);
+        const init = getBookingInitialValues(data);
+        setGameSystemId(init.gameSystemId);
+        setDifficultyId(init.difficultyId);
+        setPlayerCount(init.playerCount);
+        setDurationHours(init.durationHours);
+        setAdventureType(init.adventureType);
+      } catch {
+        if (cancelled) return;
+        const fallback = getMockBookingConfig(adventure);
+        setConfig(fallback);
+        const init = getBookingInitialValues(fallback);
+        setGameSystemId(init.gameSystemId);
+        setDifficultyId(init.difficultyId);
+        setPlayerCount(init.playerCount);
+        setDurationHours(init.durationHours);
+        setAdventureType(init.adventureType);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [adventure]);
+
+  const bounds = config?.bounds ?? {
+    minPlayers: 3,
+    maxPlayers: 6,
+    minDurationHours: 4,
+    maxDurationHours: 8,
+  };
+
+  const selectedSystem = config?.systems.find((s) => s.id === gameSystemId) ?? null;
+  const selectedDifficulty = config?.difficulties.find((d) => d.id === difficultyId) ?? null;
+  const selectedFormat = config?.formats.find((f) => f.id === adventureType) ?? null;
 
   const onDurationInput = useCallback(
     (v: number) => {
-      setDurationHours(snapHalfHour(v, bounds.minDurationHours, bounds.maxDurationHours));
+      setDurationHours(snapHour(v, bounds.minDurationHours, bounds.maxDurationHours));
     },
     [bounds.minDurationHours, bounds.maxDurationHours]
   );
 
-  const durSliderMin = Math.round(bounds.minDurationHours * 2);
-  const durSliderMax = Math.round(bounds.maxDurationHours * 2);
-  const durSliderVal = Math.round(durationHours * 2);
+  const durSliderMin = bounds.minDurationHours;
+  const durSliderMax = bounds.maxDurationHours;
+
+  if (loading || !config) {
+    return (
+      <div className="flex flex-col gap-4 text-amber-100/95 min-h-[12rem] items-center justify-center">
+        <p className="text-sm text-amber-400/80">Загрузка параметров бронирования…</p>
+      </div>
+    );
+  }
 
   return (
     <form
@@ -77,73 +128,75 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
         </button>
       </div>
 
-      {/* Система */}
-      <BookingPanelFrame className="p-3 sm:p-4">
-        <div className="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-4">
-          <div className="flex items-center gap-2 sm:min-w-[9rem] shrink-0">
-            <Dice5 className="w-5 h-5 text-amber-400/90" aria-hidden />
-            <label htmlFor="booking-system" className="text-xs font-bold uppercase tracking-wider text-amber-400/90">
-              Система
-            </label>
-          </div>
-          <div className="flex-1 min-w-0 space-y-1.5">
-            <select
-              id="booking-system"
-              value={gameSystemId ?? ""}
-              onChange={(e) => setGameSystemId(Number(e.target.value))}
-              className="input-base cursor-pointer w-full"
-            >
-              {config.systems.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-            {selectedSystem ? (
-              <p className="text-xs text-amber-200/75 leading-snug">{selectedSystem.description}</p>
-            ) : null}
-            {selectedSystem?.rulebook ? (
-              <a
-                href={selectedSystem.rulebook}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-amber-400/90 hover:text-amber-300 underline-offset-2 hover:underline"
+      {config.systems.length > 0 ? (
+        <BookingPanelFrame className="p-3 sm:p-4">
+          <div className="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-4">
+            <div className="flex items-center gap-2 sm:min-w-[9rem] shrink-0">
+              <Dice5 className="w-5 h-5 text-amber-400/90" aria-hidden />
+              <label htmlFor="booking-system" className="text-xs font-bold uppercase tracking-wider text-amber-400/90">
+                Система
+              </label>
+            </div>
+            <div className="flex-1 min-w-0 space-y-1.5">
+              <select
+                id="booking-system"
+                value={gameSystemId ?? ""}
+                onChange={(e) => setGameSystemId(e.target.value || null)}
+                className="input-base cursor-pointer w-full"
               >
-                Правила (PDF)
-                <ExternalLink className="w-3 h-3" aria-hidden />
-              </a>
-            ) : null}
+                {config.systems.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+              {selectedSystem?.description ? (
+                <p className="text-xs text-amber-200/75 leading-snug">{selectedSystem.description}</p>
+              ) : null}
+              {selectedSystem?.rulebook ? (
+                <a
+                  href={selectedSystem.rulebook}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-amber-400/90 hover:text-amber-300 underline-offset-2 hover:underline"
+                >
+                  Правила (PDF)
+                  <ExternalLink className="w-3 h-3" aria-hidden />
+                </a>
+              ) : null}
+            </div>
           </div>
-        </div>
-      </BookingPanelFrame>
+        </BookingPanelFrame>
+      ) : null}
 
-      {/* Сложность */}
-      <BookingPanelFrame className="p-3 sm:p-4">
-        <div className="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-4">
-          <p className="text-xs font-bold uppercase tracking-wider text-amber-400/90 sm:min-w-[9rem] shrink-0">
-            Сложность
-          </p>
-          <div className="flex-1 min-w-0 space-y-1.5">
-            <select
-              id="booking-difficulty"
-              value={difficultyId ?? ""}
-              onChange={(e) => setDifficultyId(Number(e.target.value))}
-              className="input-base cursor-pointer w-full"
-            >
-              {config.difficulties.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-            {selectedDifficulty ? (
-              <p className="text-xs text-amber-200/75 leading-snug">{selectedDifficulty.description}</p>
-            ) : null}
+      {config.difficulties.length > 0 ? (
+        <BookingPanelFrame className="p-3 sm:p-4">
+          <div className="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-4">
+            <div className="flex items-center gap-2 sm:min-w-[9rem] shrink-0">
+              <Shield className="w-5 h-5 text-amber-400/90" aria-hidden />
+              <p className="text-xs font-bold uppercase tracking-wider text-amber-400/90">Сложность</p>
+            </div>
+            <div className="flex-1 min-w-0 space-y-1.5">
+              <select
+                id="booking-difficulty"
+                value={difficultyId ?? ""}
+                onChange={(e) => setDifficultyId(e.target.value || null)}
+                className="input-base cursor-pointer w-full"
+              >
+                {config.difficulties.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+              {selectedDifficulty ? (
+                <p className="text-xs text-amber-200/75 leading-snug">{selectedDifficulty.description}</p>
+              ) : null}
+            </div>
           </div>
-        </div>
-      </BookingPanelFrame>
+        </BookingPanelFrame>
+      ) : null}
 
-      {/* Игроки и длительность */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <BookingPanelFrame className="p-3 sm:p-4">
           <div className="flex items-center gap-2 mb-2">
@@ -167,51 +220,54 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
           <div className="flex items-center gap-2 mb-2">
             <Hourglass className="w-5 h-5 text-amber-400/90" aria-hidden />
             <span className="text-xs font-bold uppercase tracking-wider text-amber-400/90">Длительность</span>
-            <span className="ml-auto text-lg font-black tabular-nums">
-              {Number.isInteger(durationHours) ? durationHours : durationHours.toFixed(1)} ч
-            </span>
+            <span className="ml-auto text-lg font-black tabular-nums">{durationHours} ч</span>
           </div>
           <input
             type="range"
             min={durSliderMin}
             max={durSliderMax}
             step={1}
-            value={clamp(durSliderVal, durSliderMin, durSliderMax)}
-            onChange={(e) => onDurationInput(Number(e.target.value) / 2)}
+            value={clamp(durationHours, durSliderMin, durSliderMax)}
+            onChange={(e) => onDurationInput(Number(e.target.value))}
             className="w-full accent-amber-600 h-2 rounded-full bg-amber-950/80"
           />
           <p className="mt-1.5 text-xs text-amber-200/70">{durationHint(durationHours)}</p>
         </BookingPanelFrame>
       </div>
 
-      {/* Тип игры */}
-      <div className="space-y-2">
-        <p className="text-xs font-bold uppercase tracking-wider text-amber-400/90 px-0.5">Тип игры</p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          {config.formats.map((f) => {
-            const sel = adventureType === f.id;
-            return (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => setAdventureType(f.id)}
-                className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left transition-colors focus-visible:ring-2 focus-visible:ring-amber-500/90 ${
-                  sel
-                    ? "border-amber-500/60 bg-amber-950/45"
-                    : "border-amber-800/35 bg-[#0f0d0c]/80 hover:border-amber-600/40"
-                }`}
-              >
-                {FORMAT_ICONS[f.id]}
-                <span className="font-bold uppercase text-[11px] tracking-wide text-amber-100">{f.title}</span>
-                {sel ? <Check className="w-3.5 h-3.5 ml-auto text-amber-400" aria-hidden /> : null}
-              </button>
-            );
-          })}
+      {config.formats.length > 0 ? (
+        <div className="space-y-2">
+          <p className="text-xs font-bold uppercase tracking-wider text-amber-400/90 px-0.5">Формат игры</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {config.formats.map((f) => {
+              const sel = adventureType === f.id;
+              const enabled = f.enabled !== false;
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  disabled={!enabled}
+                  onClick={() => enabled && setAdventureType(f.id)}
+                  className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left transition-colors focus-visible:ring-2 focus-visible:ring-amber-500/90 ${
+                    !enabled
+                      ? "border-amber-900/25 bg-[#0a0908]/60 opacity-40 cursor-not-allowed"
+                      : sel
+                        ? "border-amber-500/60 bg-amber-950/45"
+                        : "border-amber-800/35 bg-[#0f0d0c]/80 hover:border-amber-600/40"
+                  }`}
+                >
+                  {FORMAT_ICONS[f.id]}
+                  <span className="font-bold uppercase text-[11px] tracking-wide text-amber-100">{f.title}</span>
+                  {sel && enabled ? <Check className="w-3.5 h-3.5 ml-auto text-amber-400" aria-hidden /> : null}
+                </button>
+              );
+            })}
+          </div>
+          {selectedFormat ? (
+            <p className="text-xs text-amber-200/75 px-0.5 leading-snug">{selectedFormat.description}</p>
+          ) : null}
         </div>
-        {selectedFormat ? (
-          <p className="text-xs text-amber-200/75 px-0.5 leading-snug">{selectedFormat.description}</p>
-        ) : null}
-      </div>
+      ) : null}
 
       <BookingPanelFrame className="p-3 sm:p-4">
         <label htmlFor="booking-note" className="text-xs font-bold uppercase tracking-wider text-amber-400/90 block mb-2">

@@ -52,6 +52,13 @@ TRUNCATE adventure_gameformat;
 INSERT INTO adventure_gameformat SELECT * FROM _reorder_adventure_gameformat;
 CLUSTER adventure_gameformat USING adventure_gameformat_pkey;
 
+-- adventure_gamesystems
+CREATE TEMP TABLE _reorder_adventure_gamesystems ON COMMIT DROP AS
+SELECT * FROM adventure_gamesystems ORDER BY adventure_id, gamesystem_id;
+TRUNCATE adventure_gamesystems;
+INSERT INTO adventure_gamesystems SELECT * FROM _reorder_adventure_gamesystems;
+CLUSTER adventure_gamesystems USING adventure_gamesystems_pkey;
+
 -- adventure_tags
 CREATE TEMP TABLE _reorder_adventure_tags ON COMMIT DROP AS
 SELECT * FROM adventure_tags ORDER BY adventure_id, tag_id;

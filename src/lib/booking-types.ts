@@ -1,7 +1,7 @@
 export type GameFormatId = "oneshot" | "adventure" | "campaign";
 
 export type BookingGameSystem = {
-  id: number;
+  id: string;
   slug: string;
   name: string;
   description: string;
@@ -9,7 +9,7 @@ export type BookingGameSystem = {
 };
 
 export type BookingDifficulty = {
-  id: number;
+  id: string;
   name: string;
   description: string;
 };
@@ -25,6 +25,8 @@ export type FormatInfo = {
   id: GameFormatId;
   title: string;
   description: string;
+  /** Доступен для выбора по adventure_gameformat (по умолчанию true). */
+  enabled?: boolean;
 };
 
 export type WarningRule = {
@@ -47,8 +49,8 @@ export type BookingConfigPayload = {
 };
 
 export type BookingSelectionState = {
-  gameSystemId: number | null;
-  difficultyId: number | null;
+  gameSystemId: string | null;
+  difficultyId: string | null;
   playerCount: number;
   durationHours: number;
   adventureType: GameFormatId;

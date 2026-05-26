@@ -140,7 +140,7 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
     }
 
     if (fieldId === "adventure_type") {
-      return adv.adventure_type ?? null;
+      return adv.gameformats ?? adv.adventure_type ?? null;
     }
 
     return adv[fieldId as keyof Adventure] as string | null;
@@ -209,12 +209,15 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
       const query = normalizeForSearch(searchQuery.trim());
       const queryWords = query.split(/\s+/).filter(Boolean);
       
+      const worlds = Array.isArray(adv.world) ? adv.world : adv.world ? [adv.world] : [];
       const searchableFields = [
         adv.title,
         adv.subsetting,
         adv.focus,
-        adv.world,
+        ...worlds,
         adv.adventure_type,
+        adv.tags,
+        ...(adv.gameformats ?? []),
         ...(Array.isArray(adv.base_setting) ? adv.base_setting : [adv.base_setting]),
         ...(Array.isArray(adv.genre) ? adv.genre : adv.genre ? [adv.genre] : []),
       ].filter(Boolean) as string[];

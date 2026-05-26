@@ -1,8 +1,10 @@
 import type { Adventure } from "@/lib/db";
+import { defaultFormatFromAdventure } from "@/lib/booking-config-utils";
 import { getDbPool } from "@/lib/pg-pool";
 import type {
   BookingBounds,
   BookingConfigPayload,
+  BookingDifficulty,
   BookingGameSystem,
   FormatInfo,
   GameFormatId,
@@ -12,7 +14,7 @@ import type {
 const DEFAULT_BOUNDS: BookingBounds = {
   minPlayers: 3,
   maxPlayers: 6,
-  minDurationHours: 3,
+  minDurationHours: 4,
   maxDurationHours: 8,
 };
 
@@ -36,6 +38,12 @@ const DEFAULT_FORMATS: FormatInfo[] = [
       "Долгая арка: растущие ставки, побочные линии и память мира между встречами. Требует стабильного состава и терпения к паузам между играми.",
   },
 ];
+
+const FORMAT_ORDER: GameFormatId[] = ["oneshot", "adventure", "campaign"];
+
+function usePoolSchema(): boolean {
+  return process.env.PG_ADVENTURES_SCHEMA !== "legacy";
+}
 
 function parsePlayerRange(s: string | undefined): { min: number; max: number } | null {
   if (!s?.trim()) return null;
@@ -66,11 +74,180 @@ function adventureFallbackBounds(a: Adventure): BookingBounds {
   return { ...DEFAULT_BOUNDS };
 }
 
-async function fetchSystemsForAdventure(adventureId: string): Promise<BookingGameSystem[]> {
+function isMissingRelationError(err: unknown): boolean {
+  const code = (err as { code?: string })?.code;
+  return code === "42P01" || code === "42703";
+}
+
+function staticPayload(a: Adventure): BookingConfigPayload {
+  return {
+    adventureId: a.id,
+    adventureTitle: a.title ?? "",
+    systems: [],
+    difficulties: [],
+    bounds: adventureFallbackBounds(a),
+    formats: DEFAULT_FORMATS,
+    warningRules: [],
+    warnings: [],
+    defaultAdventureType: defaultFormatFromAdventure(a),
+  };
+}
+
+// --- adventurespool ---
+
+async function fetchPoolGameSystemsForAdventure(adventureId: string): Promise<BookingGameSystem[]> {
   const pool = getDbPool();
-  const { rows } = await pool.query<
-    Record<string, unknown> & { id: number; slug: string; name: string; description: string }
-  >(
+  const { rows } = await pool.query<Record<string, unknown>>(
+    `
+    SELECT gs.gamesystem_id, gs.gamesystem_name
+    FROM adventure_gamesystems ags
+    INNER JOIN gamesystems gs ON gs.gamesystem_id = ags.gamesystem_id
+    WHERE ags.adventure_id = $1::text
+    ORDER BY
+      CASE gs.gamesystem_id
+        WHEN 'original-full' THEN 1
+        WHEN 'original-simple' THEN 2
+        ELSE 3
+      END,
+      REPLACE(gs.gamesystem_id, '-simple', ''),
+      CASE WHEN gs.gamesystem_id LIKE '%-simple' THEN 1 ELSE 0 END,
+      gs.gamesystem_name
+    `,
+    [adventureId]
+  );
+  return rows.map((r) => {
+    const id = String(r.gamesystem_id);
+    return {
+      id,
+      slug: id,
+      name: String(r.gamesystem_name),
+      description: "",
+      rulebook: null,
+    };
+  });
+}
+
+async function fetchPoolDifficulties(adventureId: string): Promise<BookingDifficulty[]> {
+  const pool = getDbPool();
+  const { rows } = await pool.query<Record<string, unknown>>(
+    `
+    SELECT d.difficulty_id, d.difficulty_name, d.difficulty_description
+    FROM adventure_difficulty ad
+    INNER JOIN difficulty d ON d.difficulty_id = ad.difficulty_id
+    WHERE ad.adventure_id = $1::text
+    ORDER BY CASE d.difficulty_id WHEN 'narrative' THEN 1 WHEN 'tactic' THEN 2 ELSE 3 END
+    `,
+    [adventureId]
+  );
+  return rows.map((r) => ({
+    id: String(r.difficulty_id),
+    name: String(r.difficulty_name),
+    description: String(r.difficulty_description ?? ""),
+  }));
+}
+
+async function fetchPoolGametimeBounds(adventureId: string): Promise<{ min: number; max: number } | null> {
+  const pool = getDbPool();
+  const { rows } = await pool.query<Record<string, unknown>>(
+    `
+    SELECT
+      MIN(CAST(g.gametime_id AS INTEGER)) AS min_h,
+      MAX(CAST(g.gametime_id AS INTEGER)) AS max_h
+    FROM adventure_gametime ag
+    INNER JOIN gametime g ON g.gametime_id = ag.gametime_id
+    WHERE ag.adventure_id = $1::text
+    `,
+    [adventureId]
+  );
+  const row = rows[0];
+  if (!row || row.min_h == null || row.max_h == null) return null;
+  return { min: Number(row.min_h), max: Number(row.max_h) };
+}
+
+async function fetchPoolFormatsForAdventure(adventureId: string): Promise<FormatInfo[]> {
+  const pool = getDbPool();
+  const { rows } = await pool.query<Record<string, unknown>>(
+    `
+    SELECT gf.gameformat_id
+    FROM adventure_gameformat agf
+    INNER JOIN gameformat gf ON gf.gameformat_id = agf.gameformat_id
+    WHERE agf.adventure_id = $1::text
+    `,
+    [adventureId]
+  );
+  const linked = new Set(rows.map((r) => String(r.gameformat_id)));
+  return FORMAT_ORDER.map((id) => {
+    const def = DEFAULT_FORMATS.find((d) => d.id === id)!;
+    return { ...def, enabled: linked.has(id) };
+  });
+}
+
+async function getPoolBookingConfig(a: Adventure): Promise<BookingConfigPayload> {
+  const adventureId = a.id;
+  const playerBounds = adventureFallbackBounds(a);
+  let bounds: BookingBounds = { ...playerBounds };
+
+  let systems: BookingGameSystem[] = [];
+  let difficulties: BookingDifficulty[] = [];
+  let gametime: { min: number; max: number } | null = null;
+  let formats = DEFAULT_FORMATS.map((f) => ({ ...f, enabled: true }));
+
+  try {
+    systems = await fetchPoolGameSystemsForAdventure(adventureId);
+  } catch (err) {
+    if (!isMissingRelationError(err)) console.error("[booking-db] adventure_gamesystems:", err);
+  }
+
+  try {
+    difficulties = await fetchPoolDifficulties(adventureId);
+  } catch (err) {
+    if (!isMissingRelationError(err)) console.error("[booking-db] adventure_difficulty:", err);
+  }
+
+  try {
+    gametime = await fetchPoolGametimeBounds(adventureId);
+  } catch (err) {
+    if (!isMissingRelationError(err)) console.error("[booking-db] adventure_gametime:", err);
+  }
+
+  try {
+    formats = await fetchPoolFormatsForAdventure(adventureId);
+  } catch (err) {
+    if (!isMissingRelationError(err)) console.error("[booking-db] adventure_gameformat:", err);
+  }
+
+  if (gametime) {
+    bounds = {
+      ...bounds,
+      minDurationHours: gametime.min,
+      maxDurationHours: gametime.max,
+    };
+  }
+
+  const preferred = defaultFormatFromAdventure(a);
+  const enabledFormats = formats.filter((f) => f.enabled !== false);
+  const defaultAdventureType = enabledFormats.some((f) => f.id === preferred)
+    ? preferred
+    : enabledFormats[0]?.id;
+
+  return {
+    adventureId,
+    adventureTitle: a.title ?? "",
+    systems,
+    difficulties,
+    bounds,
+    formats,
+    warningRules: [],
+    warnings: [],
+    defaultAdventureType,
+  };
+}
+
+// --- legacy schema ---
+
+async function fetchLegacySystemsForAdventure(adventureId: string): Promise<BookingGameSystem[]> {
+  const pool = getDbPool();
+  const { rows } = await pool.query<Record<string, unknown>>(
     `
     SELECT gs.id, gs.slug, gs.name, gs.description
     FROM adventure_game_systems ags
@@ -81,14 +258,14 @@ async function fetchSystemsForAdventure(adventureId: string): Promise<BookingGam
     [adventureId]
   );
   return rows.map((r) => ({
-    id: Number(r.id),
+    id: String(r.id),
     slug: String(r.slug),
     name: String(r.name),
     description: String(r.description ?? ""),
   }));
 }
 
-async function fetchBoundsRow(adventureId: string): Promise<BookingBounds | null> {
+async function fetchLegacyBoundsRow(adventureId: string): Promise<BookingBounds | null> {
   const pool = getDbPool();
   const { rows } = await pool.query<Record<string, unknown>>(
     `
@@ -108,23 +285,22 @@ async function fetchBoundsRow(adventureId: string): Promise<BookingBounds | null
   };
 }
 
-async function fetchFormats(): Promise<FormatInfo[]> {
+async function fetchLegacyFormats(): Promise<FormatInfo[]> {
   const pool = getDbPool();
   const { rows } = await pool.query<Record<string, unknown>>(
     `SELECT format_id, title, description FROM game_format_info ORDER BY
        CASE format_id WHEN 'oneshot' THEN 1 WHEN 'adventure' THEN 2 WHEN 'campaign' THEN 3 ELSE 4 END`
   );
   if (!rows.length) return DEFAULT_FORMATS;
-  const order: GameFormatId[] = ["oneshot", "adventure", "campaign"];
   const mapped = rows
     .map((r) => ({
       id: String(r.format_id) as GameFormatId,
       title: String(r.title),
       description: String(r.description ?? ""),
     }))
-    .filter((x) => order.includes(x.id));
+    .filter((x) => FORMAT_ORDER.includes(x.id));
   const list: FormatInfo[] = [];
-  for (const id of order) {
+  for (const id of FORMAT_ORDER) {
     const f = mapped.find((m) => m.id === id);
     if (f) list.push(f);
     else {
@@ -135,7 +311,7 @@ async function fetchFormats(): Promise<FormatInfo[]> {
   return list.length ? list : DEFAULT_FORMATS;
 }
 
-async function fetchWarningsAndRules(adventureId: string): Promise<{
+async function fetchLegacyWarningsAndRules(adventureId: string): Promise<{
   rules: WarningRule[];
   warnings: { id: number; message: string }[];
 }> {
@@ -172,63 +348,37 @@ async function fetchWarningsAndRules(adventureId: string): Promise<{
   return { rules, warnings };
 }
 
-function isMissingRelationError(err: unknown): boolean {
-  const code = (err as { code?: string })?.code;
-  return code === "42P01" || code === "42703";
-}
-
-function staticPayload(a: Adventure): BookingConfigPayload {
-  return {
-    adventureId: a.id,
-    adventureTitle: a.title ?? "",
-    systems: [],
-    difficulties: [],
-    bounds: adventureFallbackBounds(a),
-    formats: DEFAULT_FORMATS,
-    warningRules: [],
-    warnings: [],
-  };
-}
-
-/**
- * Собирает конфиг формы заявки: справочники из БД при наличии таблиц, иначе — разумные значения по умолчанию.
- */
-export async function getBookingConfigForAdventure(a: Adventure): Promise<BookingConfigPayload> {
-  if (!process.env.DATABASE_URL?.trim()) {
-    return staticPayload(a);
-  }
-
+async function getLegacyBookingConfig(a: Adventure): Promise<BookingConfigPayload> {
   const adventureId = a.id;
   const adventureTitle = a.title ?? "";
 
   let systems: BookingGameSystem[] = [];
-  let difficulties: { id: number; name: string; description: string }[] = [];
   let boundsMerged: BookingBounds = adventureFallbackBounds(a);
   let formats = DEFAULT_FORMATS;
   let warningRules: WarningRule[] = [];
   let warnings: { id: number; message: string }[] = [];
 
   try {
-    systems = await fetchSystemsForAdventure(adventureId);
+    systems = await fetchLegacySystemsForAdventure(adventureId);
   } catch (err) {
     if (!isMissingRelationError(err)) console.error("[booking-db] game_systems:", err);
   }
 
   try {
-    const rowBounds = await fetchBoundsRow(adventureId);
+    const rowBounds = await fetchLegacyBoundsRow(adventureId);
     if (rowBounds) boundsMerged = rowBounds;
   } catch (err) {
     if (!isMissingRelationError(err)) console.error("[booking-db] adventure_booking_bounds:", err);
   }
 
   try {
-    formats = await fetchFormats();
+    formats = await fetchLegacyFormats();
   } catch (err) {
     if (!isMissingRelationError(err)) console.error("[booking-db] game_format_info:", err);
   }
 
   try {
-    const w = await fetchWarningsAndRules(adventureId);
+    const w = await fetchLegacyWarningsAndRules(adventureId);
     warningRules = w.rules;
     warnings = w.warnings;
   } catch (err) {
@@ -239,12 +389,28 @@ export async function getBookingConfigForAdventure(a: Adventure): Promise<Bookin
     adventureId,
     adventureTitle,
     systems,
-    difficulties,
+    difficulties: [],
     bounds: boundsMerged,
     formats,
     warningRules,
     warnings,
+    defaultAdventureType: defaultFormatFromAdventure(a),
   };
+}
+
+/**
+ * Собирает конфиг формы заявки из БД (adventurespool или legacy).
+ */
+export async function getBookingConfigForAdventure(a: Adventure): Promise<BookingConfigPayload> {
+  if (!process.env.DATABASE_URL?.trim()) {
+    return staticPayload(a);
+  }
+
+  if (usePoolSchema()) {
+    return getPoolBookingConfig(a);
+  }
+
+  return getLegacyBookingConfig(a);
 }
 
 /** Если запрос к БД невозможен, возвращает безопасный минимальный конфиг. */

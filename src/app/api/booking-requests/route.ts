@@ -6,7 +6,8 @@ import type { BookingSelectionState } from "@/lib/booking-types";
 
 type Body = {
   adventureId?: string;
-  gameSystemId?: number | null;
+  gameSystemId?: string | null;
+  difficultyId?: string | null;
   playerCount?: number;
   durationHours?: number;
   adventureType?: string;
@@ -32,10 +33,17 @@ export async function POST(req: Request) {
   }
 
   const config = await getBookingConfigSafe(adventure);
-  const gsid = body.gameSystemId;
+  const gsid = body.gameSystemId?.trim() || null;
   if (config.systems.length > 0) {
     if (gsid == null || !config.systems.some((s) => s.id === gsid)) {
       return NextResponse.json({ error: "gameSystemId required" }, { status: 400 });
+    }
+  }
+
+  const diffId = body.difficultyId?.trim() || null;
+  if (config.difficulties.length > 0) {
+    if (diffId == null || !config.difficulties.some((d) => d.id === diffId)) {
+      return NextResponse.json({ error: "difficultyId required" }, { status: 400 });
     }
   }
 
@@ -60,10 +68,14 @@ export async function POST(req: Request) {
   if (!isGameFormatId(atRaw)) {
     return NextResponse.json({ error: "Invalid adventureType" }, { status: 400 });
   }
+  const formatAllowed = config.formats.some((f) => f.id === atRaw && f.enabled !== false);
+  if (!formatAllowed) {
+    return NextResponse.json({ error: "adventureType not available for this adventure" }, { status: 400 });
+  }
 
   const state: BookingSelectionState = {
-    gameSystemId: gsid ?? null,
-    difficultyId: null,
+    gameSystemId: gsid,
+    difficultyId: diffId,
     playerCount: pc,
     durationHours: dh,
     adventureType: atRaw,
@@ -73,12 +85,16 @@ export async function POST(req: Request) {
 
   const systemName =
     gsid != null ? config.systems.find((s) => s.id === gsid)?.name ?? null : null;
+  const difficultyName =
+    diffId != null ? config.difficulties.find((d) => d.id === diffId)?.name ?? null : null;
 
   const payload = {
     adventureId,
     adventureTitle: adventure.title,
-    gameSystemId: gsid ?? null,
+    gameSystemId: gsid,
     gameSystemName: systemName,
+    difficultyId: diffId,
+    difficultyName,
     playerCount: pc,
     durationHours: dh,
     adventureType: atRaw,

@@ -10,6 +10,12 @@ function pick(row: Record<string, unknown>, ...keys: string[]): unknown {
   return undefined;
 }
 
+function textArray(raw: unknown): string[] | undefined {
+  if (raw == null) return undefined;
+  if (Array.isArray(raw)) return raw.map(String).filter(Boolean);
+  return undefined;
+}
+
 function normalizeGenre(raw: unknown): string[] | undefined {
   if (raw == null) return undefined;
   if (Array.isArray(raw)) return raw.map((g) => String(g));
@@ -31,17 +37,32 @@ function parsePlayerCount(raw: unknown): { min: number; max: number } | undefine
   return { min: o.min, max: o.max };
 }
 
-/** Подписи для adventure_type_id из справочника в adventure-options.json */
-const ADVENTURE_TYPE_LABELS: Record<string, string> = {
+const GAMEFORMAT_LABELS: Record<string, string> = {
   oneshot: "Ваншот",
   adventure: "Приключение",
   campaign: "Кампания",
 };
 
-function mapAdventureTypeId(id: unknown): string | undefined {
-  if (id == null || id === "") return undefined;
-  const s = String(id).trim();
-  return ADVENTURE_TYPE_LABELS[s] ?? s;
+function mapGameformatLabels(ids: string[] | undefined): string[] {
+  if (!ids?.length) return [];
+  return ids.map((id) => GAMEFORMAT_LABELS[id] ?? id);
+}
+
+function formatGametimeRange(names: string[] | undefined): string | undefined {
+  if (!names?.length) return undefined;
+  const nums = names.map((n) => Number.parseInt(String(n), 10)).filter((n) => !Number.isNaN(n));
+  if (nums.length > 0) {
+    const min = Math.min(...nums);
+    const max = Math.max(...nums);
+    if (min === max) return `${min} ч`;
+    return `${min}–${max} ч`;
+  }
+  return names.join(", ");
+}
+
+function formatList(names: string[] | undefined, separator = " · "): string | undefined {
+  if (!names?.length) return undefined;
+  return names.join(separator);
 }
 
 function validateSqlIdentifier(name: string, label: string): string {
@@ -52,102 +73,123 @@ function validateSqlIdentifier(name: string, label: string): string {
   return n;
 }
 
-/** Колонка с подписью в справочнике (имена таблиц фиксированы, поля у всех разные). */
-function lookupColumn(envKey: string, defaultCol: string): string {
-  return validateSqlIdentifier(process.env[envKey] || defaultCol, envKey);
-}
-
 /**
- * Запрос: adventures + FK → человекочитаемые строки для карточек и фильтров.
- * Справочники: base_settings, subsettings, universes, difficulties, session_durations, player_counts, genres через adventure_genres.
+ * БД adventurespool: adventures + M2M-справочники (settings, genres, gameformat, …).
  */
-function buildNormalizedAdventuresSql(adventuresTable: string): string {
-  const posterCol = validateSqlIdentifier(
-    process.env.PG_ADVENTURES_POSTER_COLUMN || "poster",
-    "PG_ADVENTURES_POSTER_COLUMN"
-  );
-  const cBase = lookupColumn("PG_LOOKUP_BASE_SETTINGS_COLUMN", "name");
-  const cSub = lookupColumn("PG_LOOKUP_SUBSETTINGS_COLUMN", "name");
-  const cUni = lookupColumn("PG_LOOKUP_UNIVERSES_COLUMN", "name");
-  /** Пока не задано в .env — берётся id; задайте колонку с подписью сложности (как в DBeaver). */
-  const cDif = lookupColumn("PG_LOOKUP_DIFFICULTIES_COLUMN", "id");
-  const cSd = lookupColumn("PG_LOOKUP_SESSION_DURATIONS_COLUMN", "label");
-  const cPc = lookupColumn("PG_LOOKUP_PLAYER_COUNTS_COLUMN", "label");
-  const cGen = lookupColumn("PG_LOOKUP_GENRES_COLUMN", "name");
+function buildAdventurespoolSql(adventuresTable: string): string {
+  const table = validateSqlIdentifier(adventuresTable, "PG_ADVENTURES_TABLE");
   return `
 WITH genre_agg AS (
   SELECT ag.adventure_id,
-         array_agg(g.${cGen}::text ORDER BY g.${cGen}) AS genre_names
+         array_agg(g.genre_name::text ORDER BY g.genre_name) AS genre_names
   FROM adventure_genres ag
-  INNER JOIN genres g ON g.id = ag.genre_id
+  INNER JOIN genres g ON g.genre_id = ag.genre_id
   GROUP BY ag.adventure_id
+),
+universe_agg AS (
+  SELECT au.adventure_id,
+         array_agg(u.universe_name::text ORDER BY u.universe_name) AS universe_names
+  FROM adventure_universes au
+  INNER JOIN universes u ON u.universe_id = au.universe_id
+  GROUP BY au.adventure_id
+),
+gameformat_agg AS (
+  SELECT agf.adventure_id,
+         array_agg(gf.gameformat_id::text ORDER BY gf.gameformat_id) AS gameformat_ids,
+         array_agg(gf.gameformat_name::text ORDER BY gf.gameformat_id) AS gameformat_names
+  FROM adventure_gameformat agf
+  INNER JOIN gameformat gf ON gf.gameformat_id = agf.gameformat_id
+  GROUP BY agf.adventure_id
+),
+difficulty_agg AS (
+  SELECT ad.adventure_id,
+         array_agg(d.difficulty_name::text ORDER BY d.difficulty_id) AS difficulty_names
+  FROM adventure_difficulty ad
+  INNER JOIN difficulty d ON d.difficulty_id = ad.difficulty_id
+  GROUP BY ad.adventure_id
+),
+gametime_agg AS (
+  SELECT agt.adventure_id,
+         array_agg(gt.gametime_name::text ORDER BY gt.gametime_id::int) AS gametime_names
+  FROM adventure_gametime agt
+  INNER JOIN gametime gt ON gt.gametime_id = agt.gametime_id
+  GROUP BY agt.adventure_id
+),
+tags_agg AS (
+  SELECT at.adventure_id,
+         array_agg(t.tag_name::text ORDER BY t.tag_name) AS tag_names
+  FROM adventure_tags at
+  INNER JOIN tags t ON t.tag_id = at.tag_id
+  GROUP BY at.adventure_id
 )
 SELECT
-  a.id::text AS id,
-  COALESCE(a.title, '') AS title,
-  a.intro,
-  a.description,
-  a.theme,
-  a.${posterCol} AS poster,
-  bs.${cBase} AS base_setting,
-  ss.${cSub} AS subsetting,
-  u.${cUni} AS universe,
-  d.${cDif}::text AS difficulty,
-  a.adventure_type_id::text AS adventure_type_id,
-  sd.${cSd}::text AS session_duration,
-  pc.${cPc}::text AS player_count,
-  ga.genre_names AS genre
-FROM ${adventuresTable} a
-LEFT JOIN base_settings bs ON bs.id = a.base_setting_id
-LEFT JOIN subsettings ss ON ss.id = a.subsetting_id
-LEFT JOIN universes u ON u.id = a.universe_id
-LEFT JOIN difficulties d ON d.id = a.difficulty_id
-LEFT JOIN session_durations sd ON sd.id = a.session_duration_id
-LEFT JOIN player_counts pc ON pc.id = a.player_count_id
-LEFT JOIN genre_agg ga ON ga.adventure_id = a.id
-ORDER BY a.title ASC NULLS LAST
+  a.adventure_id::text AS id,
+  a.adventure_name AS title,
+  a.adventure_intro AS intro,
+  a.adventure_intro AS description,
+  s.setting_name AS base_setting,
+  ss.subsetting_name AS subsetting,
+  ua.universe_names AS universe,
+  ga.genre_names AS genre,
+  da.difficulty_names AS difficulty,
+  gfa.gameformat_ids AS gameformat_ids,
+  gfa.gameformat_names AS gameformat_names,
+  gta.gametime_names AS gametime_names,
+  ta.tag_names AS tag_names
+FROM ${table} a
+LEFT JOIN adventure_settings ast ON ast.adventure_id = a.adventure_id
+LEFT JOIN settings s ON s.setting_id = ast.setting_id
+LEFT JOIN adventure_subsettings asub ON asub.adventure_id = a.adventure_id
+LEFT JOIN subsettings ss ON ss.subsetting_id = asub.subsetting_id
+LEFT JOIN genre_agg ga ON ga.adventure_id = a.adventure_id
+LEFT JOIN universe_agg ua ON ua.adventure_id = a.adventure_id
+LEFT JOIN gameformat_agg gfa ON gfa.adventure_id = a.adventure_id
+LEFT JOIN difficulty_agg da ON da.adventure_id = a.adventure_id
+LEFT JOIN gametime_agg gta ON gta.adventure_id = a.adventure_id
+LEFT JOIN tags_agg ta ON ta.adventure_id = a.adventure_id
+ORDER BY a.adventure_name ASC NULLS LAST
 `.trim();
 }
 
-function normalizedSqlRowToAdventure(row: Record<string, unknown>): Adventure {
-  const genreRaw = row.genre;
-  const genreArr = Array.isArray(genreRaw)
-    ? genreRaw.map(String)
-    : genreRaw != null
-      ? [String(genreRaw)]
-      : undefined;
-
-  const universeStr = row.universe != null ? String(row.universe) : undefined;
+function adventurespoolRowToAdventure(row: Record<string, unknown>): Adventure {
+  const id = String(row.id ?? "");
+  const genreArr = textArray(row.genre);
+  const universeArr = textArray(row.universe);
+  const gameformatIds = textArray(row.gameformat_ids);
+  const gameformatLabels = mapGameformatLabels(gameformatIds);
+  const subsetting = row.subsetting != null ? String(row.subsetting) : undefined;
 
   return {
-    id: String(row.id ?? ""),
+    id,
     title: String(row.title ?? ""),
-    poster: row.poster != null ? String(row.poster) : undefined,
+    poster: id ? `${id}.webp` : undefined,
     intro: row.intro != null ? String(row.intro) : undefined,
     description: row.description != null ? String(row.description) : undefined,
-    theme: row.theme != null ? String(row.theme).trim() || undefined : undefined,
+    theme: subsetting,
     genre: genreArr,
-    universe: universeStr,
-    world: universeStr,
+    focus: genreArr,
+    universe: universeArr?.[0],
+    world: universeArr,
     base_setting: row.base_setting != null ? String(row.base_setting) : undefined,
-    subsetting: row.subsetting != null ? String(row.subsetting) : undefined,
-    difficulty: row.difficulty != null ? String(row.difficulty) : undefined,
-    adventure_type: mapAdventureTypeId(row.adventure_type_id),
-    session_duration: row.session_duration != null ? String(row.session_duration) : undefined,
-    player_count: row.player_count != null ? String(row.player_count) : undefined,
+    subsetting,
+    difficulty: formatList(textArray(row.difficulty)),
+    gameformats: gameformatLabels.length > 0 ? gameformatLabels : undefined,
+    adventure_type: formatList(gameformatLabels, ", ") ?? undefined,
+    session_duration: formatGametimeRange(textArray(row.gametime_names)),
+    tags: formatList(textArray(row.tag_names), ", "),
   };
 }
 
 function rowToAdventure(row: Record<string, unknown>): Adventure {
-  const idRaw = pick(row, "id");
+  const idRaw = pick(row, "id", "adventure_id");
   const id = idRaw != null ? String(idRaw) : "";
 
   return {
     id,
-    title: String(pick(row, "title") ?? ""),
+    title: String(pick(row, "title", "adventure_name") ?? ""),
     poster: pick(row, "poster") as string | undefined,
     img_url: pick(row, "img_url", "imgUrl") as string | undefined,
-    intro: pick(row, "intro") as string | undefined,
+    intro: pick(row, "intro", "adventure_intro") as string | undefined,
     description: pick(row, "description") as string | undefined,
     theme: (() => {
       const t = pick(row, "theme");
@@ -185,6 +227,7 @@ function rowToAdventure(row: Record<string, unknown>): Adventure {
     focus: pick(row, "focus") as string | undefined,
     difficulty: pick(row, "difficulty") as string | undefined,
     adventure_type: pick(row, "adventure_type", "adventureType") as string | undefined,
+    gameformats: normalizeGenre(pick(row, "gameformats")) as string[] | undefined,
     session_duration: pick(row, "session_duration", "sessionDuration") as string | undefined,
     players: pick(row, "players") as string | undefined,
     time: pick(row, "time") as string | undefined,
@@ -195,10 +238,6 @@ function rowToAdventure(row: Record<string, unknown>): Adventure {
   };
 }
 
-/**
- * Имя таблицы из PG_ADVENTURES_TABLE (по умолчанию adventures).
- * Допускаются только буквы, цифры и подчёркивание.
- */
 function validatedTableName(): string {
   const raw = (process.env.PG_ADVENTURES_TABLE || "adventures").trim();
   if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(raw)) {
@@ -212,19 +251,12 @@ function validatedTableName(): string {
 export async function fetchAdventuresFromDatabase(): Promise<Adventure[]> {
   const table = validatedTableName();
   const pool = getDbPool();
-  const useNormalized = process.env.PG_ADVENTURES_NORMALIZED !== "0";
+  const usePoolSchema = process.env.PG_ADVENTURES_SCHEMA !== "legacy";
 
-  if (useNormalized) {
-    try {
-      const sql = buildNormalizedAdventuresSql(table);
-      const { rows } = await pool.query(sql);
-      return rows.map((r) => normalizedSqlRowToAdventure(r as Record<string, unknown>));
-    } catch (err) {
-      console.error(
-        "[adventures-db] JOIN-запрос к справочникам не выполнен (проверьте имена таблиц/колонок или создайте VIEW). Подробности:",
-        err
-      );
-    }
+  if (usePoolSchema) {
+    const sql = buildAdventurespoolSql(table);
+    const { rows } = await pool.query(sql);
+    return rows.map((r) => adventurespoolRowToAdventure(r as Record<string, unknown>));
   }
 
   const { rows } = await pool.query(`SELECT * FROM ${table} ORDER BY title ASC`);
@@ -286,7 +318,60 @@ function normalizeAdventureOptionsPayload(parsed: unknown): AdventureOptions | n
   };
 }
 
-/** Одна строка в таблице, колонка data (jsonb). При отсутствии таблицы или ошибке — null (без throw). */
+/** Справочники из adventurespool для фильтров на странице приключений. */
+export async function fetchAdventureOptionsFromLookups(): Promise<AdventureOptions | null> {
+  try {
+    const pool = getDbPool();
+    const [settingsRes, subRes, genreRes, uniRes, relRes, gfRes] = await Promise.all([
+      pool.query<{ setting_name: string }>(
+        `SELECT setting_name FROM settings ORDER BY setting_name`
+      ),
+      pool.query<{ subsetting_name: string }>(
+        `SELECT subsetting_name FROM subsettings ORDER BY subsetting_name`
+      ),
+      pool.query<{ genre_name: string }>(`SELECT genre_name FROM genres ORDER BY genre_name`),
+      pool.query<{ universe_name: string }>(
+        `SELECT universe_name FROM universes ORDER BY universe_name`
+      ),
+      pool.query<{ setting_name: string; subsetting_name: string }>(`
+        SELECT DISTINCT s.setting_name, ss.subsetting_name
+        FROM adventure_subsettings asub
+        INNER JOIN subsettings ss ON ss.subsetting_id = asub.subsetting_id
+        INNER JOIN adventure_settings ast ON ast.adventure_id = asub.adventure_id
+        INNER JOIN settings s ON s.setting_id = ast.setting_id
+        ORDER BY s.setting_name, ss.subsetting_name
+      `),
+      pool.query<{ gameformat_name: string }>(
+        `SELECT gameformat_name FROM gameformat ORDER BY gameformat_id`
+      ),
+    ]);
+
+    const setting_relations: Record<string, string[]> = {};
+    for (const row of relRes.rows) {
+      const base = row.setting_name;
+      if (!setting_relations[base]) setting_relations[base] = [];
+      if (!setting_relations[base].includes(row.subsetting_name)) {
+        setting_relations[base].push(row.subsetting_name);
+      }
+    }
+
+    return {
+      base_setting: settingsRes.rows.map((r) => r.setting_name),
+      subsetting: subRes.rows.map((r) => r.subsetting_name),
+      genre: genreRes.rows.map((r) => r.genre_name),
+      universe: uniRes.rows.map((r) => r.universe_name),
+      setting_relations,
+      adventure_type: gfRes.rows.map((r) => ({
+        id: r.gameformat_name,
+        label: r.gameformat_name,
+      })),
+    };
+  } catch (err) {
+    console.warn("[adventures-db] справочники adventurespool для фильтров:", err);
+    return null;
+  }
+}
+
 export async function fetchAdventureOptionsFromDatabase(): Promise<AdventureOptions | null> {
   try {
     const table = validatedOptionsTableName();
@@ -301,7 +386,7 @@ export async function fetchAdventureOptionsFromDatabase(): Promise<AdventureOpti
     const tbl = process.env.PG_ADVENTURE_OPTIONS_TABLE || "adventure_options";
     if (code === "42P01") {
       console.warn(
-        `[adventures-db] таблица "${tbl}" не найдена — фильтры можно задать в БД или они соберутся из приключений`
+        `[adventures-db] таблица "${tbl}" не найдена — фильтры из справочников adventurespool или из приключений`
       );
     } else {
       console.error("[adventures-db] adventure_options:", err);
@@ -310,10 +395,6 @@ export async function fetchAdventureOptionsFromDatabase(): Promise<AdventureOpti
   }
 }
 
-/**
- * Файл adventure-options.json в бакете (часто data/adventure-options.json).
- * Нужны YC_STORAGE_BUCKET + ключи и YC_STORAGE_PREFIX=data/ (или пусто, если файл в корне бакета).
- */
 export async function fetchAdventureOptionsFromObjectStorage(): Promise<AdventureOptions | null> {
   const prefixRaw = (process.env.YC_STORAGE_PREFIX ?? "").trim();
   const prefix = prefixRaw && !prefixRaw.endsWith("/") ? `${prefixRaw}/` : prefixRaw;

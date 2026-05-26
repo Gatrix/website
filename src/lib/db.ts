@@ -29,12 +29,14 @@ export interface Adventure {
   universe?: string;
   base_setting?: string;
   subsetting?: string;
-  world?: string;
-  focus?: string;
+  world?: string | string[];
+  focus?: string | string[];
   /** Сложность: 💀 (1), 💀💀 (2), 💀💀💀 (3) */
   difficulty?: string;
   /** Тип приключения: Ваншот (1 сессия), Приключение (до 10), Кампания (10+) */
   adventure_type?: string;
+  /** Допустимые форматы (из gameformat), для фильтров */
+  gameformats?: string[];
   /** Время одной игры (например "5-6 часов") */
   session_duration?: string;
   /** Количество игроков (например "4-6 игроков") */

@@ -1,5 +1,7 @@
--- Расширение схемы для формы заявки на приключение (игровые системы, границы, предупреждения).
--- Применить после основной таблицы приключений; adventure_id — тот же тип, что и adventures.id (часто TEXT или UUID).
+-- Legacy/совместимость: схема для формы заявки и хранения заявок.
+-- В текущем режиме параметры формы берутся из `adventurespool` (endpoint `/api/adventures/[id]/booking-config`),
+-- а здесь хранятся таблицы заявок (`booking_requests`) и (опционально) предупреждения/правила (`booking_warnings`, `booking_warning_rules`).
+-- Тип `adventure_id` должен совпадать с типом `adventures.id`/`adventurespool.adventures.adventure_id` (часто TEXT или UUID).
 
 CREATE TABLE IF NOT EXISTS game_systems (
   id SERIAL PRIMARY KEY,

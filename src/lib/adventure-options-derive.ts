@@ -54,7 +54,8 @@ export function deriveAdventureOptionsFromAdventures(adventures: Adventure[]): A
     else if (typeof g === "string") genres.add(g);
 
     if (adv.universe) worlds.add(adv.universe);
-    if (adv.world) worlds.add(adv.world);
+    if (Array.isArray(adv.world)) adv.world.forEach((w) => worlds.add(w));
+    else if (adv.world) worlds.add(adv.world);
   }
 
   const setting_relations: Record<string, string[]> = {};

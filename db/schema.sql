@@ -1,5 +1,8 @@
 -- Опорная схема для сайта. Таблицу приключений вы можете уже иметь — сверяйте колонки с src/lib/adventures-db.ts.
--- Форма «Записаться» (игровые системы, границы ползунков, предупреждения, заявки): см. booking-schema.sql.
+-- Форма «Записаться»:
+-- - параметры выбора (игровые системы/сложность/длительность/формат) берутся из PostgreSQL `adventurespool`
+--   в endpoint `/api/adventures/[id]/booking-config` (используются таблицы `adventure_*` в adventurespool).
+-- - сами заявки и предупреждения хранятся в `booking-schema.sql` (таблицы `booking_requests`, `booking_warnings`, `booking_warning_rules`).
 
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
