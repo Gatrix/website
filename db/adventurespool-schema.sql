@@ -43,6 +43,11 @@ CREATE TABLE IF NOT EXISTS gameformat (
   gameformat_name TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS gamesystems (
+  gamesystem_id TEXT PRIMARY KEY,
+  gamesystem_name TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS tags (
   tag_id TEXT PRIMARY KEY,
   tag_name TEXT NOT NULL
