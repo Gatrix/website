@@ -73,7 +73,10 @@ CREATE TABLE IF NOT EXISTS booking_warning_rules (
 
 CREATE INDEX IF NOT EXISTS idx_booking_warning_rules_adv ON booking_warning_rules (adventure_id);
 
--- Хранение заявок (бот на ВМ может читать из таблицы или вызывать вебхук отдельно).
+-- Заявки: для БД adventurespool используйте db/adventurespool-booking-requests.sql
+-- (таблица booking_requests с колонками и telegram_notified_at).
+-- Ниже — устаревший вариант с JSONB payload (только legacy-окружения).
+
 CREATE TABLE IF NOT EXISTS booking_requests (
   id BIGSERIAL PRIMARY KEY,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW (),

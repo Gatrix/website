@@ -3,15 +3,22 @@ import { getAdventureById } from "@/lib/actions/adventures";
 import { getBookingConfigSafe, insertBookingRequest } from "@/lib/booking-db";
 import { collectActiveWarnings, isGameFormatId } from "@/lib/booking-rules";
 import type { BookingSelectionState } from "@/lib/booking-types";
+import {
+  isCompleteRuPhone,
+  normalizeRuPhoneDigits,
+  toE164RuPhone,
+} from "@/lib/phone-format";
 
 type Body = {
   adventureId?: string;
   gameSystemId?: string | null;
   difficultyId?: string | null;
+  universeId?: string | null;
   playerCount?: number;
   durationHours?: number;
   adventureType?: string;
   playerNote?: string;
+  phone?: string;
 };
 
 export async function POST(req: Request) {
@@ -47,6 +54,13 @@ export async function POST(req: Request) {
     }
   }
 
+  const universeId = body.universeId?.trim() || null;
+  if (config.universes.length > 0) {
+    if (universeId == null || !config.universes.some((u) => u.id === universeId)) {
+      return NextResponse.json({ error: "universeId required" }, { status: 400 });
+    }
+  }
+
   const pc = body.playerCount;
   const dh = body.durationHours;
   if (typeof pc !== "number" || !Number.isFinite(pc) || !Number.isInteger(pc)) {
@@ -68,7 +82,7 @@ export async function POST(req: Request) {
   if (!isGameFormatId(atRaw)) {
     return NextResponse.json({ error: "Invalid adventureType" }, { status: 400 });
   }
-  const formatAllowed = config.formats.some((f) => f.id === atRaw && f.enabled !== false);
+  const formatAllowed = config.formats.some((f) => f.id === atRaw);
   if (!formatAllowed) {
     return NextResponse.json({ error: "adventureType not available for this adventure" }, { status: 400 });
   }
@@ -76,6 +90,7 @@ export async function POST(req: Request) {
   const state: BookingSelectionState = {
     gameSystemId: gsid,
     difficultyId: diffId,
+    universeId,
     playerCount: pc,
     durationHours: dh,
     adventureType: atRaw,
@@ -87,44 +102,40 @@ export async function POST(req: Request) {
     gsid != null ? config.systems.find((s) => s.id === gsid)?.name ?? null : null;
   const difficultyName =
     diffId != null ? config.difficulties.find((d) => d.id === diffId)?.name ?? null : null;
+  const universeName =
+    universeId != null ? config.universes.find((u) => u.id === universeId)?.name ?? null : null;
 
-  const payload = {
+  const playerNote =
+    typeof body.playerNote === "string" ? body.playerNote.slice(0, 2000) : "";
+
+  const phoneDigits = normalizeRuPhoneDigits(
+    typeof body.phone === "string" ? body.phone : ""
+  );
+  if (!isCompleteRuPhone(phoneDigits)) {
+    return NextResponse.json({ error: "Укажите корректный номер телефона" }, { status: 400 });
+  }
+  const phone = toE164RuPhone(phoneDigits);
+
+  const warningMessages = warningIds
+    .map((wid) => config.warnings.find((w) => w.id === wid)?.message)
+    .filter((m): m is string => Boolean(m));
+
+  const inserted = await insertBookingRequest({
     adventureId,
     adventureTitle: adventure.title,
     gameSystemId: gsid,
     gameSystemName: systemName,
     difficultyId: diffId,
     difficultyName,
+    universeId,
+    universeName,
     playerCount: pc,
     durationHours: dh,
     adventureType: atRaw,
-    playerNote: typeof body.playerNote === "string" ? body.playerNote.slice(0, 2000) : "",
-  };
-
-  const webhookUrl = process.env.BOOKING_NOTIFY_WEBHOOK_URL?.trim();
-  if (webhookUrl) {
-    try {
-      await fetch(webhookUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...payload,
-          warningIds,
-          warnings: warningIds
-            .map((wid) => config.warnings.find((w) => w.id === wid)?.message)
-            .filter(Boolean),
-        }),
-      });
-    } catch (e) {
-      console.error("[booking-requests] webhook:", e);
-    }
-  }
-
-  const inserted = await insertBookingRequest({
-    adventureId,
-    adventureTitle: adventure.title,
-    payload,
+    playerNote,
+    phone,
     warningIds,
+    warningMessages,
     clientMeta: {
       userAgent: req.headers.get("user-agent") ?? undefined,
     },

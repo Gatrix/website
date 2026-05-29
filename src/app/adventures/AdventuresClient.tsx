@@ -43,8 +43,8 @@ const DEFAULT_OPTIONS: AdventureOptions = {
 const normalizeForSearch = (s: string) =>
   s.toLowerCase().replace(/ё/g, "е");
 
-/** Примерно четыре строки кнопок-фильтров (высота ряда + отступ между рядами). */
-const COLLAPSED_OPTIONS_MAX_PX = 224;
+/** Примерно три строки кнопок-фильтров (высота ряда + отступ между рядами). */
+const COLLAPSED_OPTIONS_MAX_PX = 168;
 
 interface AdventuresClientProps {
   initialAdventures: Adventure[];
@@ -75,10 +75,10 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
 
   const FILTER_STEPS = useMemo(
     () => [
-      { id: "subsetting" as const, heading: "Сеттинг", icon: <Layers size={24} />, options: SUB_SETTINGS_LIST },
-      { id: "focus" as const, heading: "Фокус игры", icon: <Shield size={24} />, options: FOCUS_GENRES },
-      { id: "world" as const, heading: "Мир", icon: <Target size={24} />, options: WORLDS },
-      { id: "adventure_type" as const, heading: "Тип игры", icon: <Gamepad2 size={24} />, options: ADVENTURE_TYPE_OPTIONS },
+      { id: "subsetting" as const, icon: <Layers size={24} />, options: SUB_SETTINGS_LIST },
+      { id: "focus" as const, icon: <Shield size={24} />, options: FOCUS_GENRES },
+      { id: "world" as const, icon: <Target size={24} />, options: WORLDS },
+      { id: "adventure_type" as const, icon: <Gamepad2 size={24} />, options: ADVENTURE_TYPE_OPTIONS },
     ],
     [SUB_SETTINGS_LIST, FOCUS_GENRES, WORLDS, ADVENTURE_TYPE_OPTIONS]
   );
@@ -348,33 +348,32 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
   }, [collapsibleStep, optionsFingerprint]);
 
   return (
-    <main className="relative min-h-screen text-yellow-100 font-serif selection:bg-yellow-500/30 px-4 pb-4 sm:px-6 sm:pb-6 md:px-12 md:pb-12">
+    <main className="relative min-h-screen text-yellow-100 font-serif selection:bg-yellow-500/30 px-4 pb-4 sm:px-6 sm:pb-6 md:px-12 md:pb-8">
       <AtmosphericBackground />
 
-      {/* Отступ до первого блока: ~половина прежнего зазора под фикс. шапку (ровно между старым offset и высотой nav) */}
-      <div className="max-w-7xl mx-auto relative z-10 pt-[4.625rem] sm:pt-[5.375rem] md:pt-[6.375rem]">
-        <GameBookingNotice className="mb-6 sm:mb-10" />
+      <div className="max-w-7xl mx-auto relative z-10 page-header-offset">
+        <GameBookingNotice compact />
 
-        <div className="mb-6 sm:mb-8 md:mb-10 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0 border-b border-yellow-500/35 pb-3 sm:pb-5 md:pb-6">
+        <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-0 border-b border-yellow-500/35 pb-2 sm:pb-3">
           <Link href="/" className="flex items-center gap-2 text-yellow-300 hover:text-yellow-200 transition-colors uppercase text-[10px] sm:text-xs tracking-widest font-bold order-2 sm:order-1 drop-shadow-[0_0_12px_rgba(250,204,21,0.25)]">
             <ChevronLeft size={16} className="sm:w-[18px] sm:h-[18px]" /> Назад
           </Link>
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold uppercase tracking-[0.2em] sm:tracking-[0.3em] md:tracking-[0.36em] text-yellow-50 text-center order-1 sm:order-2 drop-shadow-[0_0_20px_rgba(253,224,71,0.45)]">
+          <h1 className="text-lg sm:text-xl md:text-2xl font-extrabold uppercase tracking-[0.18em] sm:tracking-[0.28em] text-yellow-50 text-center order-1 sm:order-2 drop-shadow-[0_0_20px_rgba(253,224,71,0.45)]">
             Время приключений
           </h1>
           <div className="w-[100px] hidden md:block order-3" aria-hidden />
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto mb-8">
+      <div className="max-w-4xl mx-auto mb-3 sm:mb-4">
         <div className="relative group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-yellow-500/70 group-focus-within:text-yellow-300 transition-colors" size={20} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-yellow-500/70 group-focus-within:text-yellow-300 transition-colors" size={18} />
           <input
             type="text"
             placeholder="ПОИСК ПО НАЗВАНИЮ ИЛИ ТЕГАМ (ЖАНР, ВСЕЛЕННАЯ...)"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-yellow-950/25 border-2 border-yellow-600/40 rounded-sm py-3 pl-12 pr-4 text-yellow-100 placeholder:text-yellow-700/60 focus:outline-none focus:border-yellow-400/70 focus:shadow-[0_0_20px_rgba(250,204,21,0.2)] transition-all font-bold tracking-widest text-xs sm:text-sm uppercase"
+            className="w-full bg-yellow-950/25 border-2 border-yellow-600/40 rounded-sm py-2 sm:py-2.5 pl-10 pr-4 text-yellow-100 placeholder:text-yellow-700/60 focus:outline-none focus:border-yellow-400/70 focus:shadow-[0_0_20px_rgba(250,204,21,0.2)] transition-all font-bold tracking-widest text-[11px] sm:text-xs uppercase"
           />
           {searchQuery && (
             <button
@@ -387,16 +386,17 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto mb-12 sm:mb-16 md:mb-20">
-        <div className="mb-6 sm:mb-8 md:mb-10">
-          <div className="flex items-center justify-center mb-3 sm:mb-4 px-2">
-            <span className="text-[9px] sm:text-[10px] md:text-[11px] text-yellow-400 font-semibold uppercase tracking-[0.3em] sm:tracking-[0.4em] text-center drop-shadow-[0_0_8px_rgba(250,204,21,0.35)]">
+      <div className="max-w-4xl mx-auto mb-4 sm:mb-6">
+        <div className="mb-3 sm:mb-4">
+          <div className="flex items-center justify-center mb-1.5 sm:mb-2 px-2">
+            <span className="text-[9px] sm:text-[10px] text-yellow-400 font-semibold uppercase tracking-[0.28em] sm:tracking-[0.35em] text-center drop-shadow-[0_0_8px_rgba(250,204,21,0.35)]">
               Прогресс пути
             </span>
           </div>
-          <div className="relative h-20 sm:h-24 md:h-28">
-            <div className="absolute top-6 sm:top-7 md:top-8 left-0 right-0 h-px bg-yellow-600/30 z-0" />
-            <div className="flex justify-between relative z-10 overflow-x-auto sm:overflow-x-visible pb-4 sm:pb-0 gap-4 sm:gap-0 scrollbar-hide">
+          <div className="relative min-h-[5.75rem] sm:min-h-[5.5rem] md:min-h-24 overflow-visible">
+            <div className="absolute top-[1.45rem] sm:top-6 md:top-7 left-0 right-0 h-px bg-yellow-600/30 z-0 pointer-events-none" />
+            <div className="relative z-10 overflow-x-auto sm:overflow-x-visible overflow-y-visible pb-2 sm:pb-0 scrollbar-hide">
+              <div className="flex justify-between min-w-max sm:min-w-0 gap-3 sm:gap-0 px-1 pt-2 sm:pt-0 sm:px-0">
               {PROGRESS_GROUPS.map((group, groupIndex) => {
                 const isCurrent = groupIsCurrent(group);
                 const isCompleted = groupIsCompleted(group);
@@ -406,12 +406,12 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
                     key={group.key}
                     type="button"
                     onClick={() => goToProgressGroup(groupIndex)}
-                    className="relative flex flex-col items-center gap-2 sm:gap-3 transition-all cursor-pointer opacity-100 hover:scale-105 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/90 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0a09] rounded-md px-1"
+                    className="relative flex flex-col items-center gap-1 sm:gap-2 transition-all cursor-pointer opacity-100 hover:scale-105 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/90 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0a09] rounded-md px-1 shrink-0"
                   >
                     <div
-                      className={`relative w-9 h-9 sm:w-11 sm:h-11 md:w-12 md:h-12 rounded-full flex items-center justify-center border-2 transition-all ${
+                      className={`relative w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center border-2 transition-all overflow-visible ${
                         isCurrent
-                          ? "bg-yellow-950/80 border-yellow-300 scale-110 shadow-[0_0_22px_rgba(253,224,71,0.65)]"
+                          ? "bg-yellow-950/80 border-yellow-300 sm:scale-110 shadow-[0_0_22px_rgba(253,224,71,0.65)]"
                           : isCompleted
                             ? "bg-yellow-950/50 border-yellow-500 shadow-[0_0_16px_rgba(234,179,8,0.4)]"
                             : "bg-transparent border-yellow-700/50 opacity-80"
@@ -424,17 +424,17 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
                             : isCompleted
                               ? "text-yellow-300"
                               : "text-yellow-600"
-                        } flex items-center justify-center leading-none w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 [&>svg]:block [&>svg]:w-full [&>svg]:h-full [&>svg]:stroke-[2.25px]`}
+                        } flex items-center justify-center leading-none w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 [&>svg]:block [&>svg]:w-full [&>svg]:h-full [&>svg]:max-h-full [&>svg]:max-w-full [&>svg]:stroke-[2.25px]`}
                       >
                         {group.icon}
                       </span>
                       {groupShowsReminderDot(group) && (
-                        <span className="absolute -top-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 bg-yellow-500 rounded-full border-2 border-yellow-950 z-10 shadow-[0_0_8px_rgba(250,204,21,0.8)]" />
+                        <span className="absolute top-0 right-0 translate-x-1/3 -translate-y-1/3 w-3 h-3 sm:w-3.5 sm:h-3.5 bg-yellow-500 rounded-full border-2 border-yellow-950 z-10 shadow-[0_0_8px_rgba(250,204,21,0.8)]" />
                       )}
                     </div>
                     <div className="flex flex-col items-center gap-0.5 text-center">
                       <span
-                        className={`text-[11px] sm:text-[12px] md:text-[14px] leading-snug text-center max-w-[88px] sm:max-w-[120px] w-full uppercase tracking-[0.14em] font-bold transition-colors ${
+                        className={`text-[10px] sm:text-[11px] md:text-xs leading-snug text-center max-w-[80px] sm:max-w-[108px] w-full uppercase tracking-[0.12em] font-bold transition-colors ${
                           isCurrent
                             ? "text-yellow-50 drop-shadow-[0_0_14px_rgba(253,224,71,0.85)]"
                             : isCompleted
@@ -448,6 +448,7 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
                   </button>
                 );
               })}
+              </div>
             </div>
           </div>
         </div>
@@ -458,7 +459,7 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="mb-6 sm:mb-8"
+            className="mb-3 sm:mb-4"
           >
             <div className="flex flex-wrap gap-2 sm:gap-3 justify-center items-center">
               <span className="text-[9px] sm:text-[10px] text-yellow-400 font-semibold uppercase tracking-wider drop-shadow-[0_0_6px_rgba(250,204,21,0.35)]">Активные фильтры:</span>
@@ -492,13 +493,7 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
           </motion.div>
         )}
 
-        <div className="text-center mb-4 sm:mb-6">
-          <h2 className="text-base sm:text-lg md:text-xl font-bold uppercase tracking-[0.2em] text-yellow-50 drop-shadow-[0_0_18px_rgba(253,224,71,0.55)]">
-            {currentStepData.heading}
-          </h2>
-        </div>
-
-        <div className="w-full mb-8 sm:mb-10 md:mb-12 text-center">
+        <div className="w-full mb-3 sm:mb-4 text-center">
           <div className="relative w-full">
             <AnimatePresence mode="wait">
               <motion.div
@@ -512,14 +507,14 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
                     ? { maxHeight: COLLAPSED_OPTIONS_MAX_PX, overflow: "hidden" }
                     : undefined
                 }
-                className="flex flex-wrap justify-center gap-2 sm:gap-3 md:gap-4"
+                className="flex flex-wrap justify-center gap-1.5 sm:gap-2"
               >
               {currentStepData.options.map((option) => {
                 const isSelected = filters[currentStepData.id]?.includes(option);
 
                 const buttonClass = isSelected
-                  ? "px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 md:py-3 border-2 uppercase font-black transition-all duration-300 text-xs sm:text-sm tracking-widest rounded-sm bg-yellow-500 border-yellow-200 text-yellow-950 shadow-[0_0_24px_rgba(253,224,71,0.55)]"
-                  : "px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 md:py-3 border-2 uppercase font-black transition-all duration-300 text-xs sm:text-sm tracking-widest rounded-sm border-yellow-600/45 bg-transparent text-yellow-200 hover:border-yellow-400 hover:text-yellow-50 hover:bg-yellow-950/25 shadow-[0_0_10px_rgba(0,0,0,0.2)]";
+                  ? "px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 border-2 uppercase font-black transition-all duration-300 text-[11px] sm:text-xs tracking-wider rounded-sm bg-yellow-500 border-yellow-200 text-yellow-950 shadow-[0_0_24px_rgba(253,224,71,0.55)]"
+                  : "px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 border-2 uppercase font-black transition-all duration-300 text-[11px] sm:text-xs tracking-wider rounded-sm border-yellow-600/45 bg-transparent text-yellow-200 hover:border-yellow-400 hover:text-yellow-50 hover:bg-yellow-950/25 shadow-[0_0_10px_rgba(0,0,0,0.2)]";
 
                 return (
                   <button key={option} type="button" onClick={() => toggleOption(option)} className={buttonClass}>
@@ -532,14 +527,14 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
 
             {collapsibleStep && longListOverflows && !longListExpanded && (
               <div
-                className="pointer-events-none absolute left-0 right-0 bottom-0 h-16 sm:h-20 bg-gradient-to-t from-[#0c0a09] via-[#0c0a09]/85 to-transparent"
+                className="pointer-events-none absolute left-0 right-0 bottom-0 h-12 sm:h-14 bg-gradient-to-t from-[#0c0a09] via-[#0c0a09]/85 to-transparent"
                 aria-hidden
               />
             )}
           </div>
 
           {collapsibleStep && longListOverflows && (
-            <div className="mt-4 flex justify-center">
+            <div className="mt-2 flex justify-center">
               <button
                 type="button"
                 onClick={() => setLongListExpanded((v) => !v)}
@@ -551,15 +546,15 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
           )}
         </div>
 
-        <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-4 min-h-[3rem]">
+        <div className="flex flex-wrap justify-center items-center gap-2 sm:gap-3 min-h-[2.5rem]">
           {currentStep > 0 && (
             <motion.button
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               onClick={handleBack}
-              className="flex items-center gap-2 sm:gap-3 px-6 sm:px-8 md:px-10 py-3 sm:py-3.5 md:py-4 bg-yellow-950/35 border-2 border-yellow-600/50 text-yellow-200 font-black tracking-widest hover:bg-yellow-900/45 hover:border-yellow-400 hover:text-yellow-50 transition-all group text-sm sm:text-base shadow-[0_0_16px_rgba(234,179,8,0.12)]"
+              className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-yellow-950/35 border-2 border-yellow-600/50 text-yellow-200 font-black tracking-wider hover:bg-yellow-900/45 hover:border-yellow-400 hover:text-yellow-50 transition-all group text-xs sm:text-sm shadow-[0_0_16px_rgba(234,179,8,0.12)]"
             >
-              <ArrowLeft size={18} className="sm:w-5 sm:h-5 group-hover:-translate-x-2 transition-transform" />
+              <ArrowLeft size={16} className="sm:w-[18px] sm:h-[18px] group-hover:-translate-x-2 transition-transform" />
               <span className="hidden sm:inline">НАЗАД</span>
             </motion.button>
           )}
@@ -569,7 +564,7 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               onClick={hasSelectionInStep ? handleNext : handleSkip}
-              className={`flex items-center gap-2 sm:gap-3 px-6 sm:px-8 md:px-10 py-3 sm:py-3.5 md:py-4 border-2 font-black tracking-widest transition-all group text-sm sm:text-base ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 sm:py-2.5 border-2 font-black tracking-wider transition-all group text-xs sm:text-sm ${
                 hasSelectionInStep
                   ? "bg-yellow-500/20 border-yellow-400 text-yellow-100 hover:bg-yellow-400 hover:text-yellow-950 hover:border-yellow-300 shadow-[0_0_20px_rgba(253,224,71,0.25)]"
                   : "bg-yellow-950/25 border-yellow-700/45 text-yellow-300 hover:bg-yellow-900/35 hover:border-yellow-500 hover:text-yellow-100"
@@ -577,11 +572,11 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
             >
               {hasSelectionInStep ? (
                 <>
-                  ДАЛЕЕ <ArrowRight size={18} className="sm:w-5 sm:h-5 group-hover:translate-x-2 transition-transform" />
+                  ДАЛЕЕ <ArrowRight size={16} className="sm:w-[18px] sm:h-[18px] group-hover:translate-x-2 transition-transform" />
                 </>
               ) : (
                 <>
-                  ПРОПУСТИТЬ <SkipForward size={18} className="sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
+                  ПРОПУСТИТЬ <SkipForward size={16} className="sm:w-[18px] sm:h-[18px] group-hover:translate-x-1 transition-transform" />
                 </>
               )}
             </motion.button>
@@ -591,15 +586,15 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
       </div>
 
       <div className="max-w-7xl mx-auto">
-        <div className="flex items-center gap-2 sm:gap-4 mb-8 sm:mb-10 md:mb-12 text-yellow-500/70">
+        <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4 text-yellow-500/70">
           <div className="h-px flex-1 bg-current" />
-          <span className="text-[9px] sm:text-[10px] md:text-[11px] uppercase tracking-[0.3em] sm:tracking-[0.4em] md:tracking-[0.5em] font-bold px-2 text-yellow-300 drop-shadow-[0_0_8px_rgba(250,204,21,0.35)]">
+          <span className="text-[9px] sm:text-[10px] uppercase tracking-[0.28em] sm:tracking-[0.35em] font-bold px-2 text-yellow-300 drop-shadow-[0_0_8px_rgba(250,204,21,0.35)]">
             Архивных свитков: {filteredAdventures.length}
           </span>
           <div className="h-px flex-1 bg-current" />
         </div>
 
-        <motion.div layout className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 md:gap-8">
+        <motion.div layout className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
           <AnimatePresence>
             {filteredAdventures.map((adv) => (
               <AdventureCard

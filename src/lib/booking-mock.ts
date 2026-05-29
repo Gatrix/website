@@ -44,19 +44,16 @@ const MOCK_FORMATS: BookingConfigPayload["formats"] = [
     id: "oneshot",
     title: "Ваншот",
     description: "Одна завершённая история за вечер — без долгих обязательств.",
-    enabled: true,
   },
   {
     id: "adventure",
     title: "Приключение",
     description: "Несколько связанных сессий с общим сюжетом (~5 игр).",
-    enabled: true,
   },
   {
     id: "campaign",
     title: "Кампания",
     description: "Долгая арка: стабильный состав и развитие мира между встречами.",
-    enabled: true,
   },
 ];
 
@@ -74,6 +71,7 @@ export function getMockBookingConfig(adventure: Adventure): BookingConfigPayload
     adventureTitle: adventure.title ?? "",
     systems: MOCK_SYSTEMS.map((s) => ({ ...s })),
     difficulties: MOCK_DIFFICULTIES,
+    universes: [],
     bounds: { ...MOCK_BOUNDS },
     formats: MOCK_FORMATS,
     warningRules: [],

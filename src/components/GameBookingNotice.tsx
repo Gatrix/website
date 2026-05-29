@@ -32,15 +32,33 @@ const VKGlyph = ({ className }: { className?: string }) => (
 );
 
 /** Блок контактов для записи на игры через ведущего (соцсети и телефон). */
-export default function GameBookingNotice({ className = "" }: { className?: string }) {
+export default function GameBookingNotice({
+  className = "",
+  compact = false,
+}: {
+  className?: string;
+  compact?: boolean;
+}) {
   return (
     <div
-      className={`max-w-3xl mx-auto mb-8 rounded-lg border border-yellow-500/35 bg-[#0f0d0c]/90 px-5 py-6 sm:px-8 sm:py-8 shadow-[0_0_40px_rgba(0,0,0,0.45)] ${className}`}
+      className={`max-w-3xl mx-auto rounded-lg border border-yellow-500/35 bg-[#0f0d0c]/90 shadow-[0_0_40px_rgba(0,0,0,0.45)] ${
+        compact
+          ? "mb-3 px-3 py-3 sm:px-5 sm:py-4"
+          : "mb-8 px-5 py-6 sm:px-8 sm:py-8"
+      } ${className}`}
     >
-      <p className="font-sans text-sm sm:text-base font-bold text-stone-100 leading-relaxed tracking-wide text-center">
+      <p
+        className={`font-sans font-bold text-stone-100 leading-snug tracking-wide text-center ${
+          compact ? "text-xs sm:text-sm" : "text-sm sm:text-base leading-relaxed"
+        }`}
+      >
         В данный момент запись на игры проходит через личные сообщения с ведущим!
       </p>
-      <div className="mt-6 flex flex-wrap items-center justify-center gap-6 sm:gap-10 font-sans">
+      <div
+        className={`flex flex-wrap items-center justify-center font-sans ${
+          compact ? "mt-3 gap-4 sm:gap-6" : "mt-6 gap-6 sm:gap-10"
+        }`}
+      >
         <a
           href={SITE_VK_URL}
           target="_blank"
@@ -69,8 +87,16 @@ export default function GameBookingNotice({ className = "" }: { className?: stri
           Discord
         </a>
       </div>
-      <div className="mt-6 pt-6 border-t border-yellow-500/25 text-center w-full">
-        <p className="font-sans text-[10px] sm:text-xs font-bold uppercase tracking-[0.25em] text-stone-500 mb-2">
+      <div
+        className={`border-t border-yellow-500/25 text-center w-full ${
+          compact ? "mt-3 pt-3" : "mt-6 pt-6"
+        }`}
+      >
+        <p
+          className={`font-sans font-bold uppercase tracking-[0.25em] text-stone-500 ${
+            compact ? "text-[9px] sm:text-[10px] mb-1" : "text-[10px] sm:text-xs mb-2"
+          }`}
+        >
           Телефон
         </p>
         <a

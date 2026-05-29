@@ -6,6 +6,7 @@ import type {
   BookingConfigPayload,
   BookingDifficulty,
   BookingGameSystem,
+  BookingUniverse,
   FormatInfo,
   GameFormatId,
   WarningRule,
@@ -79,12 +80,26 @@ function isMissingRelationError(err: unknown): boolean {
   return code === "42P01" || code === "42703";
 }
 
+function pickDefaultUniverse(a: Adventure, list: BookingUniverse[]): string | undefined {
+  if (!list.length) return undefined;
+  const candidates = [a.universe, ...(a.world ?? [])]
+    .filter((v): v is string => typeof v === "string" && v.trim() !== "")
+    .map((v) => v.trim().toLowerCase());
+  for (const u of list) {
+    const id = u.id.toLowerCase();
+    const name = u.name.toLowerCase();
+    if (candidates.some((c) => c === id || c === name)) return u.id;
+  }
+  return list[0].id;
+}
+
 function staticPayload(a: Adventure): BookingConfigPayload {
   return {
     adventureId: a.id,
     adventureTitle: a.title ?? "",
     systems: [],
     difficulties: [],
+    universes: [],
     bounds: adventureFallbackBounds(a),
     formats: DEFAULT_FORMATS,
     warningRules: [],
@@ -164,6 +179,25 @@ async function fetchPoolGametimeBounds(adventureId: string): Promise<{ min: numb
   return { min: Number(row.min_h), max: Number(row.max_h) };
 }
 
+async function fetchPoolUniversesForAdventure(adventureId: string): Promise<BookingUniverse[]> {
+  const pool = getDbPool();
+  const { rows } = await pool.query<Record<string, unknown>>(
+    `
+    SELECT u.universe_id, u.universe_name
+    FROM adventure_universes au
+    INNER JOIN universes u ON u.universe_id = au.universe_id
+    WHERE au.adventure_id = $1::text
+    ORDER BY u.universe_name ASC
+    `,
+    [adventureId]
+  );
+  return rows.map((r) => ({
+    id: String(r.universe_id),
+    name: String(r.universe_name),
+  }));
+}
+
+/** Только форматы, привязанные к приключению в adventure_gameformat. */
 async function fetchPoolFormatsForAdventure(adventureId: string): Promise<FormatInfo[]> {
   const pool = getDbPool();
   const { rows } = await pool.query<Record<string, unknown>>(
@@ -176,9 +210,9 @@ async function fetchPoolFormatsForAdventure(adventureId: string): Promise<Format
     [adventureId]
   );
   const linked = new Set(rows.map((r) => String(r.gameformat_id)));
-  return FORMAT_ORDER.map((id) => {
+  return FORMAT_ORDER.filter((id) => linked.has(id)).map((id) => {
     const def = DEFAULT_FORMATS.find((d) => d.id === id)!;
-    return { ...def, enabled: linked.has(id) };
+    return { ...def };
   });
 }
 
@@ -189,8 +223,11 @@ async function getPoolBookingConfig(a: Adventure): Promise<BookingConfigPayload>
 
   let systems: BookingGameSystem[] = [];
   let difficulties: BookingDifficulty[] = [];
+  let universes: BookingUniverse[] = [];
   let gametime: { min: number; max: number } | null = null;
-  let formats = DEFAULT_FORMATS.map((f) => ({ ...f, enabled: true }));
+  let formats: FormatInfo[] = [];
+  let warningRules: WarningRule[] = [];
+  let warnings: { id: number; message: string }[] = [];
 
   try {
     systems = await fetchPoolGameSystemsForAdventure(adventureId);
@@ -216,6 +253,20 @@ async function getPoolBookingConfig(a: Adventure): Promise<BookingConfigPayload>
     if (!isMissingRelationError(err)) console.error("[booking-db] adventure_gameformat:", err);
   }
 
+  try {
+    universes = await fetchPoolUniversesForAdventure(adventureId);
+  } catch (err) {
+    if (!isMissingRelationError(err)) console.error("[booking-db] adventure_universes:", err);
+  }
+
+  try {
+    const w = await fetchLegacyWarningsAndRules(adventureId);
+    warningRules = w.rules;
+    warnings = w.warnings;
+  } catch (err) {
+    if (!isMissingRelationError(err)) console.error("[booking-db] booking_warnings/rules:", err);
+  }
+
   if (gametime) {
     bounds = {
       ...bounds,
@@ -225,21 +276,22 @@ async function getPoolBookingConfig(a: Adventure): Promise<BookingConfigPayload>
   }
 
   const preferred = defaultFormatFromAdventure(a);
-  const enabledFormats = formats.filter((f) => f.enabled !== false);
-  const defaultAdventureType = enabledFormats.some((f) => f.id === preferred)
+  const defaultAdventureType = formats.some((f) => f.id === preferred)
     ? preferred
-    : enabledFormats[0]?.id;
+    : formats[0]?.id;
 
   return {
     adventureId,
     adventureTitle: a.title ?? "",
     systems,
     difficulties,
+    universes,
     bounds,
     formats,
-    warningRules: [],
-    warnings: [],
+    warningRules,
+    warnings,
     defaultAdventureType,
+    defaultUniverseId: pickDefaultUniverse(a, universes),
   };
 }
 
@@ -390,6 +442,7 @@ async function getLegacyBookingConfig(a: Adventure): Promise<BookingConfigPayloa
     adventureTitle,
     systems,
     difficulties: [],
+    universes: [],
     bounds: boundsMerged,
     formats,
     warningRules,
@@ -423,26 +476,72 @@ export async function getBookingConfigSafe(a: Adventure): Promise<BookingConfigP
   }
 }
 
-export async function insertBookingRequest(params: {
+export type BookingRequestInsert = {
   adventureId: string;
-  adventureTitle?: string;
-  payload: Record<string, unknown>;
+  adventureTitle: string;
+  gameSystemId: string | null;
+  gameSystemName: string | null;
+  difficultyId: string | null;
+  difficultyName: string | null;
+  universeId: string | null;
+  universeName: string | null;
+  playerCount: number;
+  durationHours: number;
+  adventureType: string;
+  playerNote: string;
+  phone: string;
   warningIds: number[];
+  warningMessages: string[];
   clientMeta?: Record<string, unknown>;
-}): Promise<{ id: string } | null> {
+};
+
+export async function insertBookingRequest(
+  params: BookingRequestInsert
+): Promise<{ id: string } | null> {
   try {
     const pool = getDbPool();
     const { rows } = await pool.query<{ id: string }>(
       `
-      INSERT INTO booking_requests (adventure_id, adventure_title, payload, warning_ids, client_meta)
-      VALUES ($1::text, $2::text, $3::jsonb, $4::int[], $5::jsonb)
+      INSERT INTO booking_requests (
+        adventure_id,
+        adventure_title,
+        game_system_id,
+        game_system_name,
+        difficulty_id,
+        difficulty_name,
+        universe_id,
+        universe_name,
+        player_count,
+        duration_hours,
+        adventure_type,
+        player_note,
+        phone,
+        warning_ids,
+        warning_messages,
+        client_meta
+      )
+      VALUES (
+        $1::text, $2::text, $3::text, $4::text, $5::text, $6::text, $7::text, $8::text,
+        $9::int, $10::numeric, $11::text, $12::text, $13::text, $14::int[], $15::text[], $16::jsonb
+      )
       RETURNING id::text AS id
       `,
       [
         params.adventureId,
-        params.adventureTitle ?? null,
-        JSON.stringify(params.payload),
+        params.adventureTitle,
+        params.gameSystemId,
+        params.gameSystemName,
+        params.difficultyId,
+        params.difficultyName,
+        params.universeId,
+        params.universeName,
+        params.playerCount,
+        params.durationHours,
+        params.adventureType,
+        params.playerNote,
+        params.phone,
         params.warningIds,
+        params.warningMessages,
         params.clientMeta != null ? JSON.stringify(params.clientMeta) : null,
       ]
     );

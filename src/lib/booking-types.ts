@@ -14,6 +14,11 @@ export type BookingDifficulty = {
   description: string;
 };
 
+export type BookingUniverse = {
+  id: string;
+  name: string;
+};
+
 export type BookingBounds = {
   minPlayers: number;
   maxPlayers: number;
@@ -25,8 +30,6 @@ export type FormatInfo = {
   id: GameFormatId;
   title: string;
   description: string;
-  /** Доступен для выбора по adventure_gameformat (по умолчанию true). */
-  enabled?: boolean;
 };
 
 export type WarningRule = {
@@ -41,16 +44,19 @@ export type BookingConfigPayload = {
   adventureTitle: string;
   systems: BookingGameSystem[];
   difficulties: BookingDifficulty[];
+  universes: BookingUniverse[];
   bounds: BookingBounds;
   formats: FormatInfo[];
   warningRules: WarningRule[];
   warnings: { id: number; message: string }[];
   defaultAdventureType?: GameFormatId;
+  defaultUniverseId?: string;
 };
 
 export type BookingSelectionState = {
   gameSystemId: string | null;
   difficultyId: string | null;
+  universeId: string | null;
   playerCount: number;
   durationHours: number;
   adventureType: GameFormatId;

@@ -1,0 +1,15 @@
+[Unit]
+Description=Telegram booking notifications (adventurespool)
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=gatricus
+WorkingDirectory=/home/gatricus/telegram-booking-bot
+EnvironmentFile=/home/gatricus/telegram-booking-bot/.env
+ExecStart=/usr/bin/node index.mjs
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

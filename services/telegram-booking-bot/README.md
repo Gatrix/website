@@ -1,0 +1,74 @@
+# Telegram-бот: заявки из `adventurespool.booking_requests`
+
+Сайт сохраняет заявку в PostgreSQL. Бот на ВМ раз в несколько секунд ищет строки без `telegram_notified_at`, отправляет сообщение в Telegram и помечает строку отправленной.
+
+## 1. Таблица в БД
+
+На ВМ:
+
+```bash
+sudo -u postgres psql -d adventurespool -f /path/to/db/adventurespool-booking-requests.sql
+```
+
+Если раньше была старая таблица с колонкой `payload` (из `booking-schema.sql`), см. `db/adventurespool-booking-requests-migrate-from-legacy.sql`.
+
+## 2. Бот в Telegram
+
+1. [@BotFather](https://t.me/BotFather) → `/newbot` → токен.
+2. Узнать `chat_id`: [@userinfobot](https://t.me/userinfobot) или `getUpdates` после сообщения боту.
+
+## 3. Установка на ВМ
+
+```bash
+cd /opt/my-rpg-club/services/telegram-booking-bot
+npm install
+cp .env.example .env
+nano .env   # три строки: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, DATABASE_URL
+
+node index.mjs   # запускать из этой папки, где лежит .env
+# отправьте тестовую заявку с сайта — в Telegram должно прийти сообщение
+```
+
+### Постоянный запуск (systemd)
+
+Чтобы бот работал после закрытия SSH и перезагрузки ВМ:
+
+```bash
+# 1. Пути в unit-файле должны совпадать с вашей папкой (по умолчанию ~/telegram-booking-bot)
+which node   # обычно /usr/bin/node — если другой, поправьте ExecStart в .service
+
+# 2. Установить службу
+sudo cp ~/telegram-booking-bot/telegram-booking-bot.service /etc/systemd/system/
+# Если папка не в /home/gatricus/telegram-booking-bot — отредактируйте пути в .service:
+#   sudo nano /etc/systemd/system/telegram-booking-bot.service
+
+sudo systemctl daemon-reload
+sudo systemctl enable telegram-booking-bot
+sudo systemctl start telegram-booking-bot
+
+# 3. Проверка
+sudo systemctl status telegram-booking-bot
+```
+
+Логи: `journalctl -u telegram-booking-bot -f`  
+Остановить: `sudo systemctl stop telegram-booking-bot`  
+Перезапустить после правки .env: `sudo systemctl restart telegram-booking-bot`
+
+## 4. Сайт
+
+В `.env.local` достаточно подключения к той же БД:
+
+```env
+DATABASE_URL=postgresql://appuser:…@host:5432/adventurespool
+```
+
+Вебхук не нужен — бот сам читает таблицу.
+
+## 5. Проверка
+
+```bash
+# на ВМ, от appuser или postgres
+psql -d adventurespool -c "SELECT id, adventure_title, telegram_notified_at FROM booking_requests ORDER BY id DESC LIMIT 5;"
+```
+
+После успешной отправки у строки появится `telegram_notified_at`.

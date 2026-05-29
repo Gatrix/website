@@ -1,0 +1,16 @@
+{
+  "name": "telegram-booking-bot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Читает booking_requests в adventurespool и шлёт уведомления в Telegram",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "pg": "^8.20.0"
+  }
+}

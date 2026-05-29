@@ -15,6 +15,15 @@ const IMAGES_PREFIX = process.env.YC_STORAGE_IMAGES_PREFIX ?? "";
 /** Ключи для presigned URL — работают и в dev (`npm run dev`), если заданы в .env.local */
 const canPresignObjectGet = Boolean(BUCKET && ACCESS_KEY && SECRET_KEY);
 
+/** Срок жизни presigned URL (сек). Должен быть ≥ revalidate кэша приключений. */
+const PRESIGN_EXPIRES_SECONDS = Number(
+  process.env.YC_STORAGE_PRESIGN_EXPIRES_SECONDS ?? 86_400
+);
+/** Обновлять подпись заранее, чтобы URL не протух на клиенте. */
+const PRESIGN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
+
+const presignedUrlCache = new Map<string, { url: string; expiresAt: number }>();
+
 /**
  * AWS4 canonical URI expects each path segment URL-encoded.
  * This also makes plain public URLs work for object keys with spaces.
@@ -141,9 +150,14 @@ export async function readObjectStorageText(objectKey: string): Promise<string |
  */
 export function getPresignedGetUrl(
   objectKey: string,
-  expiresInSeconds = 3600
+  expiresInSeconds = PRESIGN_EXPIRES_SECONDS
 ): string | null {
   if (!BUCKET || !ACCESS_KEY || !SECRET_KEY) return null;
+
+  const cached = presignedUrlCache.get(objectKey);
+  if (cached && Date.now() < cached.expiresAt - PRESIGN_REFRESH_BUFFER_MS) {
+    return cached.url;
+  }
 
   const host = new URL(ENDPOINT || "https://storage.yandexcloud.net").host;
   const service = "s3";
@@ -186,7 +200,12 @@ export function getPresignedGetUrl(
   const signature = createHmac("sha256", key).update(stringToSign).digest("hex");
 
   const baseUrl = `${ENDPOINT}${canonicalUri}`;
-  return `${baseUrl}?${canonicalQueryString}&X-Amz-Signature=${signature}`;
+  const url = `${baseUrl}?${canonicalQueryString}&X-Amz-Signature=${signature}`;
+  presignedUrlCache.set(objectKey, {
+    url,
+    expiresAt: Date.now() + expiresInSeconds * 1000,
+  });
+  return url;
 }
 
 const IMAGES_BASE =

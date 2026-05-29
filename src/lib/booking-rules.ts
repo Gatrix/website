@@ -43,6 +43,9 @@ export function ruleMatches(
   const diff = match.difficultyId;
   if (diff != null && String(diff) !== String(state.difficultyId ?? "")) return false;
 
+  const uni = match.universeId;
+  if (uni != null && String(uni) !== String(state.universeId ?? "")) return false;
+
   return true;
 }
 

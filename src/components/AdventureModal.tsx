@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { X } from "lucide-react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Adventure } from "@/hooks/useAdventures";
 
@@ -92,9 +92,11 @@ export default function AdventureModal({
         else onClose();
       } else if (!bookingOpen && e.key === "ArrowLeft" && hasPrevious && onPrevious) {
         e.preventDefault();
+        setSlideDirection(-1);
         onPrevious();
       } else if (!bookingOpen && e.key === "ArrowRight" && hasNext && onNext) {
         e.preventDefault();
+        setSlideDirection(1);
         onNext();
       }
     };
@@ -167,6 +169,26 @@ export default function AdventureModal({
 
   if (!adventure) return null;
 
+  const showNav = !bookingOpen && (onPrevious != null || onNext != null);
+
+  const goPrevious = () => {
+    if (!hasPrevious || !onPrevious) return;
+    setSlideDirection(-1);
+    onPrevious();
+  };
+
+  const goNext = () => {
+    if (!hasNext || !onNext) return;
+    setSlideDirection(1);
+    onNext();
+  };
+
+  const navBtnBase =
+    "flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black/80";
+  const navBtnDesktop = `${navBtnBase} pointer-events-auto hidden md:flex w-10 h-[4.5rem] lg:w-11 lg:h-24 shrink-0 rounded-lg bg-black/55 backdrop-blur-md border border-amber-900/25 text-amber-400/80 hover:text-amber-100 hover:bg-black/70 hover:border-amber-700/40 shadow-[0_8px_28px_rgba(0,0,0,0.55)]`;
+  const navBtnMobile = `${navBtnBase} pointer-events-auto md:hidden w-10 h-10 rounded-full bg-black/55 backdrop-blur-md border border-amber-900/25 text-amber-400/80 hover:text-amber-100 hover:bg-black/70`;
+  const closeBtnClass = `${navBtnBase} pointer-events-auto absolute z-[60] w-10 h-10 rounded-lg bg-black/55 backdrop-blur-md border border-amber-900/25 text-amber-400/80 hover:text-amber-100 hover:bg-black/70 hover:border-amber-700/40 shadow-[0_8px_28px_rgba(0,0,0,0.55)] right-0 -top-11 md:top-4 md:-right-[2.85rem] lg:-right-14`;
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -187,20 +209,45 @@ export default function AdventureModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 pointer-events-none"
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center pt-12 pb-4 px-2 sm:px-4 pointer-events-none"
             onClick={(e) => e.stopPropagation()}
           >
-            <div
-              ref={dialogRef}
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="adventure-title"
-              aria-describedby={displayText ? "adventure-description" : undefined}
-              onKeyDown={handleDialogKeyDown}
-              onTouchStart={handleTouchStart}
-              onTouchEnd={handleTouchEnd}
-              className="relative w-[min(94vw,85rem)] h-[min(92vh,56rem)] max-h-[92vh] bg-[#14110f] border-2 border-amber-700/40 rounded-lg sm:rounded-xl overflow-hidden shadow-2xl pointer-events-auto flex flex-col touch-manipulation"
-            >
+            <div className="flex items-center justify-center gap-2 sm:gap-3 lg:gap-4 w-full max-w-[min(100vw-0.5rem,calc(85rem+6.5rem))] pointer-events-none">
+              {showNav && hasPrevious && onPrevious ? (
+                <button
+                  type="button"
+                  onClick={goPrevious}
+                  aria-label="Предыдущее приключение"
+                  className={navBtnDesktop}
+                >
+                  <ChevronLeft className="w-5 h-5 lg:w-6 lg:h-6" aria-hidden />
+                </button>
+              ) : showNav ? (
+                <span className="hidden md:block w-10 lg:w-11 shrink-0" aria-hidden />
+              ) : null}
+
+              <div className="relative flex-1 min-w-0 w-full max-w-[min(94vw,85rem)]">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Закрыть"
+                  ref={closeButtonRef}
+                  className={closeBtnClass}
+                >
+                  <X size={18} className="sm:w-5 sm:h-5" aria-hidden />
+                </button>
+
+                <div
+                  ref={dialogRef}
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="adventure-title"
+                  aria-describedby={displayText ? "adventure-description" : undefined}
+                  onKeyDown={handleDialogKeyDown}
+                  onTouchStart={handleTouchStart}
+                  onTouchEnd={handleTouchEnd}
+                  className="relative w-full h-[min(92vh,56rem)] max-h-[92vh] bg-[#14110f] border-2 border-amber-700/40 rounded-lg sm:rounded-xl overflow-hidden shadow-2xl pointer-events-auto flex flex-col touch-manipulation"
+                >
               {/* Декоративные углы */}
               <div className="absolute top-0 left-0 w-4 h-4 sm:w-6 md:w-8 border-t-2 border-l-2 border-amber-500/60 z-20" />
               <div className="absolute top-0 right-0 w-4 h-4 sm:w-6 md:w-8 border-t-2 border-r-2 border-amber-500/60 z-20" />
@@ -219,17 +266,9 @@ export default function AdventureModal({
                   <>
                   {/* Мобилка: order-1 — заголовок, описание и характеристики; md: правая колонка (только текст) */}
                   <div className="order-1 md:order-2 flex flex-1 min-h-0 min-w-0 md:basis-1/2 flex-col overflow-hidden relative bg-[#14110f] md:bg-transparent">
-                    <button
-                      onClick={onClose}
-                      aria-label="Закрыть"
-                      ref={closeButtonRef}
-                      className="absolute top-4 right-4 z-40 w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center bg-[#14110f]/90 border border-amber-900/30 rounded-md text-amber-600/70 hover:text-amber-500/90 hover:bg-amber-950/30 hover:border-amber-800/30 transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-700/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#14110f]"
-                    >
-                      <X size={18} className="sm:w-5 sm:h-5" />
-                    </button>
                     <div
                       ref={rightScrollRef}
-                      className="flex-1 min-h-0 p-4 sm:p-[min(1.5rem,2vw)] md:p-[min(2rem,2.5vw)] pr-14 sm:pr-16 overflow-y-auto"
+                      className="flex-1 min-h-0 p-4 sm:p-[min(1.5rem,2vw)] md:p-[min(2rem,2.5vw)] overflow-y-auto"
                     >
                       <h2 id="adventure-title" className="text-[clamp(1.125rem,2.5vw,2.25rem)] md:text-[clamp(1.5rem,3vw,2.5rem)] font-extrabold uppercase tracking-tight text-amber-100 leading-tight mb-4">
                         {adventure.title}
@@ -321,7 +360,37 @@ export default function AdventureModal({
                   </>
                 </motion.div>
               </AnimatePresence>
+                </div>
+              </div>
+
+              {showNav && hasNext && onNext ? (
+                <button
+                  type="button"
+                  onClick={goNext}
+                  aria-label="Следующее приключение"
+                  className={navBtnDesktop}
+                >
+                  <ChevronRight className="w-5 h-5 lg:w-6 lg:h-6" aria-hidden />
+                </button>
+              ) : showNav ? (
+                <span className="hidden md:block w-10 lg:w-11 shrink-0" aria-hidden />
+              ) : null}
             </div>
+
+            {showNav && (hasPrevious || hasNext) ? (
+              <div className="md:hidden mt-3 flex items-center justify-center gap-4 pointer-events-auto">
+                {hasPrevious && onPrevious ? (
+                  <button type="button" onClick={goPrevious} aria-label="Предыдущее приключение" className={navBtnMobile}>
+                    <ChevronLeft className="w-5 h-5" aria-hidden />
+                  </button>
+                ) : null}
+                {hasNext && onNext ? (
+                  <button type="button" onClick={goNext} aria-label="Следующее приключение" className={navBtnMobile}>
+                    <ChevronRight className="w-5 h-5" aria-hidden />
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
           </motion.div>
         </>
       )}

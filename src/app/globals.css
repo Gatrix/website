@@ -22,6 +22,14 @@
     --danger: #e06b63;
     --success: #6cbf7a;
     --warning: #f2c46d;
+    /* Отступ контента под fixed-шапку (min-h 56px / 68px + ~8px зазор) */
+    --header-offset: 4rem;
+  }
+
+  @media (min-width: 640px) {
+    :root {
+      --header-offset: 4.75rem;
+    }
   }
 
   html {
@@ -86,6 +94,10 @@
 
   .chip[data-selected="true"] {
     @apply bg-amber-700 text-black border-amber-500;
+  }
+
+  .page-header-offset {
+    padding-top: var(--header-offset);
   }
 
   .card {

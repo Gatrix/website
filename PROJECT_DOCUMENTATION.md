@@ -42,11 +42,15 @@
 - система (на конкретное приключение): `adventure_gamesystems` + `gamesystems`
 
 ### Заявка
-Сама заявка и сообщения хранятся в таблицах `booking-schema.sql`:
+Таблица в `adventurespool`: **`booking_requests`** — схема `db/adventurespool-booking-requests.sql`.
 
-- `booking_requests`
-- `booking_warnings`
-- `booking_warning_rules`
+Колонки: приключение, система, сложность, вселенная, игроки, длительность, формат, комментарий (Telegram), предупреждения, `telegram_notified_at` (когда бот отправил уведомление).
+
+Поток: `POST /api/booking-requests` → INSERT → бот на ВМ опрашивает строки с `telegram_notified_at IS NULL`.
+
+Опционально предупреждения в legacy-режиме: `booking_warnings`, `booking_warning_rules` (`db/booking-schema.sql`).
+
+Установка бота: `services/telegram-booking-bot/README.md`
 
 ## Legacy-режим
 Совместимость со старой схемой включается переменной:
