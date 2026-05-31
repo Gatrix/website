@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
-import type { Adventure } from "@/hooks/useAdventures";
+import type { Adventure } from "@/lib/db";
 import { calculateTotalPrice, getPricePerPlayer, type Tier } from "@/lib/pricing";
 import { createBooking, createPayment, type BookingPayload } from "@/lib/bookingApi";
 

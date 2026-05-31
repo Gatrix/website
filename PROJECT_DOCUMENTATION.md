@@ -44,9 +44,11 @@
 ### Заявка
 Таблица в `adventurespool`: **`booking_requests`** — схема `db/adventurespool-booking-requests.sql`.
 
-Колонки: приключение, система, сложность, вселенная, игроки, длительность, формат, комментарий (Telegram), предупреждения, `telegram_notified_at` (когда бот отправил уведомление).
+Колонки: приключение, система, сложность, вселенная, игроки, длительность, формат, телефон, комментарий (Telegram), предупреждения, `telegram_notified_at` (когда бот отправил уведомление).
 
 Поток: `POST /api/booking-requests` → INSERT → бот на ВМ опрашивает строки с `telegram_notified_at IS NULL`.
+
+Сайт должен работать под `appuser`, бот — под отдельным `botuser` с минимальными правами. Порядок SQL-файлов описан в `db/MIGRATION_ORDER.md`.
 
 Опционально предупреждения в legacy-режиме: `booking_warnings`, `booking_warning_rules` (`db/booking-schema.sql`).
 

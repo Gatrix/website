@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { animate, motion, useMotionValue, type PanInfo } from "framer-motion";
-import type { Adventure } from "@/hooks/useAdventures";
+import type { Adventure } from "@/lib/db";
 import AdventureCard from "@/components/AdventureCard";
 
 interface AdventuresCarouselProps {

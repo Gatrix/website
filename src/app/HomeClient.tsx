@@ -5,7 +5,7 @@ import { ChevronRight } from "lucide-react";
 import AdventureModal from "@/components/AdventureModal";
 import AtmosphericBackground from "@/components/AtmosphericBackground";
 import FAQSection from "@/components/FAQSection";
-import type { Adventure } from "@/hooks/useAdventures";
+import type { Adventure } from "@/lib/db";
 import AdventuresCarousel from "@/components/AdventuresCarousel";
 import HeroFrontpageCarousel from "@/components/HeroFrontpageCarousel";
 import { scrollToContacts } from "@/lib/scroll-to-contacts";

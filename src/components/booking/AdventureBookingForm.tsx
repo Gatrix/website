@@ -17,7 +17,7 @@ import {
   Swords,
   Users,
 } from "lucide-react";
-import type { Adventure } from "@/hooks/useAdventures";
+import type { Adventure } from "@/lib/db";
 import type { BookingConfigPayload, BookingSelectionState, GameFormatId } from "@/lib/booking-types";
 import { getBookingInitialValues } from "@/lib/booking-config-utils";
 import { collectActiveWarnings } from "@/lib/booking-rules";
@@ -28,6 +28,13 @@ import {
   normalizeRuPhoneDigits,
   toE164RuPhone,
 } from "@/lib/phone-format";
+
+function createIdempotencyKey(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `booking_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 14)}`;
+}
 
 function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
@@ -144,6 +151,8 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
   const [adventureType, setAdventureType] = useState<GameFormatId>("adventure");
   const [playerNote, setPlayerNote] = useState("");
   const [phone, setPhone] = useState("");
+  const [company, setCompany] = useState("");
+  const [idempotencyKey] = useState(createIdempotencyKey);
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -258,6 +267,8 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
           adventureType,
           playerNote: playerNote.trim(),
           phone: toE164RuPhone(phoneDigits),
+          idempotencyKey,
+          company,
         }),
       });
       const data = (await res.json()) as { ok?: boolean; error?: string };
@@ -324,6 +335,19 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
         void handleSubmit();
       }}
     >
+      <div className="absolute left-[-10000px] top-auto h-px w-px overflow-hidden" aria-hidden="true">
+        <label htmlFor="booking-company">Компания</label>
+        <input
+          id="booking-company"
+          name="company"
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+          value={company}
+          onChange={(e) => setCompany(e.target.value)}
+        />
+      </div>
+
       <div className="flex items-center justify-end shrink-0">
         <button type="button" onClick={onBack} className="btn btn-ghost text-xs px-3 py-2 min-h-0">
           ← Назад к описанию

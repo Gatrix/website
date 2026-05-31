@@ -20,8 +20,7 @@ import AdventureModal from "@/components/AdventureModal";
 import AtmosphericBackground from "@/components/AtmosphericBackground";
 import AdventureCard from "@/components/AdventureCard";
 import GameBookingNotice from "@/components/GameBookingNotice";
-import type { Adventure } from "@/hooks/useAdventures";
-import type { AdventureOptions } from "@/lib/db";
+import type { Adventure, AdventureOptions } from "@/lib/db";
 
 // Fallback, если в БД нет строки adventure_options
 const DEFAULT_OPTIONS: AdventureOptions = {
@@ -42,6 +41,15 @@ const DEFAULT_OPTIONS: AdventureOptions = {
 
 const normalizeForSearch = (s: string) =>
   s.toLowerCase().replace(/ё/g, "е");
+
+type SearchableValue = string | string[] | null | undefined;
+
+const collectSearchValues = (...values: SearchableValue[]): string[] =>
+  values.flatMap((value) => {
+    if (!value) return [];
+    if (Array.isArray(value)) return value.filter((item): item is string => Boolean(item));
+    return [value];
+  });
 
 /** Примерно три строки кнопок-фильтров (высота ряда + отступ между рядами). */
 const COLLAPSED_OPTIONS_MAX_PX = 168;
@@ -209,18 +217,17 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
       const query = normalizeForSearch(searchQuery.trim());
       const queryWords = query.split(/\s+/).filter(Boolean);
       
-      const worlds = Array.isArray(adv.world) ? adv.world : adv.world ? [adv.world] : [];
-      const searchableFields = [
+      const searchableFields = collectSearchValues(
         adv.title,
         adv.subsetting,
         adv.focus,
-        ...worlds,
+        adv.world,
         adv.adventure_type,
         adv.tags,
-        ...(adv.gameformats ?? []),
-        ...(Array.isArray(adv.base_setting) ? adv.base_setting : [adv.base_setting]),
-        ...(Array.isArray(adv.genre) ? adv.genre : adv.genre ? [adv.genre] : []),
-      ].filter(Boolean) as string[];
+        adv.gameformats,
+        adv.base_setting,
+        adv.genre
+      );
 
       const searchableText = searchableFields.map(field => normalizeForSearch(field)).join(" ");
 

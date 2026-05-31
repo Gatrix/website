@@ -1,5 +1,3 @@
-"use client";
-
 import React from "react";
 import AtmosphericBackground from "@/components/AtmosphericBackground";
 import Image from "next/image";

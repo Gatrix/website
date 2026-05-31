@@ -2,7 +2,7 @@
 
 import React from "react";
 import Image from "next/image";
-import type { Adventure } from "@/hooks/useAdventures";
+import type { Adventure } from "@/lib/db";
 
 type AdventureCardProps = {
   adventure: Adventure;

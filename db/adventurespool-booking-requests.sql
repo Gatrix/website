@@ -38,5 +38,17 @@ COMMENT ON TABLE booking_requests IS 'Заявки игроков на пров�
 COMMENT ON COLUMN booking_requests.telegram_notified_at IS 'Когда Telegram-бот отправил уведомление мастеру';
 
 -- Сайт пишет заявки от appuser: нужны права на таблицу и на sequence для id.
-GRANT SELECT, INSERT, UPDATE ON booking_requests TO appuser;
+GRANT SELECT, INSERT ON booking_requests TO appuser;
 GRANT USAGE, SELECT ON SEQUENCE booking_requests_id_seq TO appuser;
+
+-- Бот только читает заявки и помечает отправленные уведомления.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'botuser') THEN
+    GRANT SELECT ON booking_requests TO botuser;
+    GRANT UPDATE (telegram_notified_at) ON booking_requests TO botuser;
+  ELSE
+    RAISE NOTICE 'Role botuser does not exist, skipping bot grants';
+  END IF;
+END
+$$;

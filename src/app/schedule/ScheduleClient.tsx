@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
@@ -7,14 +6,9 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 // TODO: раскомментировать при включении бронирования
 // import BookingDrawer, { type BookingSlot } from "@/components/BookingDrawer";
-import type { Adventure } from "@/hooks/useAdventures";
 
 // Types for our schedule
 type SlotStatus = "available" | "booked";
-
-interface ScheduleClientProps {
-  initialAdventures: Adventure[];
-}
 
 /** Три слота по 4 часа (вместо «день / вечер»). */
 const SCHEDULE_SLOTS = [
@@ -22,15 +16,13 @@ const SCHEDULE_SLOTS = [
   { id: "slot_15_19", label: "15:00–19:00" },
   { id: "slot_19_23", label: "19:00–23:00" },
 ] as const;
-
-type ScheduleSlotId = (typeof SCHEDULE_SLOTS)[number]["id"];
 const MONTH_NAMES = [
   "ЯНВАРЬ", "ФЕВРАЛЬ", "МАРТ", "АПРЕЛЬ", "МАЙ", "ИЮНЬ",
   "ИЮЛЬ", "АВГУСТ", "СЕНТЯБРЬ", "ОКТЯБРЬ", "НОЯБРЬ", "ДЕКАБРЬ"
 ];
 const DAYS_OF_WEEK = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"];
 
-export default function ScheduleClient({ initialAdventures: _initialAdventures }: ScheduleClientProps) {
+export default function ScheduleClient() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const searchParams = useSearchParams();
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
@@ -70,7 +62,7 @@ export default function ScheduleClient({ initialAdventures: _initialAdventures }
   };
 
   /** По умолчанию все даты свободны, кроме явно занятых. */
-  const getSlotStatus = (dayNum: number, _slotId: ScheduleSlotId): SlotStatus =>
+  const getSlotStatus = (dayNum: number): SlotStatus =>
     isFullyBookedDay(dayNum) ? "booked" : "available";
 
   const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -167,7 +159,7 @@ export default function ScheduleClient({ initialAdventures: _initialAdventures }
             const isToday = today.getDate() === dayNum && today.getMonth() === month && today.getFullYear() === year;
             const isPast = isCalendarDayPast(dayNum);
             const slotStatuses = SCHEDULE_SLOTS.map((s) => {
-              const status = getSlotStatus(dayNum, s.id);
+              const status = getSlotStatus(dayNum);
               return {
                 id: s.id,
                 label: s.label,

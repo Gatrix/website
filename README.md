@@ -7,9 +7,9 @@
 Следующие функции **закомментированы** и не работают:
 - **Авторизация** (вход/регистрация) — `src/app/login/page.tsx`, `src/components/Header.tsx`, `src/app/layout.tsx`
 - **Личные кабинеты** (профиль) — `src/app/profile/page.tsx`
-- **Бронирование** — `src/components/BookingDrawer.tsx`, `src/app/schedule/ScheduleClient.tsx`
+- **Старое бронирование из календаря** — `src/components/BookingDrawer.tsx`, `src/app/schedule/ScheduleClient.tsx`
 
-Сейчас активны только: главная, сюжеты, календарь с открытыми/закрытыми слотами (день/вечер), страница «Гильдия».
+Сейчас активны: главная, сюжеты, форма заявки из карточки приключения, календарь с открытыми/закрытыми слотами, страница «Гильдия».
 
 ## Технологии
 
@@ -49,6 +49,9 @@
 | `DATABASE_URL` | Подключение к PostgreSQL, например `postgresql://appuser:…@host:5432/adventurespool` |
 | `PG_ADVENTURES_TABLE` | Таблица приключений (по умолчанию `adventures`) |
 | `PG_ADVENTURES_SCHEMA` | `legacy` — старая плоская таблица; иначе схема adventurespool |
+| `BOOKING_RATE_LIMIT_MAX` | Максимум заявок с одного IP за окно (по умолчанию 5) |
+| `BOOKING_RATE_LIMIT_WINDOW_MS` | Окно rate limit в миллисекундах (по умолчанию 15 минут) |
+| `BOOKING_IDEMPOTENCY_TTL_MS` | Сколько хранить ключи повторной отправки в памяти процесса |
 
 Фильтры на странице сюжетов: таблица `adventure_options` → справочники adventurespool → `data/adventure-options.json` в бакете → значения из полей приключений.
 
@@ -140,3 +143,4 @@ docker run -p 8080:8080 \
 ```
 
 Для картинок из приватного бакета задайте `YC_STORAGE_*`; текст и сущности — в PostgreSQL.
+SQL-файлы применяйте в порядке из `db/MIGRATION_ORDER.md`; Telegram-бот настраивается в `services/telegram-booking-bot/README.md`.

@@ -23,7 +23,7 @@ sudo -u postgres psql -d adventurespool -f /path/to/db/adventurespool-booking-re
 cd /opt/my-rpg-club/services/telegram-booking-bot
 npm install
 cp .env.example .env
-nano .env   # три строки: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, DATABASE_URL
+nano .env   # TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, DATABASE_URL
 
 node index.mjs   # запускать из этой папки, где лежит .env
 # отправьте тестовую заявку с сайта — в Telegram должно прийти сообщение
@@ -34,12 +34,12 @@ node index.mjs   # запускать из этой папки, где лежи�
 Чтобы бот работал после закрытия SSH и перезагрузки ВМ:
 
 ```bash
-# 1. Пути в unit-файле должны совпадать с вашей папкой (по умолчанию ~/telegram-booking-bot)
+# 1. Пути в unit-файле должны совпадать с вашей папкой
 which node   # обычно /usr/bin/node — если другой, поправьте ExecStart в .service
 
 # 2. Установить службу
-sudo cp ~/telegram-booking-bot/telegram-booking-bot.service /etc/systemd/system/
-# Если папка не в /home/gatricus/telegram-booking-bot — отредактируйте пути в .service:
+sudo cp /opt/my-rpg-club/services/telegram-booking-bot/telegram-booking-bot.service /etc/systemd/system/
+# Если папка не в /opt/my-rpg-club/services/telegram-booking-bot — отредактируйте пути в .service:
 #   sudo nano /etc/systemd/system/telegram-booking-bot.service
 
 sudo systemctl daemon-reload
@@ -61,6 +61,14 @@ sudo systemctl status telegram-booking-bot
 ```env
 DATABASE_URL=postgresql://appuser:…@host:5432/adventurespool
 ```
+
+Для бота лучше использовать отдельную роль:
+
+```env
+DATABASE_URL=postgresql://botuser:…@host:5432/adventurespool
+```
+
+Права выдаются через `db/adventurespool-grants.sql` после создания роли `botuser`.
 
 Вебхук не нужен — бот сам читает таблицу.
 

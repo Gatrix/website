@@ -50,45 +50,103 @@ async function notifyBooking(body) {
 }
 
 const pool = new pg.Pool({ connectionString: DATABASE_URL });
+let polling = false;
+let stopping = false;
 
 async function pollPendingRequests() {
-  const { rows } = await pool.query(
-    `SELECT
-       id::text AS id,
-       created_at,
-       adventure_id,
-       adventure_title,
-       game_system_name,
-       difficulty_name,
-       universe_name,
-       player_count,
-       duration_hours,
-       adventure_type,
-       player_note,
-       phone,
-       warning_messages
-     FROM booking_requests
-     WHERE telegram_notified_at IS NULL
-     ORDER BY id ASC
-     LIMIT 20`
-  );
+  if (polling || stopping) return;
+  polling = true;
 
-  for (const row of rows) {
-    const id = row.id;
-    try {
-      await notifyBooking(rowToBookingBody(row));
-      await pool.query(
-        `UPDATE booking_requests SET telegram_notified_at = NOW() WHERE id = $1::bigint`,
-        [id]
-      );
-    } catch (err) {
-      console.error(`[poll] id=${id}:`, err);
+  try {
+    for (let i = 0; i < 20 && !stopping; i += 1) {
+      const client = await pool.connect();
+      let id = "";
+      let hasRow = false;
+
+      try {
+        await client.query("BEGIN");
+        const { rows } = await client.query(
+          `SELECT
+             id::text AS id,
+             created_at,
+             adventure_id,
+             adventure_title,
+             game_system_name,
+             difficulty_name,
+             universe_name,
+             player_count,
+             duration_hours,
+             adventure_type,
+             player_note,
+             phone,
+             warning_messages
+           FROM booking_requests
+           WHERE telegram_notified_at IS NULL
+           ORDER BY id ASC
+           LIMIT 1
+           FOR UPDATE SKIP LOCKED`
+        );
+
+        const row = rows[0];
+        if (!row) {
+          await client.query("COMMIT");
+          break;
+        }
+
+        hasRow = true;
+        id = row.id;
+        await notifyBooking(rowToBookingBody(row));
+        await client.query(
+          `UPDATE booking_requests
+           SET telegram_notified_at = NOW()
+           WHERE id = $1::bigint AND telegram_notified_at IS NULL`,
+          [id]
+        );
+        await client.query("COMMIT");
+      } catch (err) {
+        try {
+          await client.query("ROLLBACK");
+        } catch (rollbackErr) {
+          console.error("[poll] rollback failed:", rollbackErr);
+        }
+        if (hasRow) {
+          console.error(`[poll] id=${id}:`, err);
+        } else {
+          console.error("[poll] select pending request:", err);
+        }
+        break;
+      } finally {
+        client.release();
+      }
     }
+  } finally {
+    polling = false;
   }
+}
+
+async function shutdown(signal) {
+  if (stopping) return;
+  stopping = true;
+  clearInterval(interval);
+  console.log(`[poll] ${signal}: shutting down`);
+  try {
+    await pool.end();
+  } catch (err) {
+    console.error("[poll] pool shutdown:", err);
+    process.exit(1);
+  }
+  process.exit(0);
 }
 
 console.log(`[poll] adventurespool.booking_requests, interval=${POLL_INTERVAL_MS}ms`);
 await pollPendingRequests();
-setInterval(() => {
+const interval = setInterval(() => {
   void pollPendingRequests();
 }, POLL_INTERVAL_MS);
+
+process.on("SIGTERM", () => {
+  void shutdown("SIGTERM");
+});
+process.on("SIGINT", () => {
+  void shutdown("SIGINT");
+});

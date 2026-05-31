@@ -9,6 +9,8 @@ import {
   toE164RuPhone,
 } from "@/lib/phone-format";
 
+export const dynamic = "force-dynamic";
+
 type Body = {
   adventureId?: string;
   gameSystemId?: string | null;
@@ -19,14 +21,127 @@ type Body = {
   adventureType?: string;
   playerNote?: string;
   phone?: string;
+  idempotencyKey?: string;
+  company?: string;
 };
 
+type RateBucket = {
+  windowStart: number;
+  count: number;
+};
+
+type IdempotencyEntry = {
+  requestId: string;
+  warningIds: number[];
+  expiresAt: number;
+};
+
+const RATE_LIMIT_WINDOW_MS = Number(process.env.BOOKING_RATE_LIMIT_WINDOW_MS ?? 15 * 60 * 1000);
+const RATE_LIMIT_MAX = Number(process.env.BOOKING_RATE_LIMIT_MAX ?? 5);
+const IDEMPOTENCY_TTL_MS = Number(process.env.BOOKING_IDEMPOTENCY_TTL_MS ?? 2 * 60 * 60 * 1000);
+const IDEMPOTENCY_KEY_RE = /^[a-zA-Z0-9_-]{16,80}$/;
+
+const globalForBookingGuards = globalThis as unknown as {
+  bookingRateLimit?: Map<string, RateBucket>;
+  bookingIdempotency?: Map<string, IdempotencyEntry>;
+};
+
+function rateLimitStore() {
+  if (!globalForBookingGuards.bookingRateLimit) {
+    globalForBookingGuards.bookingRateLimit = new Map();
+  }
+  return globalForBookingGuards.bookingRateLimit;
+}
+
+function idempotencyStore() {
+  if (!globalForBookingGuards.bookingIdempotency) {
+    globalForBookingGuards.bookingIdempotency = new Map();
+  }
+  return globalForBookingGuards.bookingIdempotency;
+}
+
+function getClientIp(headers: Headers): string {
+  const forwarded = headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return (
+    forwarded ||
+    headers.get("x-real-ip")?.trim() ||
+    headers.get("cf-connecting-ip")?.trim() ||
+    "unknown"
+  );
+}
+
+function isRateLimited(key: string): boolean {
+  if (!Number.isFinite(RATE_LIMIT_WINDOW_MS) || RATE_LIMIT_WINDOW_MS <= 0) return false;
+  if (!Number.isFinite(RATE_LIMIT_MAX) || RATE_LIMIT_MAX <= 0) return false;
+
+  const now = Date.now();
+  const store = rateLimitStore();
+  const current = store.get(key);
+  if (!current || now - current.windowStart >= RATE_LIMIT_WINDOW_MS) {
+    store.set(key, { windowStart: now, count: 1 });
+    return false;
+  }
+
+  current.count += 1;
+  return current.count > RATE_LIMIT_MAX;
+}
+
+function readIdempotency(key: string): IdempotencyEntry | null {
+  const store = idempotencyStore();
+  const entry = store.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    store.delete(key);
+    return null;
+  }
+  return entry;
+}
+
+function writeIdempotency(key: string, requestId: string, warningIds: number[]) {
+  idempotencyStore().set(key, {
+    requestId,
+    warningIds,
+    expiresAt: Date.now() + IDEMPOTENCY_TTL_MS,
+  });
+}
+
 export async function POST(req: Request) {
+  if (!process.env.DATABASE_URL?.trim() && process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Booking storage is not configured" }, { status: 503 });
+  }
+
+  const clientIp = getClientIp(req.headers);
+  if (isRateLimited(clientIp)) {
+    return NextResponse.json(
+      { error: "Слишком много заявок. Попробуйте позже." },
+      { status: 429 }
+    );
+  }
+
   let body: Body;
   try {
     body = (await req.json()) as Body;
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  if (typeof body.company === "string" && body.company.trim() !== "") {
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
+
+  const idempotencyKey =
+    typeof body.idempotencyKey === "string" && IDEMPOTENCY_KEY_RE.test(body.idempotencyKey)
+      ? body.idempotencyKey
+      : null;
+  if (idempotencyKey) {
+    const previous = readIdempotency(idempotencyKey);
+    if (previous) {
+      return NextResponse.json({
+        ok: true,
+        requestId: previous.requestId,
+        warningIds: previous.warningIds,
+      });
+    }
   }
 
   const adventureId = body.adventureId?.trim();
@@ -138,16 +253,21 @@ export async function POST(req: Request) {
     warningMessages,
     clientMeta: {
       userAgent: req.headers.get("user-agent") ?? undefined,
+      idempotencyKey,
     },
   });
 
-  if (!inserted && process.env.DATABASE_URL?.trim()) {
+  if (!inserted) {
     return NextResponse.json({ error: "Could not save request" }, { status: 503 });
+  }
+
+  if (idempotencyKey) {
+    writeIdempotency(idempotencyKey, inserted.id, warningIds);
   }
 
   return NextResponse.json({
     ok: true,
-    requestId: inserted?.id ?? null,
+    requestId: inserted.id,
     warningIds,
   });
 }

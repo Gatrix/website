@@ -42,7 +42,7 @@ const DEFAULT_FORMATS: FormatInfo[] = [
 
 const FORMAT_ORDER: GameFormatId[] = ["oneshot", "adventure", "campaign"];
 
-function usePoolSchema(): boolean {
+function shouldUsePoolSchema(): boolean {
   return process.env.PG_ADVENTURES_SCHEMA !== "legacy";
 }
 
@@ -459,7 +459,7 @@ export async function getBookingConfigForAdventure(a: Adventure): Promise<Bookin
     return staticPayload(a);
   }
 
-  if (usePoolSchema()) {
+  if (shouldUsePoolSchema()) {
     return getPoolBookingConfig(a);
   }
 

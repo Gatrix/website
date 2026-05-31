@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import type { Adventure } from "@/hooks/useAdventures";
+import type { Adventure } from "@/lib/db";
 
 const AdventureBookingForm = dynamic(() => import("@/components/booking/AdventureBookingForm"), {
   ssr: false,
@@ -43,7 +43,17 @@ export default function AdventureModal({
   const scrollPositionRef = useRef(0);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const [slideDirection, setSlideDirection] = useState(1);
-  const [bookingOpen, setBookingOpen] = useState(false);
+  const [bookingState, setBookingState] = useState<{ adventureId: string | null; open: boolean }>({
+    adventureId: null,
+    open: false,
+  });
+  const bookingOpen = bookingState.open && bookingState.adventureId === adventure?.id;
+  const closeBooking = useCallback(() => {
+    setBookingState((current) => ({ ...current, open: false }));
+  }, []);
+  const openBooking = useCallback(() => {
+    setBookingState({ adventureId: adventure?.id ?? null, open: true });
+  }, [adventure?.id]);
 
   const canSwipeUpClose = () => {
     const left = leftScrollRef.current?.scrollTop ?? 0;
@@ -88,7 +98,7 @@ export default function AdventureModal({
     if (!isOpen) return;
     const handleKeyboard = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (bookingOpen) setBookingOpen(false);
+        if (bookingOpen) closeBooking();
         else onClose();
       } else if (!bookingOpen && e.key === "ArrowLeft" && hasPrevious && onPrevious) {
         e.preventDefault();
@@ -102,7 +112,7 @@ export default function AdventureModal({
     };
     window.addEventListener("keydown", handleKeyboard);
     return () => window.removeEventListener("keydown", handleKeyboard);
-  }, [isOpen, onClose, onPrevious, onNext, hasPrevious, hasNext, bookingOpen]);
+  }, [isOpen, onClose, onPrevious, onNext, hasPrevious, hasNext, bookingOpen, closeBooking]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -121,10 +131,6 @@ export default function AdventureModal({
       }
     };
   }, [isOpen]);
-
-  useEffect(() => {
-    setBookingOpen(false);
-  }, [adventure?.id]);
 
   // Предотвращение скролла фона + компенсация ширины скроллбара (убирает тряску при закрытии)
   useEffect(() => {
@@ -274,7 +280,7 @@ export default function AdventureModal({
                         {adventure.title}
                       </h2>
                       {bookingOpen ? (
-                        <AdventureBookingForm adventure={adventure} onBack={() => setBookingOpen(false)} />
+                        <AdventureBookingForm adventure={adventure} onBack={closeBooking} />
                       ) : (
                         <>
                           {displayText ? (
@@ -311,7 +317,7 @@ export default function AdventureModal({
                       <div className="hidden md:block flex-shrink-0 p-4 sm:p-[min(1.5rem,2vw)] md:p-[min(2rem,2.5vw)] pt-0">
                         <button
                           type="button"
-                          onClick={() => setBookingOpen(true)}
+                          onClick={openBooking}
                           className="btn btn-primary w-full inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#14110f]"
                         >
                           Забронировать игру
@@ -350,7 +356,7 @@ export default function AdventureModal({
                     <div className="order-3 md:hidden flex-shrink-0 p-4 sm:p-[min(1.5rem,2vw)] pt-0 border-t border-amber-900/25 bg-[#14110f]">
                       <button
                         type="button"
-                        onClick={() => setBookingOpen(true)}
+                        onClick={openBooking}
                         className="btn btn-primary w-full inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#14110f]"
                       >
                         Забронировать игру
