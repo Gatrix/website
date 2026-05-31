@@ -39,6 +39,9 @@ export function formatBookingMessage(body) {
   if (body.durationHours != null) {
     lines.push(`<b>Длительность сессии:</b> ${escapeHtml(String(body.durationHours))} ч`);
   }
+  if (body.startsAt) {
+    lines.push(`<b>Начало игры:</b> ${escapeHtml(String(body.startsAt))}`);
+  }
 
   if (body.phone) {
     lines.push(`<b>Телефон:</b> ${escapeHtml(String(body.phone))}`);

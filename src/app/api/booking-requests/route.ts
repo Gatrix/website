@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { getAdventureById } from "@/lib/actions/adventures";
-import { getBookingConfigSafe, insertBookingRequest } from "@/lib/booking-db";
+import {
+  BookingSlotConflictError,
+  getBookingConfigSafe,
+  insertBookingRequest,
+} from "@/lib/booking-db";
 import { collectActiveWarnings, isGameFormatId } from "@/lib/booking-rules";
+import { fetchBusyIntervalsForValidation } from "@/lib/booking-schedule-db";
+import { validateBookingInstant } from "@/lib/booking-schedule";
 import type { BookingSelectionState } from "@/lib/booking-types";
 import {
   isCompleteRuPhone,
@@ -21,6 +27,7 @@ type Body = {
   adventureType?: string;
   playerNote?: string;
   phone?: string;
+  startsAt?: string;
   idempotencyKey?: string;
   company?: string;
 };
@@ -231,31 +238,61 @@ export async function POST(req: Request) {
   }
   const phone = toE164RuPhone(phoneDigits);
 
+  const startsAtRaw = typeof body.startsAt === "string" ? body.startsAt.trim() : "";
+  if (!startsAtRaw) {
+    return NextResponse.json({ error: "startsAt required" }, { status: 400 });
+  }
+
+  let busy;
+  try {
+    const probeStart = new Date(startsAtRaw);
+    const probeEnd = new Date(probeStart.getTime() + dh * 60 * 60 * 1000);
+    busy = await fetchBusyIntervalsForValidation(probeStart, probeEnd);
+  } catch (err) {
+    console.error("[booking-requests] schedule lookup:", err);
+    return NextResponse.json({ error: "Could not verify schedule" }, { status: 503 });
+  }
+
+  const slotCheck = validateBookingInstant(startsAtRaw, dh, busy);
+  if (!slotCheck.ok) {
+    return NextResponse.json({ error: slotCheck.error }, { status: 409 });
+  }
+
   const warningMessages = warningIds
     .map((wid) => config.warnings.find((w) => w.id === wid)?.message)
     .filter((m): m is string => Boolean(m));
 
-  const inserted = await insertBookingRequest({
-    adventureId,
-    adventureTitle: adventure.title,
-    gameSystemId: gsid,
-    gameSystemName: systemName,
-    difficultyId: diffId,
-    difficultyName,
-    universeId,
-    universeName,
-    playerCount: pc,
-    durationHours: dh,
-    adventureType: atRaw,
-    playerNote,
-    phone,
-    warningIds,
-    warningMessages,
-    clientMeta: {
-      userAgent: req.headers.get("user-agent") ?? undefined,
-      idempotencyKey,
-    },
-  });
+  let inserted;
+  try {
+    inserted = await insertBookingRequest({
+      adventureId,
+      adventureTitle: adventure.title,
+      gameSystemId: gsid,
+      gameSystemName: systemName,
+      difficultyId: diffId,
+      difficultyName,
+      universeId,
+      universeName,
+      playerCount: pc,
+      durationHours: dh,
+      adventureType: atRaw,
+      playerNote,
+      phone,
+      warningIds,
+      warningMessages,
+      startsAt: slotCheck.startsAt.toISOString(),
+      endsAt: slotCheck.endsAt.toISOString(),
+      clientMeta: {
+        userAgent: req.headers.get("user-agent") ?? undefined,
+        idempotencyKey,
+      },
+    });
+  } catch (err) {
+    if (err instanceof BookingSlotConflictError) {
+      return NextResponse.json({ error: err.message }, { status: 409 });
+    }
+    throw err;
+  }
 
   if (!inserted) {
     return NextResponse.json({ error: "Could not save request" }, { status: 503 });

@@ -1,7 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRight } from "lucide-react";
 import AdventureModal from "@/components/AdventureModal";
 import AtmosphericBackground from "@/components/AtmosphericBackground";
 import FAQSection from "@/components/FAQSection";
@@ -60,11 +59,8 @@ export default function HomeClient({
         id="hero"
         className="pt-16 sm:pt-20 md:pt-24 pb-10 sm:pb-12 md:pb-16 px-4 sm:px-6 max-w-7xl mx-auto"
       >
-        <div className="min-w-0 transition-opacity duration-500 ease-in-out">
-          <div className="max-w-4xl">
-            <div className="inline-block px-2 sm:px-3 py-1.5 border border-amber-900/50 text-amber-600 text-xs sm:text-sm tracking-[0.3em] uppercase mb-3 sm:mb-4">
-              Место твоих лучших историй
-            </div>
+        <div className="mx-auto w-[85%] max-w-full">
+          <div className="min-w-0 transition-opacity duration-500 ease-in-out">
             <h1 className="font-fantasy-serif text-3xl sm:text-4xl md:text-[2.75rem] lg:text-6xl xl:text-7xl font-bold mb-3 sm:mb-4 md:mb-5 leading-[1.05] text-amber-50 shadow-amber-950 text-shadow-sm uppercase tracking-tight break-words max-w-full">
               <span className="hidden md:inline whitespace-nowrap">Испытай свою фантазию</span>
               <span className="md:hidden">Испытай свою фантазию</span>
@@ -72,20 +68,10 @@ export default function HomeClient({
             <p className="text-base sm:text-lg text-[#c8c0b6] mb-5 sm:mb-6 md:mb-7 leading-relaxed break-words">
               Офлайн-клуб настольных ролевых игр в Красноярске. Играем в D&D, Зов Ктулху и другие системы. Приходи один или с компанией — научим, покажем, дадим кубики. А еще у нас есть маскот - бородатая агама Феникс (но все зовут его Феня, не дорос пока до крутых прозвищ)!
             </p>
-            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:gap-4">
-              <button
-                onClick={() => router.push("/adventures")}
-                className="btn btn-primary group text-sm sm:text-base focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0a09]"
-                aria-label="Выбрать приключение"
-              >
-                <span className="whitespace-nowrap">ВЫБРАТЬ ПРИКЛЮЧЕНИЕ</span>
-                <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-2 transition-transform" />
-              </button>
-            </div>
           </div>
-        </div>
 
-        <HeroFrontpageCarousel slides={heroCarouselSlides} />
+          <HeroFrontpageCarousel slides={heroCarouselSlides} />
+        </div>
 
         {/* Карточки-сюжеты в стиле "игровых карт" */}
         <div id="adventures" className="mt-16 sm:mt-20 md:mt-28">

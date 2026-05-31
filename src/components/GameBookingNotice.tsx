@@ -52,7 +52,7 @@ export default function GameBookingNotice({
           compact ? "text-xs sm:text-sm" : "text-sm sm:text-base leading-relaxed"
         }`}
       >
-        В данный момент запись на игры проходит через личные сообщения с ведущим!
+        Записаться можно через личные сообщения с ведущим по предоставленным контактам, либо воспользоваться формой записи при выборе приключения.
       </p>
       <div
         className={`flex flex-wrap items-center justify-center font-sans ${

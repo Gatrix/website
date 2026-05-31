@@ -4,6 +4,8 @@
  */
 
 import { createHash, createHmac } from "crypto";
+import { readdir } from "fs/promises";
+import path from "path";
 
 const BUCKET = process.env.YC_STORAGE_BUCKET;
 const ACCESS_KEY = process.env.YC_STORAGE_ACCESS_KEY;
@@ -120,6 +122,185 @@ async function s3SignedGetObject(objectKey: string): Promise<Response> {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+const IMAGE_KEY_RE = /\.(jpe?g|png|webp|gif|avif)$/i;
+export const FRONTPAGE_STORAGE_PREFIX = "photos/frontpage/";
+
+function isImageObjectKey(key: string): boolean {
+  return IMAGE_KEY_RE.test(key) && !key.endsWith("/");
+}
+
+function stripImagesPrefix(key: string): string {
+  if (IMAGES_PREFIX && key.startsWith(IMAGES_PREFIX)) {
+    return key.slice(IMAGES_PREFIX.length);
+  }
+  return key;
+}
+
+function parseListObjectsV2Keys(xml: string): string[] {
+  const keys: string[] = [];
+  const re = /<Key>([^<]+)<\/Key>/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(xml)) !== null) {
+    keys.push(match[1]);
+  }
+  return keys;
+}
+
+function parseListObjectsV2Truncated(xml: string): boolean {
+  return /<IsTruncated>true<\/IsTruncated>/.test(xml);
+}
+
+function parseListObjectsV2ContinuationToken(xml: string): string | null {
+  const match = xml.match(/<NextContinuationToken>([^<]+)<\/NextContinuationToken>/);
+  return match?.[1] ?? null;
+}
+
+/**
+ * Подписанный ListObjectsV2 по префиксу (ключи внутри бакета, с IMAGES_PREFIX если задан).
+ */
+async function s3SignedListObjects(
+  prefix: string,
+  continuationToken?: string
+): Promise<Response> {
+  if (!BUCKET || !ACCESS_KEY || !SECRET_KEY) {
+    throw new Error("YC_STORAGE credentials not set");
+  }
+  const endpointUrl = ENDPOINT;
+  const host = new URL(endpointUrl).host;
+  const now = new Date();
+  const amzDate = now.toISOString().replace(/[:\-]/g, "").replace(/\.\d{3}Z$/, "Z");
+  const dateStamp = amzDate.slice(0, 8);
+  const payloadHash = sha256hex("");
+  const bucketPath = `/${BUCKET}`;
+  const service = "s3";
+
+  const queryParams: Record<string, string> = {
+    "list-type": "2",
+    prefix,
+    "max-keys": "1000",
+  };
+  if (continuationToken) {
+    queryParams["continuation-token"] = continuationToken;
+  }
+
+  const sortedQueryKeys = Object.keys(queryParams).sort();
+  const canonicalQueryString = sortedQueryKeys
+    .map((k) => `${encodeURIComponent(k)}=${encodeURIComponent(queryParams[k])}`)
+    .join("&");
+
+  const headers: Record<string, string> = {
+    host,
+    "x-amz-content-sha256": payloadHash,
+    "x-amz-date": amzDate,
+  };
+
+  const sortedHeaderKeys = Object.keys(headers).sort();
+  const canonicalHeaders =
+    sortedHeaderKeys.map((k) => `${k}:${headers[k]}`).join("\n") + "\n";
+  const signedHeaders = sortedHeaderKeys.join(";");
+
+  const canonicalRequest = [
+    "GET",
+    bucketPath,
+    canonicalQueryString,
+    canonicalHeaders,
+    signedHeaders,
+    payloadHash,
+  ].join("\n");
+
+  const credentialScope = `${dateStamp}/${REGION}/${service}/aws4_request`;
+  const stringToSign = [
+    "AWS4-HMAC-SHA256",
+    amzDate,
+    credentialScope,
+    sha256hex(canonicalRequest),
+  ].join("\n");
+
+  const sk = signingKey(SECRET_KEY!, dateStamp, REGION, service);
+  const signature = createHmac("sha256", sk).update(stringToSign).digest("hex");
+
+  const authorization = [
+    `AWS4-HMAC-SHA256 Credential=${ACCESS_KEY}/${credentialScope}`,
+    `SignedHeaders=${signedHeaders}`,
+    `Signature=${signature}`,
+  ].join(", ");
+
+  const fetchHeaders: Record<string, string> = {
+    ...headers,
+    authorization,
+  };
+  delete fetchHeaders.host;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  try {
+    return await fetch(`${endpointUrl}${bucketPath}?${canonicalQueryString}`, {
+      method: "GET",
+      headers: fetchHeaders,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function listS3ObjectKeys(prefix: string): Promise<string[]> {
+  const keys: string[] = [];
+  let continuationToken: string | undefined;
+
+  do {
+    const res = await s3SignedListObjects(prefix, continuationToken);
+    if (!res.ok) {
+      const text = await res.text();
+      console.error(`[storage] LIST ${prefix} → ${res.status}: ${text.slice(0, 200)}`);
+      break;
+    }
+    const xml = await res.text();
+    keys.push(...parseListObjectsV2Keys(xml));
+    if (!parseListObjectsV2Truncated(xml)) break;
+    continuationToken = parseListObjectsV2ContinuationToken(xml) ?? undefined;
+  } while (continuationToken);
+
+  return keys;
+}
+
+async function listLocalPublicKeys(prefix: string): Promise<string[]> {
+  const dir = path.join(process.cwd(), "public", ...prefix.split("/").filter(Boolean));
+  try {
+    const entries = await readdir(dir, { withFileTypes: true });
+    return entries
+      .filter((entry) => entry.isFile() && isImageObjectKey(entry.name))
+      .map((entry) => `${prefix}${entry.name}`);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Все ключи объектов с заданным префиксом (например photos/frontpage/).
+ * S3 при наличии YC_STORAGE_*; иначе — файлы из public/{prefix}.
+ */
+export async function listObjectStorageKeys(prefix: string): Promise<string[]> {
+  const normalizedPrefix = prefix.endsWith("/") ? prefix : `${prefix}/`;
+  const storagePrefix = IMAGES_PREFIX
+    ? `${IMAGES_PREFIX}${normalizedPrefix}`
+    : normalizedPrefix;
+
+  const rawKeys = canPresignObjectGet
+    ? await listS3ObjectKeys(storagePrefix)
+    : await listLocalPublicKeys(normalizedPrefix);
+
+  return rawKeys
+    .map(stripImagesPrefix)
+    .filter((key) => key.startsWith(normalizedPrefix) && isImageObjectKey(key))
+    .sort((a, b) => a.localeCompare(b, "ru"));
+}
+
+/** Все изображения из photos/frontpage/ в object storage (или public/ в dev). */
+export async function listFrontpagePhotoKeys(): Promise<string[]> {
+  return listObjectStorageKeys(FRONTPAGE_STORAGE_PREFIX);
 }
 
 /**

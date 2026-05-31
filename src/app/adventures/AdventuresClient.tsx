@@ -372,7 +372,7 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto mb-3 sm:mb-4">
+      <div className="max-w-4xl mx-auto mb-5 sm:mb-6">
         <div className="relative group">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-yellow-500/70 group-focus-within:text-yellow-300 transition-colors" size={18} />
           <input
@@ -394,16 +394,11 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
       </div>
 
       <div className="max-w-4xl mx-auto mb-4 sm:mb-6">
-        <div className="mb-3 sm:mb-4">
-          <div className="flex items-center justify-center mb-1.5 sm:mb-2 px-2">
-            <span className="text-[9px] sm:text-[10px] text-yellow-400 font-semibold uppercase tracking-[0.28em] sm:tracking-[0.35em] text-center drop-shadow-[0_0_8px_rgba(250,204,21,0.35)]">
-              Прогресс пути
-            </span>
-          </div>
+        <div className="mb-5 sm:mb-6">
           <div className="relative min-h-[5.75rem] sm:min-h-[5.5rem] md:min-h-24 overflow-visible">
             <div className="absolute top-[1.45rem] sm:top-6 md:top-7 left-0 right-0 h-px bg-yellow-600/30 z-0 pointer-events-none" />
-            <div className="relative z-10 overflow-x-auto sm:overflow-x-visible overflow-y-visible pb-2 sm:pb-0 scrollbar-hide">
-              <div className="flex justify-between min-w-max sm:min-w-0 gap-3 sm:gap-0 px-1 pt-2 sm:pt-0 sm:px-0">
+            <div className="relative z-10 overflow-x-auto sm:overflow-x-visible overflow-y-visible scrollbar-hide">
+              <div className="flex justify-between min-w-max sm:min-w-0 gap-3 sm:gap-0 px-1 sm:px-0">
               {PROGRESS_GROUPS.map((group, groupIndex) => {
                 const isCurrent = groupIsCurrent(group);
                 const isCompleted = groupIsCompleted(group);

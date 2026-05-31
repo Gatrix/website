@@ -10,6 +10,11 @@ export function rowToBookingBody(row) {
     universeName: row.universe_name,
     playerCount: row.player_count,
     durationHours: row.duration_hours,
+    startsAt: row.starts_at
+      ? new Date(/** @type {string | Date} */ (row.starts_at)).toLocaleString("ru-RU", {
+          timeZone: "Asia/Krasnoyarsk",
+        })
+      : undefined,
     adventureType: row.adventure_type,
     playerNote: row.player_note,
     phone: row.phone,

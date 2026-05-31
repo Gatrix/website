@@ -492,15 +492,28 @@ export type BookingRequestInsert = {
   phone: string;
   warningIds: number[];
   warningMessages: string[];
+  startsAt: string;
+  endsAt: string;
   clientMeta?: Record<string, unknown>;
 };
+
+export class BookingSlotConflictError extends Error {
+  constructor(message = "Это время уже занято. Выберите другой слот.") {
+    super(message);
+    this.name = "BookingSlotConflictError";
+  }
+}
 
 export async function insertBookingRequest(
   params: BookingRequestInsert
 ): Promise<{ id: string } | null> {
+  const pool = getDbPool();
+  const client = await pool.connect();
+
   try {
-    const pool = getDbPool();
-    const { rows } = await pool.query<{ id: string }>(
+    await client.query("BEGIN");
+
+    const { rows } = await client.query<{ id: string }>(
       `
       INSERT INTO booking_requests (
         adventure_id,
@@ -518,11 +531,12 @@ export async function insertBookingRequest(
         phone,
         warning_ids,
         warning_messages,
+        starts_at,
         client_meta
       )
       VALUES (
         $1::text, $2::text, $3::text, $4::text, $5::text, $6::text, $7::text, $8::text,
-        $9::int, $10::numeric, $11::text, $12::text, $13::text, $14::int[], $15::text[], $16::jsonb
+        $9::int, $10::numeric, $11::text, $12::text, $13::text, $14::int[], $15::text[], $16::timestamptz, $17::jsonb
       )
       RETURNING id::text AS id
       `,
@@ -542,13 +556,42 @@ export async function insertBookingRequest(
         params.phone,
         params.warningIds,
         params.warningMessages,
+        params.startsAt,
         params.clientMeta != null ? JSON.stringify(params.clientMeta) : null,
       ]
     );
+
     const id = rows[0]?.id;
-    return id ? { id } : null;
+    if (!id) {
+      await client.query("ROLLBACK");
+      return null;
+    }
+
+    await client.query(
+      `
+      INSERT INTO booking_schedule (
+        starts_at,
+        ends_at,
+        duration_hours,
+        status,
+        booking_request_id
+      )
+      VALUES ($1::timestamptz, $2::timestamptz, $3::numeric, 'confirmed', $4::bigint)
+      `,
+      [params.startsAt, params.endsAt, params.durationHours, id]
+    );
+
+    await client.query("COMMIT");
+    return { id };
   } catch (err) {
+    await client.query("ROLLBACK");
+    const code = (err as { code?: string })?.code;
+    if (code === "23P01") {
+      throw new BookingSlotConflictError();
+    }
     console.error("[booking-db] insert booking_requests:", err);
     return null;
+  } finally {
+    client.release();
   }
 }
