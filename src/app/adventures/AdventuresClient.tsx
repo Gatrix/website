@@ -1,16 +1,11 @@
 "use client";
 
 import React, { useState, useMemo, useCallback, useRef, useLayoutEffect } from "react";
-import Link from "next/link";
 import {
-  ChevronLeft,
   RotateCcw,
   Shield,
   Target,
-  ArrowRight,
-  ArrowLeft,
   X,
-  SkipForward,
   Layers,
   Search,
   Gamepad2,
@@ -53,6 +48,9 @@ const collectSearchValues = (...values: SearchableValue[]): string[] =>
 
 /** Примерно три строки кнопок-фильтров (высота ряда + отступ между рядами). */
 const COLLAPSED_OPTIONS_MAX_PX = 168;
+
+/** Сеттинг, мир и формат — только одно значение; жанр — несколько. */
+const SINGLE_SELECT_FILTER_IDS = new Set(["subsetting", "world", "adventure_type"]);
 
 interface AdventuresClientProps {
   initialAdventures: Adventure[];
@@ -97,7 +95,7 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
         { key: "setting" as const, barLabel: "Сеттинг", indices: [0] as const, icon: <Layers size={24} /> },
         { key: "genre" as const, barLabel: "Жанр", indices: [1] as const, icon: <Shield size={24} /> },
         { key: "world" as const, barLabel: "Мир", indices: [2] as const, icon: <Target size={24} /> },
-        { key: "type" as const, barLabel: "Тип игры", indices: [3] as const, icon: <Gamepad2 size={24} /> },
+        { key: "type" as const, barLabel: "Формат", indices: [3] as const, icon: <Gamepad2 size={24} /> },
       ] as const,
     []
   );
@@ -241,8 +239,10 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
       const currentValues = prev[stepId] || [];
       let nextValues: string[];
 
-      if (currentValues.includes(option)) {
-        nextValues = currentValues.filter(v => v !== option);
+      if (SINGLE_SELECT_FILTER_IDS.has(stepId)) {
+        nextValues = currentValues.includes(option) ? [] : [option];
+      } else if (currentValues.includes(option)) {
+        nextValues = currentValues.filter((v) => v !== option);
       } else {
         nextValues = [...currentValues, option];
       }
@@ -254,24 +254,6 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
 
       return stripBaseSettingFromFilters(newFilters);
     });
-  };
-
-  const handleNext = () => {
-    if (currentStep < FILTER_STEPS.length - 1) {
-      handleSetStep(currentStep + 1);
-    }
-  };
-
-  const handleBack = () => {
-    if (currentStep > 0) {
-      handleSetStep(currentStep - 1);
-    }
-  };
-
-  const handleSkip = () => {
-    if (currentStep < FILTER_STEPS.length - 1) {
-      handleSetStep(currentStep + 1);
-    }
   };
 
   const removeFilter = (stepId: string, value: string) => {
@@ -326,7 +308,6 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
   };
 
   const hasActiveFilters = Object.keys(visibleFilters).length > 0;
-  const hasSelectionInStep = (filters[currentStepData.id]?.length || 0) > 0;
 
   const collapsibleStep =
     currentStepData.id === "focus" || currentStepData.id === "world";
@@ -360,16 +341,6 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
 
       <div className="max-w-7xl mx-auto relative z-10 page-header-offset">
         <GameBookingNotice compact />
-
-        <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-0 border-b border-yellow-500/35 pb-2 sm:pb-3">
-          <Link href="/" className="flex items-center gap-2 text-yellow-300 hover:text-yellow-200 transition-colors uppercase text-[10px] sm:text-xs tracking-widest font-bold order-2 sm:order-1 drop-shadow-[0_0_12px_rgba(250,204,21,0.25)]">
-            <ChevronLeft size={16} className="sm:w-[18px] sm:h-[18px]" /> Назад
-          </Link>
-          <h1 className="text-lg sm:text-xl md:text-2xl font-extrabold uppercase tracking-[0.18em] sm:tracking-[0.28em] text-yellow-50 text-center order-1 sm:order-2 drop-shadow-[0_0_20px_rgba(253,224,71,0.45)]">
-            Время приключений
-          </h1>
-          <div className="w-[100px] hidden md:block order-3" aria-hidden />
-        </div>
       </div>
 
       <div className="max-w-4xl mx-auto mb-5 sm:mb-6">
@@ -547,54 +518,16 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
             </div>
           )}
         </div>
-
-        <div className="flex flex-wrap justify-center items-center gap-2 sm:gap-3 min-h-[2.5rem]">
-          {currentStep > 0 && (
-            <motion.button
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              onClick={handleBack}
-              className="flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-yellow-950/35 border-2 border-yellow-600/50 text-yellow-200 font-black tracking-wider hover:bg-yellow-900/45 hover:border-yellow-400 hover:text-yellow-50 transition-all group text-xs sm:text-sm shadow-[0_0_16px_rgba(234,179,8,0.12)]"
-            >
-              <ArrowLeft size={16} className="sm:w-[18px] sm:h-[18px] group-hover:-translate-x-2 transition-transform" />
-              <span className="hidden sm:inline">НАЗАД</span>
-            </motion.button>
-          )}
-
-          {currentStep < FILTER_STEPS.length - 1 && (
-            <motion.button
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              onClick={hasSelectionInStep ? handleNext : handleSkip}
-              className={`flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 sm:py-2.5 border-2 font-black tracking-wider transition-all group text-xs sm:text-sm ${
-                hasSelectionInStep
-                  ? "bg-yellow-500/20 border-yellow-400 text-yellow-100 hover:bg-yellow-400 hover:text-yellow-950 hover:border-yellow-300 shadow-[0_0_20px_rgba(253,224,71,0.25)]"
-                  : "bg-yellow-950/25 border-yellow-700/45 text-yellow-300 hover:bg-yellow-900/35 hover:border-yellow-500 hover:text-yellow-100"
-              }`}
-            >
-              {hasSelectionInStep ? (
-                <>
-                  ДАЛЕЕ <ArrowRight size={16} className="sm:w-[18px] sm:h-[18px] group-hover:translate-x-2 transition-transform" />
-                </>
-              ) : (
-                <>
-                  ПРОПУСТИТЬ <SkipForward size={16} className="sm:w-[18px] sm:h-[18px] group-hover:translate-x-1 transition-transform" />
-                </>
-              )}
-            </motion.button>
-          )}
-
-        </div>
       </div>
 
       <div className="max-w-7xl mx-auto">
-        <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4 text-yellow-500/70">
-          <div className="h-px flex-1 bg-current" />
-          <span className="text-[9px] sm:text-[10px] uppercase tracking-[0.28em] sm:tracking-[0.35em] font-bold px-2 text-yellow-300 drop-shadow-[0_0_8px_rgba(250,204,21,0.35)]">
-            Архивных свитков: {filteredAdventures.length}
-          </span>
-          <div className="h-px flex-1 bg-current" />
-        </div>
+        {adventures.length === 0 ? (
+          <p className="text-body text-center text-sm sm:text-base py-12 px-4 border border-amber-900/35 rounded-lg bg-amber-950/20">
+            Каталог приключений сейчас недоступен — не удалось загрузить данные из базы. Проверьте, что на
+            сервере задана переменная <span className="font-mono text-amber-300/90">DATABASE_URL</span>, и
+            перезапустите приложение.
+          </p>
+        ) : null}
 
         <motion.div layout className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
           <AnimatePresence>

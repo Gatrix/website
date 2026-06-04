@@ -24,19 +24,19 @@ const DEFAULT_FORMATS: FormatInfo[] = [
     id: "oneshot",
     title: "Ваншот",
     description:
-      "Одна завершённая история за столом: приходите с нуля и за вечер получаете цельный опыт. Идеально, чтобы познакомиться с миром и правилами без долгих обязательств.",
+      "Игра на одну встречу. Быстрый старт, простая цель, минимум подготовки. Прекрасно подходит новичкам как отправная точка в мир НРИ.",
   },
   {
     id: "adventure",
     title: "Приключение",
     description:
-      "Несколько связанных сессий с общим сюжетом и развитием персонажей. Баланс между глубиной истории и понятным горизонтом планирования.",
+      "Законченная история длиной в несколько встреч. Сбалансированный вариант. Идеально для знакомства с правилами и миром игры.",
   },
   {
     id: "campaign",
     title: "Кампания",
     description:
-      "Долгая арка: растущие ставки, побочные линии и память мира между встречами. Требует стабильного состава и терпения к паузам между играми.",
+      "Длинная история на десятки игровых встреч. Глубокий сюжет и персонажи, развитие игроков. Для создания историй, о которых помнят всю жизнь.",
   },
 ];
 
@@ -78,6 +78,11 @@ function adventureFallbackBounds(a: Adventure): BookingBounds {
 function isMissingRelationError(err: unknown): boolean {
   const code = (err as { code?: string })?.code;
   return code === "42P01" || code === "42703";
+}
+
+function isMissingColumnError(err: unknown, column: string): boolean {
+  const e = err as { code?: string; message?: string };
+  return e.code === "42703" && (e.message?.includes(column) ?? false);
 }
 
 function pickDefaultUniverse(a: Adventure, list: BookingUniverse[]): string | undefined {
@@ -197,23 +202,41 @@ async function fetchPoolUniversesForAdventure(adventureId: string): Promise<Book
   }));
 }
 
+function mapPoolFormatRows(rows: Record<string, unknown>[]): FormatInfo[] {
+  const byId = new Map(rows.map((r) => [String(r.gameformat_id), r]));
+  return FORMAT_ORDER.filter((id) => byId.has(id)).map((id) => {
+    const row = byId.get(id)!;
+    const def = DEFAULT_FORMATS.find((d) => d.id === id)!;
+    const desc = row.gameformat_description;
+    return {
+      id,
+      title: String(row.gameformat_name ?? def.title),
+      description: desc != null && String(desc).trim() !== "" ? String(desc) : def.description,
+    };
+  });
+}
+
 /** Только форматы, привязанные к приключению в adventure_gameformat. */
 async function fetchPoolFormatsForAdventure(adventureId: string): Promise<FormatInfo[]> {
   const pool = getDbPool();
-  const { rows } = await pool.query<Record<string, unknown>>(
-    `
-    SELECT gf.gameformat_id
+  const baseSql = `
+    SELECT gf.gameformat_id, gf.gameformat_name
     FROM adventure_gameformat agf
     INNER JOIN gameformat gf ON gf.gameformat_id = agf.gameformat_id
     WHERE agf.adventure_id = $1::text
-    `,
-    [adventureId]
+  `;
+  const sqlWithDescription = baseSql.replace(
+    "gf.gameformat_name",
+    "gf.gameformat_name, gf.gameformat_description"
   );
-  const linked = new Set(rows.map((r) => String(r.gameformat_id)));
-  return FORMAT_ORDER.filter((id) => linked.has(id)).map((id) => {
-    const def = DEFAULT_FORMATS.find((d) => d.id === id)!;
-    return { ...def };
-  });
+  try {
+    const { rows } = await pool.query<Record<string, unknown>>(sqlWithDescription, [adventureId]);
+    return mapPoolFormatRows(rows);
+  } catch (err) {
+    if (!isMissingColumnError(err, "gameformat_description")) throw err;
+    const { rows } = await pool.query<Record<string, unknown>>(baseSql, [adventureId]);
+    return mapPoolFormatRows(rows);
+  }
 }
 
 async function getPoolBookingConfig(a: Adventure): Promise<BookingConfigPayload> {
@@ -504,18 +527,24 @@ export class BookingSlotConflictError extends Error {
   }
 }
 
+export class BookingStorageError extends Error {
+  constructor(
+    message = "Не удалось сохранить заявку. Попробуйте позже или свяжитесь с клубом."
+  ) {
+    super(message);
+    this.name = "BookingStorageError";
+  }
+}
+
 export async function insertBookingRequest(
   params: BookingRequestInsert
 ): Promise<{ id: string } | null> {
   const pool = getDbPool();
   const client = await pool.connect();
 
-  try {
-    await client.query("BEGIN");
-
-    const { rows } = await client.query<{ id: string }>(
-      `
-      INSERT INTO booking_requests (
+  const insertRequest = async (includeStartsAt: boolean) => {
+    const columns = includeStartsAt
+      ? `
         adventure_id,
         adventure_title,
         game_system_id,
@@ -533,33 +562,82 @@ export async function insertBookingRequest(
         warning_messages,
         starts_at,
         client_meta
-      )
-      VALUES (
+      `
+      : `
+        adventure_id,
+        adventure_title,
+        game_system_id,
+        game_system_name,
+        difficulty_id,
+        difficulty_name,
+        universe_id,
+        universe_name,
+        player_count,
+        duration_hours,
+        adventure_type,
+        player_note,
+        phone,
+        warning_ids,
+        warning_messages,
+        client_meta
+      `;
+
+    const values = includeStartsAt
+      ? `
         $1::text, $2::text, $3::text, $4::text, $5::text, $6::text, $7::text, $8::text,
         $9::int, $10::numeric, $11::text, $12::text, $13::text, $14::int[], $15::text[], $16::timestamptz, $17::jsonb
-      )
+      `
+      : `
+        $1::text, $2::text, $3::text, $4::text, $5::text, $6::text, $7::text, $8::text,
+        $9::int, $10::numeric, $11::text, $12::text, $13::text, $14::int[], $15::text[], $16::jsonb
+      `;
+
+    const queryParams = [
+      params.adventureId,
+      params.adventureTitle,
+      params.gameSystemId,
+      params.gameSystemName,
+      params.difficultyId,
+      params.difficultyName,
+      params.universeId,
+      params.universeName,
+      params.playerCount,
+      params.durationHours,
+      params.adventureType,
+      params.playerNote,
+      params.phone,
+      params.warningIds,
+      params.warningMessages,
+      ...(includeStartsAt
+        ? [params.startsAt, params.clientMeta != null ? JSON.stringify(params.clientMeta) : null]
+        : [params.clientMeta != null ? JSON.stringify(params.clientMeta) : null]),
+    ];
+
+    return client.query<{ id: string }>(
+      `
+      INSERT INTO booking_requests (${columns})
+      VALUES (${values})
       RETURNING id::text AS id
       `,
-      [
-        params.adventureId,
-        params.adventureTitle,
-        params.gameSystemId,
-        params.gameSystemName,
-        params.difficultyId,
-        params.difficultyName,
-        params.universeId,
-        params.universeName,
-        params.playerCount,
-        params.durationHours,
-        params.adventureType,
-        params.playerNote,
-        params.phone,
-        params.warningIds,
-        params.warningMessages,
-        params.startsAt,
-        params.clientMeta != null ? JSON.stringify(params.clientMeta) : null,
-      ]
+      queryParams
     );
+  };
+
+  try {
+    await client.query("BEGIN");
+    await client.query("SAVEPOINT insert_request");
+
+    let rows: { id: string }[];
+    try {
+      ({ rows } = await insertRequest(true));
+    } catch (err) {
+      if (!isMissingColumnError(err, "starts_at")) throw err;
+      console.warn(
+        "[booking-db] booking_requests.starts_at missing — apply db/adventurespool-booking-requests-add-starts-at.sql"
+      );
+      await client.query("ROLLBACK TO SAVEPOINT insert_request");
+      ({ rows } = await insertRequest(false));
+    }
 
     const id = rows[0]?.id;
     if (!id) {
@@ -589,8 +667,18 @@ export async function insertBookingRequest(
     if (code === "23P01") {
       throw new BookingSlotConflictError();
     }
+    if (code === "42501") {
+      throw new BookingStorageError(
+        "Сервер не может записать время в расписание. Администратору нужно выполнить db/adventurespool-booking-production-patch.sql на ВМ."
+      );
+    }
+    if (code === "42703") {
+      throw new BookingStorageError(
+        "В базе не настроена таблица заявок. Администратору нужно выполнить db/adventurespool-booking-production-patch.sql на ВМ."
+      );
+    }
     console.error("[booking-db] insert booking_requests:", err);
-    return null;
+    throw new BookingStorageError();
   } finally {
     client.release();
   }

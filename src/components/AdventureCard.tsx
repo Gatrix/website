@@ -41,7 +41,6 @@ export default function AdventureCard({
       className={`group relative w-full flex flex-col bg-[#14110f] rounded-lg overflow-hidden border border-amber-900/30 shadow-xl cursor-pointer hover:border-amber-600/50 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-inset ${className}`}
       {...rest}
     >
-      {/* Постер: фиксированный aspect для одинакового размера всех карточек */}
       <div className="group/poster relative w-full aspect-[3/4] bg-[#0f0d0c] overflow-hidden flex-shrink-0 [contain:layout_paint]">
         {imageUrl ? (
           <Image

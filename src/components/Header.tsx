@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, Phone, X } from "lucide-react";
 import { scrollToContacts } from "@/lib/scroll-to-contacts";
+import { scrollToFormats } from "@/lib/scroll-to-formats";
 import {
   SITE_ADDRESS_SHORT,
   SITE_DISCORD_URL,
@@ -35,7 +35,11 @@ const VKIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-export default function Header() {
+type HeaderProps = {
+  polygonLogoUrl: string;
+};
+
+export default function Header({ polygonLogoUrl }: HeaderProps) {
   const pathname = usePathname();
   // TODO: раскомментировать при включении авторизации
   // const router = useRouter();
@@ -49,15 +53,21 @@ export default function Header() {
   // const isAuthenticated = !!session;
   // const loading = status === "loading";
 
-  const agamaLogo = "/logos/agama-logo.webp";
-  const polygonLogo = "/logos/polygon-logo.webp";
-
   const handleContactsClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     setMobileMenuOpen(false);
     if (pathname !== "/") return;
     e.preventDefault();
     if (scrollToContacts()) {
       window.history.replaceState(null, "", "#contacts");
+    }
+  };
+
+  const handleFormatsClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    setMobileMenuOpen(false);
+    if (pathname !== "/") return;
+    e.preventDefault();
+    if (scrollToFormats()) {
+      window.history.replaceState(null, "", "#formats");
     }
   };
 
@@ -80,57 +90,61 @@ export default function Header() {
                 {SITE_ADDRESS_SHORT}
               </span>
             </div>
-            <div className="flex flex-col items-center gap-2 shrink-0">
-              <div className="flex items-center gap-4 lg:gap-6 shrink-0">
-                <a href={SITE_DISCORD_URL} target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#5865F2] transition-all hover:scale-110 shrink-0" title="Discord">
-                  <DiscordIcon className="w-5 h-5" />
-                </a>
-                <a href={SITE_TELEGRAM_BOOKING_URL} target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#24A1DE] transition-all hover:scale-110 shrink-0" title="Telegram">
-                  <TelegramIcon className="w-5 h-5" />
-                </a>
-                <a href={SITE_VK_URL} target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#0077FF] transition-all hover:scale-110 shrink-0" title="ВКонтакте">
-                  <VKIcon className="w-5 h-5" />
-                </a>
+            <div className="flex items-center gap-4 lg:gap-6 shrink-0">
+              <div className="flex flex-col items-center gap-2 shrink-0">
+                <div className="flex items-center gap-4 lg:gap-6 shrink-0">
+                  <a href={SITE_DISCORD_URL} target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#5865F2] transition-all hover:scale-110 shrink-0" title="Discord">
+                    <DiscordIcon className="w-5 h-5" />
+                  </a>
+                  <a href={SITE_TELEGRAM_BOOKING_URL} target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#24A1DE] transition-all hover:scale-110 shrink-0" title="Telegram">
+                    <TelegramIcon className="w-5 h-5" />
+                  </a>
+                  <a href={SITE_VK_URL} target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#0077FF] transition-all hover:scale-110 shrink-0" title="ВКонтакте">
+                    <VKIcon className="w-5 h-5" />
+                  </a>
+                </div>
+                <Link
+                  href="/#contacts"
+                  onClick={handleContactsClick}
+                  className="hover:text-amber-500 transition-colors underline-offset-8 hover:underline shrink-0 text-center"
+                >
+                  Контакты
+                </Link>
               </div>
-              <Link
-                href="/#contacts"
-                onClick={handleContactsClick}
-                className="hover:text-amber-500 transition-colors underline-offset-8 hover:underline shrink-0"
-              >
-                Контакты
-              </Link>
+              <div className="flex min-w-[4.25rem] flex-col items-center justify-center self-stretch text-center">
+                <Link
+                  href="/#formats"
+                  onClick={handleFormatsClick}
+                  className="hover:text-amber-500 transition-colors underline-offset-8 hover:underline shrink-0 text-center leading-none"
+                >
+                  Прайс
+                </Link>
+              </div>
             </div>
           </div>
           {/* Мобильный баланс слева от центрального логотипа */}
           <div className="w-10 shrink-0 md:hidden" aria-hidden />
         </div>
 
-        {/* Логотип по центру экрана */}
+        {/* Логотип по центру */}
         <Link
           href="/"
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2 sm:gap-3 z-20 pointer-events-auto group"
+          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-auto group flex items-center justify-center px-2"
           onClick={() => setMobileMenuOpen(false)}
+          aria-label="Гильдия ПОЛИГОН — на главную"
         >
-          <div className="relative p-1 sm:p-1.5 transition-all duration-300">
-            <div className="absolute inset-0 bg-amber-500/5 blur-xl rounded-full group-hover:bg-amber-500/10 transition-colors" />
-            <Image
-              src={polygonLogo}
-              alt="ПОЛИГОН"
-              width={280}
-              height={72}
-              className="h-8 sm:h-9 md:h-11 w-auto max-w-[140px] sm:max-w-[200px] md:max-w-none object-contain relative z-10 brightness-110 contrast-110 drop-shadow-[0_0_12px_rgba(251,191,36,0.25)] transition-all duration-300 group-hover:brightness-125"
-            />
-          </div>
-          <div className="relative p-1 sm:p-1.5 transition-all duration-300">
-            <div className="absolute inset-0 bg-amber-500/5 blur-xl rounded-full group-hover:bg-amber-500/10 transition-colors" />
-            <Image
-              src={agamaLogo}
-              alt="Agama Logo"
-              width={75}
-              height={75}
-              className="h-[44px] sm:h-[52px] md:h-[56px] w-auto object-contain relative z-10 brightness-110 contrast-110 drop-shadow-[0_0_10px_rgba(251,191,36,0.3)] transition-all duration-300 group-hover:brightness-125"
-            />
-          </div>
+          <div
+            className="absolute inset-0 bg-amber-500/5 blur-xl rounded-full scale-150 group-hover:bg-amber-500/10 transition-colors pointer-events-none"
+            aria-hidden
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={polygonLogoUrl}
+            alt="Гильдия ПОЛИГОН"
+            className="relative z-10 h-8 sm:h-9 md:h-11 w-auto max-w-[min(70vw,11rem)] sm:max-w-[13rem] md:max-w-none object-contain brightness-110 contrast-110 drop-shadow-[0_0_12px_rgba(251,191,36,0.25)] transition-all duration-300 group-hover:brightness-125"
+            decoding="async"
+            fetchPriority="high"
+          />
         </Link>
 
         {/* Правая колонка: ссылки + меню */}
@@ -232,6 +246,13 @@ export default function Header() {
             className="py-4 text-lg font-bold tracking-widest uppercase transition-colors border-b border-amber-900/30 text-amber-100/70 hover:text-amber-500"
           >
             Контакты
+          </Link>
+          <Link
+            href="/#formats"
+            onClick={handleFormatsClick}
+            className="py-4 text-lg font-bold tracking-widest uppercase transition-colors border-b border-amber-900/30 text-amber-100/70 hover:text-amber-500"
+          >
+            Прайс
           </Link>
           <Link
             href="/adventures"

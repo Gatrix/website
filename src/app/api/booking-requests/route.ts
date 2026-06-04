@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAdventureById } from "@/lib/actions/adventures";
 import {
   BookingSlotConflictError,
+  BookingStorageError,
   getBookingConfigSafe,
   insertBookingRequest,
 } from "@/lib/booking-db";
@@ -290,6 +291,10 @@ export async function POST(req: Request) {
   } catch (err) {
     if (err instanceof BookingSlotConflictError) {
       return NextResponse.json({ error: err.message }, { status: 409 });
+    }
+    if (err instanceof BookingStorageError) {
+      console.error("[booking-requests] storage:", err.message);
+      return NextResponse.json({ error: err.message }, { status: 503 });
     }
     throw err;
   }

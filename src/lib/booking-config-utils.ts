@@ -12,8 +12,12 @@ export function defaultFormatFromAdventure(a: Adventure): GameFormatId {
 /** Начальные значения полей формы по загруженному конфигу. */
 export function getBookingInitialValues(config: BookingConfigPayload) {
   const b = config.bounds;
+  const allowedPlayers = [4, 5, 6];
+  const allowedHours = [4, 5, 6, 7];
   const midPc = Math.round((b.minPlayers + b.maxPlayers) / 2);
   const midDh = Math.round((b.minDurationHours + b.maxDurationHours) / 2);
+  const snap = (value: number, list: number[]) =>
+    list.reduce((best, n) => (Math.abs(n - value) < Math.abs(best - value) ? n : best));
   const preferred = config.defaultAdventureType ?? "adventure";
   const adventureType = config.formats.some((f) => f.id === preferred)
     ? preferred
@@ -29,8 +33,8 @@ export function getBookingInitialValues(config: BookingConfigPayload) {
     gameSystemId: config.systems[0]?.id ?? null,
     difficultyId: config.difficulties[0]?.id ?? null,
     universeId,
-    playerCount: Math.min(b.maxPlayers, Math.max(b.minPlayers, midPc)),
-    durationHours: Math.min(b.maxDurationHours, Math.max(b.minDurationHours, midDh)),
+    playerCount: snap(Math.min(b.maxPlayers, Math.max(b.minPlayers, midPc)), allowedPlayers),
+    durationHours: snap(Math.min(b.maxDurationHours, Math.max(b.minDurationHours, midDh)), allowedHours),
     adventureType,
   };
 }

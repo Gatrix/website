@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import AdventureModal from "@/components/AdventureModal";
 import AtmosphericBackground from "@/components/AtmosphericBackground";
@@ -8,6 +9,7 @@ import type { Adventure } from "@/lib/db";
 import AdventuresCarousel from "@/components/AdventuresCarousel";
 import HeroFrontpageCarousel from "@/components/HeroFrontpageCarousel";
 import { scrollToContacts } from "@/lib/scroll-to-contacts";
+import { scrollToFormats } from "@/lib/scroll-to-formats";
 import {
   SITE_ADDRESS_LINE,
   SITE_DISCORD_URL,
@@ -23,11 +25,13 @@ export type HeroCarouselSlide = { src: string; alt: string };
 interface HomeClientProps {
   initialAdventures: Adventure[];
   heroCarouselSlides: HeroCarouselSlide[];
+  signUpButtonImageUrl: string | null;
 }
 
 export default function HomeClient({
   initialAdventures,
   heroCarouselSlides,
+  signUpButtonImageUrl,
 }: HomeClientProps) {
   const router = useRouter();
   const [adventures] = useState<Adventure[]>(initialAdventures);
@@ -43,9 +47,11 @@ export default function HomeClient({
   }, [router]);
 
   useEffect(() => {
-    if (window.location.hash !== "#contacts") return;
+    const hash = window.location.hash;
+    if (hash !== "#contacts" && hash !== "#formats") return;
     const frame = requestAnimationFrame(() => {
-      scrollToContacts("auto");
+      if (hash === "#contacts") scrollToContacts("auto");
+      else if (hash === "#formats") scrollToFormats("auto");
     });
     return () => cancelAnimationFrame(frame);
   }, []);
@@ -57,16 +63,49 @@ export default function HomeClient({
       {/* Блок 1: HERO (Винтажный вид) */}
       <section
         id="hero"
-        className="pt-16 sm:pt-20 md:pt-24 pb-10 sm:pb-12 md:pb-16 px-4 sm:px-6 max-w-7xl mx-auto"
+        className="pt-8 sm:pt-10 md:pt-12 pb-10 sm:pb-12 md:pb-16 px-4 sm:px-6 max-w-7xl mx-auto"
       >
         <div className="mx-auto w-[85%] max-w-full">
-          <div className="min-w-0 transition-opacity duration-500 ease-in-out">
-            <h1 className="font-fantasy-serif text-3xl sm:text-4xl md:text-[2.75rem] lg:text-6xl xl:text-7xl font-bold mb-3 sm:mb-4 md:mb-5 leading-[1.05] text-amber-50 shadow-amber-950 text-shadow-sm uppercase tracking-tight break-words max-w-full">
+          <div className="min-w-0 transition-opacity duration-500 ease-in-out text-center">
+            <h1 className="font-fantasy-serif text-3xl sm:text-4xl md:text-[2.75rem] lg:text-6xl xl:text-7xl font-bold mb-4 sm:mb-5 leading-[1.05] text-amber-50 shadow-amber-950 text-shadow-sm uppercase tracking-tight break-words max-w-full">
               <span className="hidden md:inline whitespace-nowrap">Испытай свою фантазию</span>
               <span className="md:hidden">Испытай свою фантазию</span>
             </h1>
-            <p className="text-base sm:text-lg text-[#c8c0b6] mb-5 sm:mb-6 md:mb-7 leading-relaxed break-words">
-              Офлайн-клуб настольных ролевых игр в Красноярске. Играем в D&D, Зов Ктулху и другие системы. Приходи один или с компанией — научим, покажем, дадим кубики. А еще у нас есть маскот - бородатая агама Феникс (но все зовут его Феня, не дорос пока до крутых прозвищ)!
+            {signUpButtonImageUrl ? (
+              <Link
+                href="/adventures"
+                className="group block w-full mb-5 sm:mb-6 md:mb-7 bg-transparent border-0 p-0 cursor-pointer rounded-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/90 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0b0a0d]"
+                aria-label="Записаться на игру — перейти на страницу приключений"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={signUpButtonImageUrl}
+                  alt="Записаться на игру"
+                  className="block w-full h-auto transition-[filter] duration-300 group-hover:brightness-[1.28] group-hover:contrast-110 group-hover:saturate-110 group-active:brightness-[1.35]"
+                  decoding="async"
+                  fetchPriority="high"
+                />
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={goToAdventures}
+                className="group relative w-full mb-5 sm:mb-6 md:mb-7 rounded-xl sm:rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/90 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0b0a0d] transition-transform duration-300 active:scale-[0.99]"
+                aria-label="Записаться на игру — перейти на страницу приключений"
+              >
+                <span className="relative flex w-full items-center justify-center overflow-hidden rounded-xl sm:rounded-2xl border-2 border-amber-500/55 bg-gradient-to-b from-amber-500 via-amber-600 to-amber-800 px-5 py-4 sm:py-5 md:py-6 shadow-[0_0_40px_rgba(245,158,11,0.35)] transition-all duration-300 group-hover:border-amber-400/80 group-hover:shadow-[0_0_55px_rgba(245,158,11,0.5)]">
+                  <span
+                    className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_0%,rgba(255,255,255,0.22),transparent_55%)]"
+                    aria-hidden
+                  />
+                  <span className="relative font-fantasy-sans text-lg sm:text-xl md:text-2xl font-black uppercase tracking-[0.12em] sm:tracking-[0.18em] text-[#1a1208] drop-shadow-[0_1px_0_rgba(255,255,255,0.35)]">
+                    ЗАПИСАТЬСЯ НА ИГРУ!
+                  </span>
+                </span>
+              </button>
+            )}
+            <p className="text-body text-base sm:text-lg mb-5 sm:mb-6 md:mb-7 break-words">
+              Офлайн-клуб настольных ролевых игр в Красноярске. Играем в D&D, Зов Ктулху и другие системы. Приходи один или с компанией — научим, покажем, дадим кубики. А еще у нас есть маскот - бородатая агама Феникс. Впрочем, все зовут его Феня, недорос пока до крутых прозвищ!
             </p>
           </div>
 
@@ -74,7 +113,7 @@ export default function HomeClient({
         </div>
 
         {/* Карточки-сюжеты в стиле "игровых карт" */}
-        <div id="adventures" className="mt-16 sm:mt-20 md:mt-28">
+        <div id="adventures" className="mt-16 sm:mt-20 md:mt-28 scroll-mt-20 sm:scroll-mt-24">
           <div className="flex items-center gap-2 sm:gap-4 mb-8 sm:mb-10 md:mb-12">
             <div className="h-[1px] flex-1 bg-amber-900/30"></div>
             <h2 className="text-lg sm:text-xl md:text-2xl font-bold uppercase tracking-[0.2em] sm:tracking-[0.3em] md:tracking-[0.4em] text-amber-800 px-2">Время Приключений</h2>
@@ -96,11 +135,11 @@ export default function HomeClient({
         </div>
 
         {/* Сегменты формата игры */}
-        <div className="mt-16 sm:mt-20 md:mt-24">
+        <div id="formats" className="mt-16 sm:mt-20 md:mt-24 scroll-mt-20 sm:scroll-mt-24">
           <div className="flex items-center gap-2 sm:gap-4 mb-6 sm:mb-8">
             <div className="h-[1px] flex-1 bg-amber-900/30"></div>
             <h2 className="text-lg sm:text-xl md:text-2xl font-bold uppercase tracking-[0.2em] sm:tracking-[0.3em] md:tracking-[0.4em] text-amber-800 px-2">
-              Форматы
+              Прайс
             </h2>
             <div className="h-[1px] flex-1 bg-amber-900/30"></div>
           </div>
@@ -115,19 +154,19 @@ export default function HomeClient({
                   ИГРА С МАСТЕРОМ
                 </h3>
                 <p className="relative z-10 text-sm sm:text-base font-semibold text-amber-400 mb-1">
-                  1 200 ₽/4 часа (за человека)
+                  300 ₽/ час за человека
                 </p>
-                <div className="relative z-10 text-sm text-[#c8c0b6] leading-relaxed space-y-3">
+                <div className="relative z-10 text-body text-sm space-y-3">
                   <p>
                     Хотите попробовать настольные ролевые игры, но не знаете с чего начать? Или соскучились по хорошей сессии, а своего мастера нет?
                   </p>
                   <p>
-                    Наш мастер проведёт вас через приключение — от создания персонажа до финальной битвы. Ничего заранее знать не нужно: правила объясним за столом (есть упрощенная одностраничная система), персонажей поможем собрать.
+                    Наш мастер проведёт вас через приключение — от создания персонажа до финальной битвы. Ничего заранее знать не нужно: правила объясним за столом.
                   </p>
                   <ul className="space-y-2 pt-1">
                     <li className="flex gap-3">
                       <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-500/80 shrink-0" />
-                      Группы от 4 до 6 игроков
+                      Группы по 4-6 игроков
                     </li>
                     <li className="flex gap-3">
                       <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-500/80 shrink-0" />
@@ -136,10 +175,6 @@ export default function HomeClient({
                     <li className="flex gap-3">
                       <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-500/80 shrink-0" />
                       Готовые приключения на 1 вечер или кампании на несколько встреч
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-500/80 shrink-0" />
-                      Продление: 300 ₽/час
                     </li>
                   </ul>
                 </div>
@@ -161,10 +196,10 @@ export default function HomeClient({
                   ЗНАКОМСТВО С НРИ
                 </h3>
                 <p className="relative text-sm sm:text-base font-semibold text-amber-400 mb-1">
-                  400 ₽/2 часа (за человека)
+                  400 ₽/2 часа за человека
                 </p>
-                <div className="relative text-sm text-[#c8c0b6] leading-relaxed space-y-3 mt-2">
-                  <p className="text-[#c8c0b6]">
+                <div className="relative text-body text-sm space-y-3 mt-2">
+                  <p>
                     Никогда не играли, но интересно? Это ваш формат.
                   </p>
                   <p>
@@ -173,7 +208,7 @@ export default function HomeClient({
                   <ul className="space-y-2 pt-1">
                     <li className="flex gap-3">
                       <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600/80 shrink-0" />
-                      Группы новичков по 3–6 человек
+                      Группы новичков по 4–6 человек
                     </li>
                     <li className="flex gap-3">
                       <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600/80 shrink-0" />
@@ -191,11 +226,11 @@ export default function HomeClient({
                 </div>
               </div>
               <a
-                href={SITE_TELEGRAM_BOOKING_URL}
+                href={SITE_VK_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="relative mt-4 flex-shrink-0 w-full px-4 py-2.5 bg-amber-700/80 text-black font-bold uppercase text-xs tracking-wider hover:bg-amber-600 transition-all rounded border border-amber-600/50 text-center"
-                aria-label="Записаться на знакомство в Telegram"
+                aria-label="Записаться на знакомство во ВКонтакте"
               >
                 → ЗАПИСАТЬСЯ НА ЗНАКОМСТВО
               </a>
@@ -209,10 +244,10 @@ export default function HomeClient({
                   АРЕНДА КЛУБА
                 </h3>
                 <p className="relative text-sm sm:text-base font-semibold text-amber-500 mb-1">
-                  1 600 ₽/4 часа (за стол)
+                  600 ₽/ час за всё помещение
                 </p>
-                <div className="relative text-sm text-[#b8b0a8] leading-relaxed space-y-3">
-                  <p className="text-[#c8c0b6]">
+                <div className="relative text-body text-sm space-y-3">
+                  <p>
                     У вас своя компания и свой мастер? Забирайте стол — а мы позаботимся об остальном.
                   </p>
                   <ul className="space-y-2">
@@ -226,7 +261,7 @@ export default function HomeClient({
                     </li>
                     <li className="flex gap-3">
                       <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600/80 shrink-0" />
-                      Вам также доступны продвинутые формы управления светом, звуком, а также платформа Foundry VTT
+                      Вам также доступны продвинутые формы управления светом и звуком, а также платформа Foundry VTT
                     </li>
                     <li className="flex gap-3">
                       <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600/80 shrink-0" />
@@ -236,19 +271,15 @@ export default function HomeClient({
                       <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600/80 shrink-0" />
                       Чай, кофе, вода, снеки, холодильник, микроволновка — без ограничений
                     </li>
-                    <li className="flex gap-3">
-                      <span className="mt-2 w-1.5 h-1.5 rounded-full bg-amber-600/80 shrink-0" />
-                      Продление: 400 ₽/час
-                    </li>
                   </ul>
                 </div>
               </div>
               <a
-                href={SITE_TELEGRAM_BOOKING_URL}
+                href={SITE_VK_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="relative mt-4 flex-shrink-0 w-full px-4 py-2.5 bg-amber-700/80 text-black font-bold uppercase text-xs tracking-wider hover:bg-amber-600 transition-all rounded border border-amber-600/50 text-center"
-                aria-label="Забронировать стол в Telegram"
+                aria-label="Забронировать стол во ВКонтакте"
               >
                 → ЗАБРОНИРОВАТЬ СТОЛ
               </a>
@@ -258,13 +289,13 @@ export default function HomeClient({
       </section>
 
       {/* Пространство — текстовый блок как на макете */}
-      <section className="py-16 sm:py-20 md:py-28 bg-[#0a0908] border-y border-red-950/25">
+      <section className="pt-12 sm:pt-16 md:pt-20 pb-6 sm:pb-8 md:pb-10 bg-[#0a0908] border-y border-red-950/25">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 text-left">
-          <div className="h-px w-full bg-red-950/50 mb-8 sm:mb-10" aria-hidden />
-          <h2 className="font-serif text-2xl sm:text-3xl md:text-4xl lg:text-[2.75rem] font-bold uppercase tracking-[0.06em] sm:tracking-[0.1em] text-[#f5f0e6] leading-tight mb-6 sm:mb-8 md:mb-10">
+          <div className="h-px w-full bg-red-950/50 mb-6 sm:mb-8" aria-hidden />
+          <h2 className="font-serif text-2xl sm:text-3xl md:text-4xl lg:text-[2.75rem] font-bold uppercase tracking-[0.06em] sm:tracking-[0.1em] text-[#f5f0e6] leading-tight mb-5 sm:mb-6 md:mb-8">
             Пространство, где время замирает
           </h2>
-          <div className="font-sans text-[#c4bcb2] text-base sm:text-lg leading-relaxed space-y-5 sm:space-y-6">
+          <div className="text-body text-base sm:text-lg space-y-5 sm:space-y-6">
             <p>
               Динамичное освещение, аудиальное сопровождение, тактильные декорации и атмосфера приключения
               обеспечат полное погружение.
@@ -274,7 +305,7 @@ export default function HomeClient({
               нашу реальную жизнь богаче.
             </p>
           </div>
-          <div className="h-px w-full bg-red-950/50 mt-10 sm:mt-12 md:mt-14" aria-hidden />
+          <div className="h-px w-full bg-red-950/50 mt-6 sm:mt-8 md:mt-10" aria-hidden />
         </div>
       </section>
 

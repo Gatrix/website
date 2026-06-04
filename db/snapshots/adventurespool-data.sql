@@ -287,9 +287,9 @@ INSERT INTO public.adventure_difficulty VALUES ('zimmermann-telegram', 'tactic')
 -- Data for Name: gameformat; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-INSERT INTO public.gameformat VALUES ('oneshot', 'ваншот');
-INSERT INTO public.gameformat VALUES ('adventure', 'приключение');
-INSERT INTO public.gameformat VALUES ('campaign', 'кампания');
+INSERT INTO public.gameformat VALUES ('oneshot', 'ваншот', 'Игра на одну встречу. Быстрый старт, простая цель, минимум подготовки. Прекрасно подходит новичкам как отправная точка в мир НРИ.');
+INSERT INTO public.gameformat VALUES ('adventure', 'приключение', 'Законченная история длиной в несколько встреч. Сбалансированный вариант. Идеально для знакомства с правилами и миром игры.');
+INSERT INTO public.gameformat VALUES ('campaign', 'кампания', 'Длинная история на десятки игровых встреч. Глубокий сюжет и персонажи, развитие игроков. Для создания историй, о которых помнят всю жизнь.');
 
 
 --

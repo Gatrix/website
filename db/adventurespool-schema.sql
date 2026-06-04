@@ -40,7 +40,8 @@ CREATE TABLE IF NOT EXISTS gametime (
 
 CREATE TABLE IF NOT EXISTS gameformat (
   gameformat_id TEXT PRIMARY KEY,
-  gameformat_name TEXT NOT NULL
+  gameformat_name TEXT NOT NULL,
+  gameformat_description TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS gamesystems (

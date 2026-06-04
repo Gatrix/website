@@ -48,8 +48,8 @@ export default function GameBookingNotice({
       } ${className}`}
     >
       <p
-        className={`font-sans font-bold text-stone-100 leading-snug tracking-wide text-center ${
-          compact ? "text-xs sm:text-sm" : "text-sm sm:text-base leading-relaxed"
+        className={`text-body font-semibold text-center ${
+          compact ? "text-xs sm:text-sm leading-snug" : "text-sm sm:text-base"
         }`}
       >
         Записаться можно через личные сообщения с ведущим по предоставленным контактам, либо воспользоваться формой записи при выборе приключения.

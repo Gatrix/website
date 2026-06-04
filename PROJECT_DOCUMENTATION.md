@@ -54,6 +54,16 @@
 
 Установка бота: `services/telegram-booking-bot/README.md`
 
+## ВМ (SSH)
+
+С Windows (PowerShell / CMD) или двойной клик по `connect-vm.bat`:
+
+```bash
+ssh -i C:\Users\gatrix\Documents\ssh-key-1779612763379\ssh-key-1779612763379 gatricus@51.250.120.178
+```
+
+Пользователь: `gatricus`, хост: `51.250.120.178`. Миграции БД: `sudo -u postgres psql -d adventurespool -f db/<файл>.sql` (см. `db/MIGRATION_ORDER.md`).
+
 ## Legacy-режим
 Совместимость со старой схемой включается переменной:
 

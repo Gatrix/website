@@ -3,15 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import type { AvailabilityDay } from "@/lib/booking-schedule";
-import {
-  GAME_DAY_HOURS,
-  GAME_DAY_OPEN_HOUR,
-  formatSlotRangeLabel,
-  formatTimeLabel,
-  gameDayWindow,
-  listCandidateStarts,
-  monthBounds,
-} from "@/lib/booking-schedule";
+import { formatSlotRangeLabel, monthBounds } from "@/lib/booking-schedule";
 import { BookingPanelFrame } from "@/components/booking/BookingDecor";
 
 const MONTH_NAMES = [
@@ -49,12 +41,6 @@ function firstDayOffset(year: number, monthIndex: number): number {
 
 function daysInMonth(year: number, monthIndex: number): number {
   return new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
-}
-
-function latestStartLabel(gameDate: string, durationHours: number): string {
-  const candidates = listCandidateStarts(gameDate, durationHours);
-  const last = candidates[candidates.length - 1];
-  return last ? formatTimeLabel(last) : "—";
 }
 
 export default function BookingSchedulePicker({
@@ -171,14 +157,6 @@ export default function BookingSchedulePicker({
   const canPrev = viewDate > minMonth;
   const canNext = viewDate < maxMonth;
 
-  const durationHint = useMemo(() => {
-    const sampleDate = selectedGameDate ?? from;
-    const latest = latestStartLabel(sampleDate, durationHours);
-    const { end } = gameDayWindow(sampleDate);
-    const windowEnd = formatTimeLabel(end);
-    return `Игра длится ${durationHours} ч подряд и должна целиком уложиться в ${String(GAME_DAY_OPEN_HOUR).padStart(2, "0")}:00–${windowEnd} (${GAME_DAY_HOURS} ч).`;
-  }, [durationHours, selectedGameDate, from]);
-
   return (
     <BookingPanelFrame className="p-3 sm:p-4 space-y-3">
       <div className="flex items-start gap-2">
@@ -255,8 +233,6 @@ export default function BookingSchedulePicker({
         })}
       </div>
 
-      <p className="text-[13px] text-amber-200/65 leading-snug px-0.5">{durationHint}</p>
-
       {error ? (
         <p className="text-sm text-red-400/90" role="alert">
           {error}
@@ -272,7 +248,7 @@ export default function BookingSchedulePicker({
       {selectedGameDate ? (
         <div className="space-y-2 pt-1 border-t border-amber-800/25">
           <p className="text-[13px] uppercase tracking-wider text-amber-400/80">
-            {selectedGameDate.split("-").reverse().join(".")} — выберите начало
+            {selectedGameDate.split("-").reverse().join(".")} — начало игры в:
           </p>
           {loading ? (
             <p className="text-sm text-amber-200/60 flex items-center gap-2">

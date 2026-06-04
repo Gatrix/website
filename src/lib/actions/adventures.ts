@@ -1,6 +1,5 @@
 "use server";
 
-import { unstable_cache } from "next/cache";
 import { getStorageImageUrl } from "@/lib/storage-client";
 import type { Adventure, AdventureOptions } from "@/lib/db";
 import {
@@ -10,17 +9,14 @@ import {
   fetchAdventureOptionsFromObjectStorage,
 } from "@/lib/adventures-db";
 
-/** undefined — успешный ответ ещё не кэшировали (ошибку БД не кэшируем, чтобы следующий запрос повторил загрузку). */
-let adventuresCache: Adventure[] | undefined = undefined;
 /** undefined — ещё не грузили; null — в БД нет/пусто */
 let optionsCache: AdventureOptions | null | undefined = undefined;
 
 const FALLBACK_SESSION_DURATION = "1–8 часов";
 
-/** Data Cache Next.js: список с imageUrl (те же URL → браузер кэширует картинки при F5). */
-const ADVENTURES_REVALIDATE_SECONDS = Number(
-  process.env.ADVENTURES_REVALIDATE_SECONDS ?? 3600
-);
+/** Краткий in-memory кэш только для непустого успешного ответа (пустой список и ошибки не кэшируем). */
+const ADVENTURES_MEMORY_TTL_MS = Number(process.env.ADVENTURES_MEMORY_TTL_MS ?? 60_000);
+let adventuresMemoryCache: { data: Adventure[]; fetchedAt: number } | null = null;
 
 function resolveImagePathForStorage(a: Pick<Adventure, "id" | "poster" | "img_url">): string | null {
   const raw = a.img_url?.trim() || a.poster?.trim();
@@ -32,17 +28,6 @@ function resolveImagePathForStorage(a: Pick<Adventure, "id" | "poster" | "img_ur
   const id = a.id?.trim();
   if (id) return `posters/${id}.webp`;
   return null;
-}
-
-async function loadAdventures(): Promise<Adventure[]> {
-  if (adventuresCache !== undefined) return adventuresCache;
-  try {
-    adventuresCache = await fetchAdventuresFromDatabase();
-    return adventuresCache;
-  } catch (err) {
-    console.error("Error loading adventures from PostgreSQL:", err);
-    return [];
-  }
 }
 
 function normalizeGenre(genre: unknown): string[] | undefined {
@@ -62,20 +47,38 @@ function enrichAdventure(a: Adventure): Adventure {
   };
 }
 
-const getEnrichedAdventuresCached = unstable_cache(
-  async (): Promise<Adventure[]> => {
-    const list = await loadAdventures();
-    return list.map(enrichAdventure);
-  },
-  ["adventures-enriched-v1"],
-  {
-    revalidate: ADVENTURES_REVALIDATE_SECONDS,
-    tags: ["adventures"],
+async function loadAdventuresFromDb(): Promise<Adventure[]> {
+  const cached = adventuresMemoryCache;
+  if (
+    cached &&
+    cached.data.length > 0 &&
+    Date.now() - cached.fetchedAt < ADVENTURES_MEMORY_TTL_MS
+  ) {
+    return cached.data;
   }
-);
+
+  try {
+    const rows = await fetchAdventuresFromDatabase();
+    const enriched = rows.map(enrichAdventure);
+    if (enriched.length > 0) {
+      adventuresMemoryCache = { data: enriched, fetchedAt: Date.now() };
+    } else {
+      adventuresMemoryCache = null;
+    }
+    return enriched;
+  } catch (err) {
+    adventuresMemoryCache = null;
+    console.error("Error loading adventures from PostgreSQL:", err);
+    throw err;
+  }
+}
 
 export async function getAdventures(): Promise<Adventure[]> {
-  return getEnrichedAdventuresCached();
+  try {
+    return await loadAdventuresFromDb();
+  } catch {
+    return [];
+  }
 }
 
 export async function getAdventureById(id: string): Promise<Adventure | null> {

@@ -3,7 +3,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
-  Check,
   CheckCircle2,
   Dice5,
   ExternalLink,
@@ -37,12 +36,16 @@ function createIdempotencyKey(): string {
   return `booking_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 14)}`;
 }
 
-function clamp(n: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, n));
+const PLAYER_COUNT_OPTIONS = [4, 5, 6] as const;
+const DURATION_HOUR_OPTIONS = [4, 5, 6, 7] as const;
+const PRICE_PER_HOUR_PER_PERSON_RUB = 300;
+
+function formatRub(amount: number): string {
+  return new Intl.NumberFormat("ru-RU").format(amount);
 }
 
-function snapHour(h: number, min: number, max: number) {
-  return clamp(Math.round(h), min, max);
+function snapToAllowed(value: number, allowed: readonly number[]): number {
+  return allowed.reduce((best, n) => (Math.abs(n - value) < Math.abs(best - value) ? n : best));
 }
 
 function playerHint(count: number): string {
@@ -71,7 +74,7 @@ function choiceGridClass(count: number): string {
 }
 
 function choiceButtonClass(selected: boolean): string {
-  return `flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left transition-colors focus-visible:ring-2 focus-visible:ring-amber-500/90 ${
+  return `relative flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-center transition-colors focus-visible:ring-2 focus-visible:ring-amber-500/90 ${
     selected
       ? "border-amber-500/60 bg-amber-950/45"
       : "border-amber-800/35 bg-[#0f0d0c]/80 hover:border-amber-600/40"
@@ -87,7 +90,9 @@ function BookingChoiceGroup({
   value,
   onChange,
   hint,
+  intro,
   footer,
+  gridClassName,
 }: {
   label: string;
   icon: React.ReactNode;
@@ -95,7 +100,9 @@ function BookingChoiceGroup({
   value: string | null;
   onChange: (id: string) => void;
   hint?: string | null;
+  intro?: React.ReactNode;
   footer?: React.ReactNode;
+  gridClassName?: string;
 }) {
   if (options.length === 0) return null;
 
@@ -106,7 +113,7 @@ function BookingChoiceGroup({
         <p className="text-sm font-bold uppercase tracking-wider text-amber-400/90">{label}</p>
       </div>
       <div
-        className={`grid gap-2 ${choiceGridClass(options.length)}`}
+        className={`grid gap-2 ${gridClassName ?? choiceGridClass(options.length)}`}
         role="radiogroup"
         aria-label={label}
       >
@@ -122,11 +129,11 @@ function BookingChoiceGroup({
               className={choiceButtonClass(selected)}
             >
               <span className="font-semibold text-sm leading-snug text-amber-100">{opt.label}</span>
-              {selected ? <Check className="w-3.5 h-3.5 ml-auto shrink-0 text-amber-400" aria-hidden /> : null}
             </button>
           );
         })}
       </div>
+      {intro}
       {hint ? <p className="text-sm text-amber-200/75 px-0.5 leading-snug">{hint}</p> : null}
       {footer}
     </div>
@@ -176,8 +183,8 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
         setGameSystemId(init.gameSystemId);
         setDifficultyId(init.difficultyId);
         setUniverseId(init.universeId);
-        setPlayerCount(init.playerCount);
-        setDurationHours(init.durationHours);
+        setPlayerCount(snapToAllowed(init.playerCount, PLAYER_COUNT_OPTIONS));
+        setDurationHours(snapToAllowed(init.durationHours, DURATION_HOUR_OPTIONS));
         setAdventureType(init.adventureType);
       } catch (err) {
         if (cancelled) return;
@@ -193,13 +200,6 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
       cancelled = true;
     };
   }, [adventure, reloadKey]);
-
-  const bounds = config?.bounds ?? {
-    minPlayers: 3,
-    maxPlayers: 6,
-    minDurationHours: 4,
-    maxDurationHours: 8,
-  };
 
   const selection: BookingSelectionState = useMemo(
     () => ({
@@ -226,16 +226,6 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
   const selectedUniverse = config?.universes.find((u) => u.id === universeId) ?? null;
   const selectedFormat = config?.formats.find((f) => f.id === adventureType) ?? null;
 
-  const onDurationInput = useCallback(
-    (v: number) => {
-      setDurationHours(snapHour(v, bounds.minDurationHours, bounds.maxDurationHours));
-    },
-    [bounds.minDurationHours, bounds.maxDurationHours]
-  );
-
-  const durSliderMin = bounds.minDurationHours;
-  const durSliderMax = bounds.maxDurationHours;
-
   const handleScheduleSelect = useCallback(
     (slot: { startsAt: string; gameDate: string; startTime: string } | null) => {
       setSelectedStartsAt(slot?.startsAt ?? null);
@@ -245,6 +235,7 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
 
   const phoneDigits = useMemo(() => normalizeRuPhoneDigits(phone), [phone]);
   const phoneComplete = isCompleteRuPhone(phoneDigits);
+  const pricePerPersonRub = durationHours * PRICE_PER_HOUR_PER_PERSON_RUB;
 
   const canSubmit =
     !submitting &&
@@ -359,18 +350,19 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
         />
       </div>
 
-      <div className="flex items-center justify-end shrink-0">
-        <button type="button" onClick={onBack} className="btn btn-ghost text-sm px-3 py-2 min-h-0">
-          ← Назад к описанию
-        </button>
-      </div>
-
       <BookingChoiceGroup
         label="Система"
         icon={<Dice5 className="w-5 h-5 text-amber-400/90 shrink-0" aria-hidden />}
         options={config.systems.map((s) => ({ id: s.id, label: s.name }))}
         value={gameSystemId}
         onChange={setGameSystemId}
+        intro={
+          <p className="text-sm text-amber-200/65 px-0.5 leading-relaxed">
+            Рекомендуется выбирать{" "}
+            <span className="text-amber-200/85 font-medium">авторскую систему правил</span>. В ином
+            случае предполагается, что игроки уже знакомы с правилами выбранной системы.
+          </p>
+        }
         hint={selectedSystem?.description || null}
         footer={
           selectedSystem?.rulebook ? (
@@ -426,7 +418,6 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
                 >
                   {FORMAT_ICONS[f.id]}
                   <span className="font-bold uppercase text-[13px] tracking-wide text-amber-100">{f.title}</span>
-                  {sel ? <Check className="w-3.5 h-3.5 ml-auto text-amber-400" aria-hidden /> : null}
                 </button>
               );
             })}
@@ -437,43 +428,25 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <BookingPanelFrame className="p-3 sm:p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Users className="w-5 h-5 text-amber-400/90" aria-hidden />
-            <span className="text-sm font-bold uppercase tracking-wider text-amber-400/90">Игроки</span>
-            <span className="ml-auto text-lg font-black tabular-nums">{playerCount}</span>
-          </div>
-          <input
-            type="range"
-            min={bounds.minPlayers}
-            max={bounds.maxPlayers}
-            step={1}
-            value={playerCount}
-            onChange={(e) => setPlayerCount(Number(e.target.value))}
-            className="w-full accent-amber-600 h-2 rounded-full bg-amber-950/80"
-          />
-          <p className="mt-1.5 text-sm text-amber-200/70">{playerHint(playerCount)}</p>
-        </BookingPanelFrame>
+      <BookingChoiceGroup
+        label="Количество игроков"
+        icon={<Users className="w-5 h-5 text-amber-400/90 shrink-0" aria-hidden />}
+        options={PLAYER_COUNT_OPTIONS.map((n) => ({ id: String(n), label: String(n) }))}
+        value={String(playerCount)}
+        onChange={(id) => setPlayerCount(Number(id))}
+        hint={playerHint(playerCount)}
+        gridClassName="grid-cols-3"
+      />
 
-        <BookingPanelFrame className="p-3 sm:p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Hourglass className="w-5 h-5 text-amber-400/90" aria-hidden />
-            <span className="text-sm font-bold uppercase tracking-wider text-amber-400/90">Длительность</span>
-            <span className="ml-auto text-lg font-black tabular-nums">{durationHours} ч</span>
-          </div>
-          <input
-            type="range"
-            min={durSliderMin}
-            max={durSliderMax}
-            step={1}
-            value={clamp(durationHours, durSliderMin, durSliderMax)}
-            onChange={(e) => onDurationInput(Number(e.target.value))}
-            className="w-full accent-amber-600 h-2 rounded-full bg-amber-950/80"
-          />
-          <p className="mt-1.5 text-sm text-amber-200/70">{durationHint(durationHours)}</p>
-        </BookingPanelFrame>
-      </div>
+      <BookingChoiceGroup
+        label="Желаемая длительность"
+        icon={<Hourglass className="w-5 h-5 text-amber-400/90 shrink-0" aria-hidden />}
+        options={DURATION_HOUR_OPTIONS.map((n) => ({ id: String(n), label: `${n} ч` }))}
+        value={String(durationHours)}
+        onChange={(id) => setDurationHours(Number(id))}
+        hint={durationHint(durationHours)}
+        gridClassName="grid-cols-4"
+      />
 
       <BookingSchedulePicker
         durationHours={durationHours}
@@ -532,7 +505,7 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
           onChange={(e) => setPlayerNote(e.target.value)}
           rows={2}
           maxLength={2000}
-          placeholder="@nickname"
+          placeholder="Вопросы, пожелания, дополнительные контакты"
           className="input-base resize-none text-base w-full"
         />
       </BookingPanelFrame>
@@ -542,6 +515,21 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
           {submitError}
         </p>
       ) : null}
+
+      <div
+        className="rounded-lg border border-amber-500/45 bg-gradient-to-b from-amber-950/60 to-[#0f0d0c]/90 px-4 py-3.5 text-center shadow-[inset_0_1px_0_rgba(251,191,36,0.1)]"
+        aria-live="polite"
+      >
+        <p className="text-sm font-semibold uppercase tracking-wider text-amber-400/90">
+          Стоимость за человека
+        </p>
+        <p className="mt-1.5 text-2xl font-extrabold text-amber-50 tabular-nums">
+          {formatRub(pricePerPersonRub)} ₽
+        </p>
+        <p className="mt-1 text-xs text-amber-200/65">
+          {durationHours} ч × {formatRub(PRICE_PER_HOUR_PER_PERSON_RUB)} ₽ за час
+        </p>
+      </div>
 
       <button
         type="submit"

@@ -1,18 +1,24 @@
 import React from "react";
 import { getAdventures } from "@/lib/actions/adventures";
 import { getFrontpageCarouselSlides } from "@/lib/actions/home";
+import { getSignUpButtonImageUrl } from "@/lib/home-assets";
 import HomeClient from "./HomeClient";
 
 // Динамический рендеринг: приключения загружаются при каждом запросе (не кэшируются на build)
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
+  const signUpButtonImageUrl = getSignUpButtonImageUrl();
   const [adventures, heroCarouselSlides] = await Promise.all([
     getAdventures(),
     getFrontpageCarouselSlides(),
   ]);
 
   return (
-    <HomeClient initialAdventures={adventures} heroCarouselSlides={heroCarouselSlides} />
+    <HomeClient
+      initialAdventures={adventures}
+      heroCarouselSlides={heroCarouselSlides}
+      signUpButtonImageUrl={signUpButtonImageUrl}
+    />
   );
 }

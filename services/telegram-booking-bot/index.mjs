@@ -67,24 +67,27 @@ async function pollPendingRequests() {
         await client.query("BEGIN");
         const { rows } = await client.query(
           `SELECT
-             id::text AS id,
-             created_at,
-             adventure_id,
-             adventure_title,
-             game_system_name,
-             difficulty_name,
-             universe_name,
-             player_count,
-             duration_hours,
-             adventure_type,
-             player_note,
-             phone,
-             warning_messages
-           FROM booking_requests
-           WHERE telegram_notified_at IS NULL
-           ORDER BY id ASC
+             br.id::text AS id,
+             br.created_at,
+             br.adventure_id,
+             br.adventure_title,
+             br.game_system_name,
+             br.difficulty_name,
+             br.universe_name,
+             br.player_count,
+             br.duration_hours,
+             br.adventure_type,
+             br.player_note,
+             br.phone,
+             br.warning_messages,
+             COALESCE(br.starts_at, bs.starts_at) AS starts_at
+           FROM booking_requests br
+           LEFT JOIN booking_schedule bs
+             ON bs.booking_request_id = br.id AND bs.status <> 'cancelled'
+           WHERE br.telegram_notified_at IS NULL
+           ORDER BY br.id ASC
            LIMIT 1
-           FOR UPDATE SKIP LOCKED`
+           FOR UPDATE OF br SKIP LOCKED`
         );
 
         const row = rows[0];

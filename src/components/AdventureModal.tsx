@@ -3,9 +3,126 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronUp, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+
+const MD_MAX_WIDTH = "(max-width: 767px)";
+const LONG_PRESS_MS = 550;
+const SWIPE_THRESHOLD_PX = 48;
+const TAP_SLOP_PX = 24;
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(MD_MAX_WIDTH);
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  return isMobile;
+}
+
+function isTouchInteractiveTarget(target: EventTarget | null) {
+  if (!(target instanceof Element)) return false;
+  return Boolean(target.closest("button, a, input, textarea, select, label, [role='button']"));
+}
+
+function isTouchInMobileHeader(target: EventTarget | null) {
+  if (!(target instanceof Element)) return false;
+  return Boolean(target.closest("[data-adventure-mobile-header]"));
+}
+
+function clearTextSelection() {
+  const selection = window.getSelection();
+  if (!selection || selection.isCollapsed) return;
+  selection.removeAllRanges();
+}
+
+type MobileGestureHintOverlayProps = {
+  visible: boolean;
+  hasPrevious: boolean;
+  hasNext: boolean;
+};
+
+function MobileGestureHintOverlay({
+  visible,
+  hasPrevious,
+  hasNext,
+}: MobileGestureHintOverlayProps) {
+  const hintIconClass =
+    "w-11 h-11 rounded-sm bg-black/35 border border-amber-700/25 flex items-center justify-center shadow-[0_4px_16px_rgba(0,0,0,0.28)]";
+  const hintLabelClass =
+    "text-[10px] sm:text-xs uppercase tracking-wider text-amber-200/65 font-medium";
+
+  const showHorizontalHints = hasPrevious || hasNext;
+
+  return (
+    <AnimatePresence>
+      {visible ? (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 8 }}
+          transition={{ duration: 0.35 }}
+          className="md:hidden absolute inset-x-0 bottom-0 z-30 pointer-events-none"
+          aria-hidden
+        >
+          <div className="bg-gradient-to-t from-[#0a0908]/92 via-[#14110f]/72 to-transparent pt-14 pb-4 sm:pb-5 px-3 sm:px-4">
+            <div
+              className={`flex items-end justify-center gap-6 sm:gap-10 ${
+                showHorizontalHints ? "max-w-sm mx-auto" : ""
+              }`}
+            >
+              {hasPrevious ? (
+                <div className="flex flex-col items-center gap-1.5 min-w-[4.5rem]">
+                  <motion.div
+                    className={hintIconClass}
+                    animate={{ x: [-3, 3, -3] }}
+                    transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    <ChevronLeft className="w-6 h-6 text-amber-300/70" aria-hidden />
+                  </motion.div>
+                  <span className={hintLabelClass}>Назад</span>
+                </div>
+              ) : null}
+
+              <div className="flex flex-col items-center gap-1.5 min-w-[4.5rem]">
+                <motion.div
+                  className={hintIconClass}
+                  animate={{ y: [2, -5, 2] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                >
+                  <ChevronUp className="w-6 h-6 text-amber-300/70" aria-hidden />
+                </motion.div>
+                <span className={hintLabelClass}>Закрыть</span>
+              </div>
+
+              {hasNext ? (
+                <div className="flex flex-col items-center gap-1.5 min-w-[4.5rem]">
+                  <motion.div
+                    className={hintIconClass}
+                    animate={{ x: [3, -3, 3] }}
+                    transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    <ChevronRight className="w-6 h-6 text-amber-300/70" aria-hidden />
+                  </motion.div>
+                  <span className={hintLabelClass}>Далее</span>
+                </div>
+              ) : null}
+            </div>
+            <p className="text-center text-amber-200/45 text-[10px] sm:text-[11px] mt-3 tracking-wide">
+              Удержите карточку — бронь · коснитесь — скрыть подсказки
+            </p>
+          </div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
+  );
+}
 import type { Adventure } from "@/lib/db";
+import { adventureGenres } from "@/lib/adventure-genres";
+import AdventureIntroSection from "@/components/AdventureIntroSection";
 
 const AdventureBookingForm = dynamic(() => import("@/components/booking/AdventureBookingForm"), {
   ssr: false,
@@ -35,14 +152,20 @@ export default function AdventureModal({
   hasPrevious = false,
   hasNext = false,
 }: AdventureModalProps) {
+  const isMobile = useIsMobile();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const leftScrollRef = useRef<HTMLDivElement>(null);
   const rightScrollRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
   const scrollPositionRef = useRef(0);
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number; target: EventTarget | null } | null>(
+    null
+  );
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressTriggeredRef = useRef(false);
   const [slideDirection, setSlideDirection] = useState(1);
+  const [gestureHintsVisible, setGestureHintsVisible] = useState(false);
   const [bookingState, setBookingState] = useState<{ adventureId: string | null; open: boolean }>({
     adventureId: null,
     open: false,
@@ -55,29 +178,87 @@ export default function AdventureModal({
     setBookingState({ adventureId: adventure?.id ?? null, open: true });
   }, [adventure?.id]);
 
+  const dismissGestureHints = useCallback(() => {
+    setGestureHintsVisible(false);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && isMobile && !bookingOpen) {
+      setGestureHintsVisible(true);
+    }
+  }, [isOpen, isMobile, bookingOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !isMobile || !gestureHintsVisible || bookingOpen) return;
+    const timer = window.setTimeout(dismissGestureHints, 7000);
+    return () => window.clearTimeout(timer);
+  }, [isOpen, isMobile, gestureHintsVisible, bookingOpen, dismissGestureHints]);
+
+  const clearLongPressTimer = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }, []);
+
   const canSwipeUpClose = () => {
     const left = leftScrollRef.current?.scrollTop ?? 0;
     const right = rightScrollRef.current?.scrollTop ?? 0;
     return left <= 8 && right <= 8;
   };
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    const t = e.touches[0];
-    touchStartRef.current = { x: t.clientX, y: t.clientY };
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    touchStartRef.current = { x: e.clientX, y: e.clientY, target: e.target };
+    longPressTriggeredRef.current = false;
+    clearLongPressTimer();
+
+    if (isMobile && !bookingOpen && !isTouchInteractiveTarget(e.target)) {
+      clearTextSelection();
+      longPressTimerRef.current = setTimeout(() => {
+        longPressTriggeredRef.current = true;
+        clearTextSelection();
+        dismissGestureHints();
+        openBooking();
+      }, LONG_PRESS_MS);
+    }
   };
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
+  const handlePointerMove = (e: React.PointerEvent) => {
+    const start = touchStartRef.current;
+    if (!start) return;
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    if (Math.abs(dx) > TAP_SLOP_PX || Math.abs(dy) > TAP_SLOP_PX) {
+      clearLongPressTimer();
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    clearLongPressTimer();
     const start = touchStartRef.current;
     touchStartRef.current = null;
     if (!start) return;
-    const t = e.changedTouches[0];
-    const dx = t.clientX - start.x;
-    const dy = t.clientY - start.y;
+
+    if (longPressTriggeredRef.current) {
+      longPressTriggeredRef.current = false;
+      clearTextSelection();
+      return;
+    }
+
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
-    if (absX < 24 && absY < 24) return;
 
-    if (!bookingOpen && absX >= absY && absX > 48) {
+    if (absX < TAP_SLOP_PX && absY < TAP_SLOP_PX) {
+      if (isMobile && gestureHintsVisible && !isTouchInteractiveTarget(start.target)) {
+        dismissGestureHints();
+      }
+      return;
+    }
+
+    if (!bookingOpen && absX >= absY && absX > SWIPE_THRESHOLD_PX) {
       if (dx > 0 && hasPrevious && onPrevious) {
         setSlideDirection(-1);
         onPrevious();
@@ -88,9 +269,17 @@ export default function AdventureModal({
       return;
     }
 
-    if (absY > absX && dy < -56 && canSwipeUpClose()) {
+    dismissGestureHints();
+
+    if (absY > absX && dy < -56 && (canSwipeUpClose() || (isMobile && isTouchInMobileHeader(start.target)))) {
       onClose();
     }
+  };
+
+  const handlePointerCancel = () => {
+    clearLongPressTimer();
+    touchStartRef.current = null;
+    longPressTriggeredRef.current = false;
   };
 
   // Управление с клавиатуры (Escape, стрелки влево/вправо)
@@ -118,7 +307,11 @@ export default function AdventureModal({
     if (!isOpen) return;
     previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
     requestAnimationFrame(() => {
-      closeButtonRef.current?.focus();
+      if (isMobile) {
+        dialogRef.current?.focus();
+      } else {
+        closeButtonRef.current?.focus();
+      }
     });
     return () => {
       // Не возвращаем фокус на карточку — она в overflow-hidden карусели, ring обрезается.
@@ -130,7 +323,27 @@ export default function AdventureModal({
         requestAnimationFrame(() => el.focus());
       }
     };
-  }, [isOpen]);
+  }, [isOpen, isMobile]);
+
+  useEffect(() => {
+    if (!isOpen || !isMobile || bookingOpen) return;
+    const scrollEl = rightScrollRef.current;
+    if (!scrollEl) return;
+
+    const onNativeTouchMove = (event: TouchEvent) => {
+      const start = touchStartRef.current;
+      if (!start) return;
+      const t = event.touches[0];
+      const dy = t.clientY - start.y;
+      const dx = t.clientX - start.x;
+      if (scrollEl.scrollTop <= 2 && dy < -10 && Math.abs(dy) > Math.abs(dx) * 1.15) {
+        event.preventDefault();
+      }
+    };
+
+    scrollEl.addEventListener("touchmove", onNativeTouchMove, { passive: false });
+    return () => scrollEl.removeEventListener("touchmove", onNativeTouchMove);
+  }, [isOpen, isMobile, bookingOpen, adventure?.id]);
 
   // Предотвращение скролла фона + компенсация ширины скроллбара (убирает тряску при закрытии)
   useEffect(() => {
@@ -156,6 +369,8 @@ export default function AdventureModal({
   const playerIntro = adventure?.intro?.trim() || "";
   const fullDescription = adventure?.description?.trim() || adventure?.logline?.trim() || "";
   const displayText = playerIntro || fullDescription;
+  const genres = adventure ? adventureGenres(adventure) : [];
+  const showIntroSection = genres.length > 0 || Boolean(displayText);
   const handleDialogKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "Tab") return;
     const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
@@ -192,8 +407,9 @@ export default function AdventureModal({
   const navBtnBase =
     "flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-black/80";
   const navBtnDesktop = `${navBtnBase} pointer-events-auto hidden md:flex w-10 h-[4.5rem] lg:w-11 lg:h-24 shrink-0 rounded-lg bg-black/55 backdrop-blur-md border border-amber-900/25 text-amber-400/80 hover:text-amber-100 hover:bg-black/70 hover:border-amber-700/40 shadow-[0_8px_28px_rgba(0,0,0,0.55)]`;
-  const navBtnMobile = `${navBtnBase} pointer-events-auto md:hidden w-10 h-10 rounded-full bg-black/55 backdrop-blur-md border border-amber-900/25 text-amber-400/80 hover:text-amber-100 hover:bg-black/70`;
-  const closeBtnClass = `${navBtnBase} pointer-events-auto absolute z-[60] w-10 h-10 rounded-lg bg-black/55 backdrop-blur-md border border-amber-900/25 text-amber-400/80 hover:text-amber-100 hover:bg-black/70 hover:border-amber-700/40 shadow-[0_8px_28px_rgba(0,0,0,0.55)] right-0 -top-11 md:top-4 md:-right-[2.85rem] lg:-right-14`;
+  const modalHeaderCloseClass = `${navBtnBase} shrink-0 w-10 h-10 rounded-sm bg-black/35 border border-amber-700/25 text-amber-300/80 hover:text-amber-100 hover:bg-black/45 hover:border-amber-600/40 shadow-[0_4px_16px_rgba(0,0,0,0.28)]`;
+  const bookingBackLinkClass =
+    "mb-4 inline-flex text-xs sm:text-sm font-semibold uppercase tracking-wide text-amber-400/90 hover:text-amber-200 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#14110f]";
 
   return (
     <AnimatePresence>
@@ -206,7 +422,9 @@ export default function AdventureModal({
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
             className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-50"
-            onClick={onClose}
+            onClick={() => {
+              if (!isMobile) onClose();
+            }}
           />
 
           {/* Модальное окно */}
@@ -215,7 +433,7 @@ export default function AdventureModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed inset-0 z-50 flex flex-col items-center justify-center pt-12 pb-4 px-2 sm:px-4 pointer-events-none"
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center pt-4 pb-4 px-2 sm:px-4 md:pt-12 pointer-events-none"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-center gap-2 sm:gap-3 lg:gap-4 w-full max-w-[min(100vw-0.5rem,calc(85rem+6.5rem))] pointer-events-none">
@@ -233,27 +451,37 @@ export default function AdventureModal({
               ) : null}
 
               <div className="relative flex-1 min-w-0 w-full max-w-[min(94vw,85rem)]">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  aria-label="Закрыть"
-                  ref={closeButtonRef}
-                  className={closeBtnClass}
-                >
-                  <X size={18} className="sm:w-5 sm:h-5" aria-hidden />
-                </button>
-
                 <div
                   ref={dialogRef}
                   role="dialog"
                   aria-modal="true"
                   aria-labelledby="adventure-title"
-                  aria-describedby={displayText ? "adventure-description" : undefined}
+                  aria-describedby={showIntroSection ? "adventure-description" : undefined}
                   onKeyDown={handleDialogKeyDown}
-                  onTouchStart={handleTouchStart}
-                  onTouchEnd={handleTouchEnd}
-                  className="relative w-full h-[min(92vh,56rem)] max-h-[92vh] bg-[#14110f] border-2 border-amber-700/40 rounded-lg sm:rounded-xl overflow-hidden shadow-2xl pointer-events-auto flex flex-col touch-manipulation"
+                  tabIndex={-1}
+                  onPointerDown={handlePointerDown}
+                  onPointerMove={handlePointerMove}
+                  onPointerUp={handlePointerUp}
+                  onPointerCancel={handlePointerCancel}
+                  onContextMenu={(e) => {
+                    if (!bookingOpen) e.preventDefault();
+                  }}
+                  className={`relative w-full h-[min(92vh,56rem)] max-h-[92vh] bg-[#14110f] border-2 border-amber-700/40 rounded-lg sm:rounded-xl overflow-hidden shadow-2xl pointer-events-auto flex flex-col touch-manipulation outline-none ${
+                    !bookingOpen ? "select-none [-webkit-touch-callout:none]" : ""
+                  }`}
                 >
+              {isMobile && !bookingOpen ? (
+                <p className="sr-only" role="note">
+                  Смахните влево или вправо для переключения приключений. Смахните вверх с верха
+                  текста или по шапке с названием, чтобы закрыть. Крестик справа вверху тоже закрывает
+                  карточку. Удерживайте карточку для бронирования.
+                </p>
+              ) : null}
+              <MobileGestureHintOverlay
+                visible={isMobile && gestureHintsVisible && !bookingOpen}
+                hasPrevious={hasPrevious}
+                hasNext={hasNext}
+              />
               {/* Декоративные углы */}
               <div className="absolute top-0 left-0 w-4 h-4 sm:w-6 md:w-8 border-t-2 border-l-2 border-amber-500/60 z-20" />
               <div className="absolute top-0 right-0 w-4 h-4 sm:w-6 md:w-8 border-t-2 border-r-2 border-amber-500/60 z-20" />
@@ -273,23 +501,45 @@ export default function AdventureModal({
                   {/* Мобилка: order-1 — заголовок, описание и характеристики; md: правая колонка (только текст) */}
                   <div className="order-1 md:order-2 flex flex-1 min-h-0 min-w-0 md:basis-1/2 flex-col overflow-hidden relative bg-[#14110f] md:bg-transparent">
                     <div
-                      ref={rightScrollRef}
-                      className="flex-1 min-h-0 p-4 sm:p-[min(1.5rem,2vw)] md:p-[min(2rem,2.5vw)] overflow-y-auto"
+                      data-adventure-mobile-header
+                      className="sticky top-0 z-30 flex shrink-0 items-start justify-between gap-3 border-b border-amber-900/30 bg-[#14110f] px-4 pt-3 pb-3 md:px-[min(2rem,2.5vw)] md:pt-[min(2rem,2.5vw)] md:pb-4"
                     >
-                      <h2 id="adventure-title" className="text-[clamp(1.125rem,2.5vw,2.25rem)] md:text-[clamp(1.5rem,3vw,2.5rem)] font-extrabold uppercase tracking-tight text-amber-100 leading-tight mb-4">
+                      <h2
+                        id="adventure-title"
+                        className="flex-1 min-w-0 pr-2 text-[clamp(1.125rem,2.5vw,2.25rem)] md:text-[clamp(1.5rem,3vw,2.5rem)] font-extrabold uppercase tracking-tight text-amber-100 leading-tight"
+                      >
                         {adventure.title}
                       </h2>
+                      <button
+                        type="button"
+                        onClick={onClose}
+                        aria-label="Закрыть"
+                        ref={closeButtonRef}
+                        className={modalHeaderCloseClass}
+                      >
+                        <X size={18} className="sm:w-5 sm:h-5" aria-hidden />
+                      </button>
+                    </div>
+                    <div
+                      ref={rightScrollRef}
+                      className="flex-1 min-h-0 overscroll-y-contain p-4 sm:p-[min(1.5rem,2vw)] md:px-[min(2rem,2.5vw)] md:pb-[min(2rem,2.5vw)] overflow-y-auto"
+                    >
                       {bookingOpen ? (
-                        <AdventureBookingForm adventure={adventure} onBack={closeBooking} />
+                        <>
+                          <button type="button" onClick={closeBooking} className={bookingBackLinkClass}>
+                            ← Назад к описанию
+                          </button>
+                          <AdventureBookingForm adventure={adventure} onBack={closeBooking} />
+                        </>
                       ) : (
                         <>
-                          {displayText ? (
-                            <p
-                              id="adventure-description"
-                              className="text-[clamp(0.875rem,1.5vw,1.125rem)] md:text-[clamp(1rem,1.8vw,1.25rem)] text-amber-200/80 leading-relaxed whitespace-pre-line"
-                            >
-                              {displayText}
-                            </p>
+                          {showIntroSection ? (
+                            <AdventureIntroSection
+                              genres={genres}
+                              text={displayText}
+                              descriptionId="adventure-description"
+                              textClassName="text-body text-[clamp(0.875rem,1.5vw,1.125rem)] md:text-[clamp(1rem,1.8vw,1.25rem)] whitespace-pre-line"
+                            />
                           ) : null}
                         </>
                       )}
@@ -326,8 +576,8 @@ export default function AdventureModal({
                     ) : null}
                   </div>
 
-                  {/* Мобилка: order-2 — постер; md: левая колонка (постер на всю высоту блока) */}
-                  <div className="order-2 md:order-1 relative w-full min-h-0 min-w-0 md:basis-1/2 md:flex-1 flex flex-col bg-[#0f0d0c] border-b md:border-b-0 md:border-r border-amber-900/30 min-h-[min(52vh,520px)] md:min-h-0 p-3 sm:p-4 md:p-4">
+                  {/* Постер: только md+; на мобилке карточка — только вводный текст */}
+                  <div className="order-2 md:order-1 relative hidden md:flex w-full min-h-0 min-w-0 md:basis-1/2 md:flex-1 flex-col bg-[#0f0d0c] border-b md:border-b-0 md:border-r border-amber-900/30 min-h-0 p-3 sm:p-4 md:p-4">
                     <div
                       ref={leftScrollRef}
                       className="flex-1 min-h-0 w-full h-full flex items-center justify-center"
@@ -383,20 +633,6 @@ export default function AdventureModal({
               ) : null}
             </div>
 
-            {showNav && (hasPrevious || hasNext) ? (
-              <div className="md:hidden mt-3 flex items-center justify-center gap-4 pointer-events-auto">
-                {hasPrevious && onPrevious ? (
-                  <button type="button" onClick={goPrevious} aria-label="Предыдущее приключение" className={navBtnMobile}>
-                    <ChevronLeft className="w-5 h-5" aria-hidden />
-                  </button>
-                ) : null}
-                {hasNext && onNext ? (
-                  <button type="button" onClick={goNext} aria-label="Следующее приключение" className={navBtnMobile}>
-                    <ChevronRight className="w-5 h-5" aria-hidden />
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
           </motion.div>
         </>
       )}

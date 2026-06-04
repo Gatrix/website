@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS booking_requests (
   phone TEXT NOT NULL,
   warning_ids INTEGER[] NOT NULL DEFAULT '{}',
   warning_messages TEXT[] NOT NULL DEFAULT '{}',
+  starts_at TIMESTAMPTZ,
   telegram_notified_at TIMESTAMPTZ,
   client_meta JSONB
 );
@@ -35,6 +36,7 @@ CREATE INDEX IF NOT EXISTS idx_booking_requests_telegram_pending
   WHERE telegram_notified_at IS NULL;
 
 COMMENT ON TABLE booking_requests IS 'Заявки игроков на проведение игры по приключению';
+COMMENT ON COLUMN booking_requests.starts_at IS 'Выбранное игроком время начала игры';
 COMMENT ON COLUMN booking_requests.telegram_notified_at IS 'Когда Telegram-бот отправил уведомление мастеру';
 
 -- Сайт пишет заявки от appuser: нужны права на таблицу и на sequence для id.

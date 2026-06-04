@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { Cormorant_Garamond, Geist_Mono, Manrope } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
+import { getPolygonLogoUrl } from "@/lib/home-assets";
 import YandexMetrika from "@/components/YandexMetrika";
 // TODO: раскомментировать при включении авторизации
 // import SessionProvider from "@/components/SessionProvider";
@@ -26,7 +27,7 @@ const fantasySans = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "Гильдия ПОЛИГОН",
+  title: "Полигон 20",
   description: "Место твоих лучших историй",
 };
 
@@ -41,13 +42,15 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const polygonLogoUrl = getPolygonLogoUrl();
+
   return (
     <html lang="ru">
       <body
         className={`${geistMono.variable} ${fantasySerif.variable} ${fantasySans.variable} antialiased`}
       >
         {/* TODO: обернуть в SessionProvider при включении авторизации */}
-        <Header />
+        <Header polygonLogoUrl={polygonLogoUrl} />
         {children}
         <Suspense fallback={null}>
           <YandexMetrika />

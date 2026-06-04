@@ -26,9 +26,9 @@ export default function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <section className="py-16 sm:py-24 md:py-32 bg-[#0a0908]">
+    <section className="pt-6 sm:pt-8 md:pt-10 pb-16 sm:pb-20 md:pb-24 bg-[#0a0908]">
       <div className="max-w-xl mx-auto px-4 sm:px-6">
-        <div className="flex items-center gap-3 sm:gap-5 mb-10 sm:mb-14">
+        <div className="flex items-center gap-3 sm:gap-5 mb-8 sm:mb-10">
           <div className="h-px flex-1 bg-amber-800/40" />
           <h2 className="font-serif text-lg sm:text-xl md:text-2xl font-bold uppercase tracking-[0.18em] sm:tracking-[0.22em] text-amber-600 px-2 text-center shrink-0">
             FAQ для новичков
@@ -57,7 +57,7 @@ export default function FAQSection() {
               </button>
               {openIndex === i && (
                 <div className="px-4 sm:px-5 pb-4 pt-0 border-t border-stone-800/60">
-                  <p className="font-sans text-sm text-[#a8a098] leading-relaxed pt-3">{item.a}</p>
+                  <p className="text-body text-sm pt-3">{item.a}</p>
                 </div>
               )}
             </div>
