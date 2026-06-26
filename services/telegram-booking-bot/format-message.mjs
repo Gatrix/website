@@ -33,14 +33,15 @@ export function formatBookingMessage(body) {
     lines.push(`<b>Формат:</b> ${escapeHtml(String(formatLabel))}`);
   }
 
+  if (body.startsAt) {
+    lines.push(`<b>Дата и время игры:</b> ${escapeHtml(String(body.startsAt))}`);
+  }
+
   if (body.playerCount != null) {
     lines.push(`<b>Игроков:</b> ${escapeHtml(String(body.playerCount))}`);
   }
   if (body.durationHours != null) {
     lines.push(`<b>Длительность сессии:</b> ${escapeHtml(String(body.durationHours))} ч`);
-  }
-  if (body.startsAt) {
-    lines.push(`<b>Начало игры:</b> ${escapeHtml(String(body.startsAt))}`);
   }
 
   if (body.phone) {
@@ -66,7 +67,7 @@ export function formatBookingMessage(body) {
 
   const created = body.createdAt;
   if (created) {
-    lines.push(`<i>${escapeHtml(String(created))}</i>`);
+    lines.push(`<i>Заявка получена: ${escapeHtml(String(created))}</i>`);
   }
 
   return lines.join("\n");

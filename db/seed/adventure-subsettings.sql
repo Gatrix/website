@@ -1,4 +1,4 @@
--- Ровно один subsetting на приключение (согласован с adventure_settings).
+-- Ровно один subsetting на приключение.
 TRUNCATE adventure_subsettings;
 
 INSERT INTO adventure_subsettings (adventure_id, subsetting_id) VALUES

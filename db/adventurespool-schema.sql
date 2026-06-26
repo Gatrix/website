@@ -7,11 +7,6 @@ CREATE TABLE IF NOT EXISTS adventures (
   adventure_intro TEXT
 );
 
-CREATE TABLE IF NOT EXISTS settings (
-  setting_id TEXT PRIMARY KEY,
-  setting_name TEXT NOT NULL
-);
-
 CREATE TABLE IF NOT EXISTS subsettings (
   subsetting_id TEXT PRIMARY KEY,
   subsetting_name TEXT NOT NULL
@@ -25,17 +20,6 @@ CREATE TABLE IF NOT EXISTS universes (
 CREATE TABLE IF NOT EXISTS genres (
   genre_id TEXT PRIMARY KEY,
   genre_name TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS difficulty (
-  difficulty_id TEXT PRIMARY KEY,
-  difficulty_name TEXT NOT NULL,
-  difficulty_description TEXT
-);
-
-CREATE TABLE IF NOT EXISTS gametime (
-  gametime_id TEXT PRIMARY KEY,
-  gametime_name TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS gameformat (
@@ -56,12 +40,6 @@ CREATE TABLE IF NOT EXISTS tags (
 
 -- Связи many-to-many: приключение ↔ справочник
 
-CREATE TABLE IF NOT EXISTS adventure_settings (
-  adventure_id TEXT NOT NULL REFERENCES adventures (adventure_id) ON DELETE CASCADE,
-  setting_id TEXT NOT NULL REFERENCES settings (setting_id) ON DELETE CASCADE,
-  PRIMARY KEY (adventure_id, setting_id)
-);
-
 CREATE TABLE IF NOT EXISTS adventure_subsettings (
   adventure_id TEXT NOT NULL REFERENCES adventures (adventure_id) ON DELETE CASCADE,
   subsetting_id TEXT NOT NULL REFERENCES subsettings (subsetting_id) ON DELETE CASCADE,
@@ -78,18 +56,6 @@ CREATE TABLE IF NOT EXISTS adventure_genres (
   adventure_id TEXT NOT NULL REFERENCES adventures (adventure_id) ON DELETE CASCADE,
   genre_id TEXT NOT NULL REFERENCES genres (genre_id) ON DELETE CASCADE,
   PRIMARY KEY (adventure_id, genre_id)
-);
-
-CREATE TABLE IF NOT EXISTS adventure_difficulty (
-  adventure_id TEXT NOT NULL REFERENCES adventures (adventure_id) ON DELETE CASCADE,
-  difficulty_id TEXT NOT NULL REFERENCES difficulty (difficulty_id) ON DELETE CASCADE,
-  PRIMARY KEY (adventure_id, difficulty_id)
-);
-
-CREATE TABLE IF NOT EXISTS adventure_gametime (
-  adventure_id TEXT NOT NULL REFERENCES adventures (adventure_id) ON DELETE CASCADE,
-  gametime_id TEXT NOT NULL REFERENCES gametime (gametime_id) ON DELETE CASCADE,
-  PRIMARY KEY (adventure_id, gametime_id)
 );
 
 CREATE TABLE IF NOT EXISTS adventure_gameformat (

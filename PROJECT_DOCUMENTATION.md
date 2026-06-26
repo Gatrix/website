@@ -1,72 +1,68 @@
 # Документация по работе (актуально на `adventurespool`)
 
 ## Основная БД: `adventurespool`
-Мы работаем с PostgreSQL каталогом `adventurespool`.
+
 Контент для сайта берётся из:
 
 - `adventures(adventure_id, adventure_name, adventure_intro)`
-- справочников: `settings`, `subsettings`, `universes`, `genres`, `difficulty`, `gametime`, `gameformat`, `gamesystems`, `tags`
+- справочников: `subsettings`, `universes`, `genres`, `gameformat`, `gamesystems`, `tags`
 - связей M2M (таблицы вида `adventure_*`):
-  - `adventure_settings`, `adventure_subsettings`
-  - `adventure_universes`, `adventure_genres`
-  - `adventure_difficulty` (difficulty_id = `narrative`/`tactic`)
-  - `adventure_gametime` (gametime_id = длительность сессии)
+  - `adventure_subsettings`, `adventure_universes`, `adventure_genres`
   - `adventure_gameformat` (oneshot/adventure/campaign)
-  - `adventure_gamesystems` (список систем доступных для конкретного приключения)
+  - `adventure_gamesystems` (системы, доступные для конкретного приключения)
   - `adventure_tags`
 
+Устаревшие таблицы `settings`, `gametime`, `difficulty` и связанные `adventure_settings`, `adventure_gametime`, `adventure_difficulty` удаляются патчем `db/adventurespool-drop-obsolete-lookups.sql`. Сложность и длительность сессии задаются в форме заявки (см. `src/lib/booking-db.ts`).
+
 ### `adventure_gamesystems` (выбор системы на бронировании)
-В таблице `gamesystems` лежат и полные, и упрощенные версии систем:
+
+В таблице `gamesystems` лежат и полные, и упрощённые версии систем:
 
 - полная: например `original-full`, `dnd5e`, `pathfinder2e`
-- упрощенная: те же id с суффиксом `-simple` (например `dnd5e-simple`)
+- упрощённая: те же id с суффиксом `-simple` (например `dnd5e-simple`)
 
 `adventure_gamesystems` задаёт доступные системы конкретному приключению.
-В интерфейсе бронирования показывается список из `adventure_gamesystems` + `gamesystems`.
-
-### `adventure_gametime` (длительность сессии)
-Наполнение в `adventure_gametime` соответствует требованию: минимум 4 часа.
-Поэтому для приключений используются только `gametime_id` 4..8.
 
 ## Бронирование
-### Конфиг формы
-Параметры формы берутся из API:
 
-- `GET /api/adventures/[id]/booking-config`
+### Конфиг формы
+
+`GET /api/adventures/[id]/booking-config`
 
 Источник данных в `adventurespool`:
 
-- сложности: `adventure_difficulty` + `difficulty`
-- длительность: `adventure_gametime` + `gametime`
+- сложности и длительность — константы в приложении (`DEFAULT_DIFFICULTIES`, фиксированные часы 4–7)
 - формат: `adventure_gameformat` + `gameformat`
-- система (на конкретное приключение): `adventure_gamesystems` + `gamesystems`
+- система: `adventure_gamesystems` + `gamesystems`
+
+### Календарь слотов
+
+Таблица `booking_schedule` — занятые интервалы. API: `GET /api/booking-schedule/availability`.
 
 ### Заявка
-Таблица в `adventurespool`: **`booking_requests`** — схема `db/adventurespool-booking-requests.sql`.
 
-Колонки: приключение, система, сложность, вселенная, игроки, длительность, формат, телефон, комментарий (Telegram), предупреждения, `telegram_notified_at` (когда бот отправил уведомление).
+Таблица **`booking_requests`** — схема `db/adventurespool-booking-requests.sql`.
 
 Поток: `POST /api/booking-requests` → INSERT → бот на ВМ опрашивает строки с `telegram_notified_at IS NULL`.
 
-Сайт должен работать под `appuser`, бот — под отдельным `botuser` с минимальными правами. Порядок SQL-файлов описан в `db/MIGRATION_ORDER.md`.
+Сайт — роль `appuser`, бот — `botuser` с минимальными правами. Порядок SQL: `db/MIGRATION_ORDER.md`.
 
 Опционально предупреждения в legacy-режиме: `booking_warnings`, `booking_warning_rules` (`db/booking-schema.sql`).
 
 Установка бота: `services/telegram-booking-bot/README.md`
 
-## ВМ (SSH)
+## ВМ и миграции
 
-С Windows (PowerShell / CMD) или двойной клик по `connect-vm.bat`:
+SSH-доступ и хост production-ВМ хранятся в приватном runbook (не в репозитории).
+
+Миграции БД на сервере:
 
 ```bash
-ssh -i C:\Users\gatrix\Documents\ssh-key-1779612763379\ssh-key-1779612763379 gatricus@51.250.120.178
+sudo -u postgres psql -d adventurespool -f db/<файл>.sql
 ```
 
-Пользователь: `gatricus`, хост: `51.250.120.178`. Миграции БД: `sudo -u postgres psql -d adventurespool -f db/<файл>.sql` (см. `db/MIGRATION_ORDER.md`).
+См. `db/MIGRATION_ORDER.md`.
 
 ## Legacy-режим
-Совместимость со старой схемой включается переменной:
 
-- `PG_ADVENTURES_SCHEMA=legacy`
-
-В legacy-режиме набор таблиц для параметров бронирования отличается (используются таблицы из `db/booking-schema.sql`).
+`PG_ADVENTURES_SCHEMA=legacy` — совместимость со старой плоской таблицей приключений и таблицами из `db/booking-schema.sql`.

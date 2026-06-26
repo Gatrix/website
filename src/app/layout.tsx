@@ -5,15 +5,12 @@ import "./globals.css";
 import Header from "@/components/Header";
 import { getPolygonLogoUrl } from "@/lib/home-assets";
 import YandexMetrika from "@/components/YandexMetrika";
-// TODO: раскомментировать при включении авторизации
-// import SessionProvider from "@/components/SessionProvider";
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
 
-// Главная: атмосферные шрифты с кириллицей (подключаем как переменные, не включаем глобально по умолчанию)
 const fantasySerif = Cormorant_Garamond({
   variable: "--font-fantasy-serif",
   subsets: ["cyrillic", "latin"],
@@ -49,7 +46,6 @@ export default function RootLayout({
       <body
         className={`${geistMono.variable} ${fantasySerif.variable} ${fantasySans.variable} antialiased`}
       >
-        {/* TODO: обернуть в SessionProvider при включении авторизации */}
         <Header polygonLogoUrl={polygonLogoUrl} />
         {children}
         <Suspense fallback={null}>

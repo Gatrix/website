@@ -48,18 +48,6 @@ function mapGameformatLabels(ids: string[] | undefined): string[] {
   return ids.map((id) => GAMEFORMAT_LABELS[id] ?? id);
 }
 
-function formatGametimeRange(names: string[] | undefined): string | undefined {
-  if (!names?.length) return undefined;
-  const nums = names.map((n) => Number.parseInt(String(n), 10)).filter((n) => !Number.isNaN(n));
-  if (nums.length > 0) {
-    const min = Math.min(...nums);
-    const max = Math.max(...nums);
-    if (min === max) return `${min} ч`;
-    return `${min}–${max} ч`;
-  }
-  return names.join(", ");
-}
-
 function formatList(names: string[] | undefined, separator = " · "): string | undefined {
   if (!names?.length) return undefined;
   return names.join(separator);
@@ -74,7 +62,7 @@ function validateSqlIdentifier(name: string, label: string): string {
 }
 
 /**
- * БД adventurespool: adventures + M2M-справочники (settings, genres, gameformat, …).
+ * БД adventurespool: adventures + M2M-справочники (subsettings, genres, gameformat, …).
  */
 function buildAdventurespoolSql(adventuresTable: string): string {
   const table = validateSqlIdentifier(adventuresTable, "PG_ADVENTURES_TABLE");
@@ -85,6 +73,13 @@ WITH genre_agg AS (
   FROM adventure_genres ag
   INNER JOIN genres g ON g.genre_id = ag.genre_id
   GROUP BY ag.adventure_id
+),
+subsetting_agg AS (
+  SELECT asub.adventure_id,
+         array_agg(ss.subsetting_name::text ORDER BY ss.subsetting_name) AS subsetting_names
+  FROM adventure_subsettings asub
+  INNER JOIN subsettings ss ON ss.subsetting_id = asub.subsetting_id
+  GROUP BY asub.adventure_id
 ),
 universe_agg AS (
   SELECT au.adventure_id,
@@ -101,20 +96,6 @@ gameformat_agg AS (
   INNER JOIN gameformat gf ON gf.gameformat_id = agf.gameformat_id
   GROUP BY agf.adventure_id
 ),
-difficulty_agg AS (
-  SELECT ad.adventure_id,
-         array_agg(d.difficulty_name::text ORDER BY d.difficulty_id) AS difficulty_names
-  FROM adventure_difficulty ad
-  INNER JOIN difficulty d ON d.difficulty_id = ad.difficulty_id
-  GROUP BY ad.adventure_id
-),
-gametime_agg AS (
-  SELECT agt.adventure_id,
-         array_agg(gt.gametime_name::text ORDER BY gt.gametime_id::int) AS gametime_names
-  FROM adventure_gametime agt
-  INNER JOIN gametime gt ON gt.gametime_id = agt.gametime_id
-  GROUP BY agt.adventure_id
-),
 tags_agg AS (
   SELECT at.adventure_id,
          array_agg(t.tag_name::text ORDER BY t.tag_name) AS tag_names
@@ -127,25 +108,17 @@ SELECT
   a.adventure_name AS title,
   a.adventure_intro AS intro,
   a.adventure_intro AS description,
-  s.setting_name AS base_setting,
-  ss.subsetting_name AS subsetting,
+  sa.subsetting_names[1] AS subsetting,
   ua.universe_names AS universe,
   ga.genre_names AS genre,
-  da.difficulty_names AS difficulty,
   gfa.gameformat_ids AS gameformat_ids,
   gfa.gameformat_names AS gameformat_names,
-  gta.gametime_names AS gametime_names,
   ta.tag_names AS tag_names
 FROM ${table} a
-LEFT JOIN adventure_settings ast ON ast.adventure_id = a.adventure_id
-LEFT JOIN settings s ON s.setting_id = ast.setting_id
-LEFT JOIN adventure_subsettings asub ON asub.adventure_id = a.adventure_id
-LEFT JOIN subsettings ss ON ss.subsetting_id = asub.subsetting_id
+LEFT JOIN subsetting_agg sa ON sa.adventure_id = a.adventure_id
 LEFT JOIN genre_agg ga ON ga.adventure_id = a.adventure_id
 LEFT JOIN universe_agg ua ON ua.adventure_id = a.adventure_id
 LEFT JOIN gameformat_agg gfa ON gfa.adventure_id = a.adventure_id
-LEFT JOIN difficulty_agg da ON da.adventure_id = a.adventure_id
-LEFT JOIN gametime_agg gta ON gta.adventure_id = a.adventure_id
 LEFT JOIN tags_agg ta ON ta.adventure_id = a.adventure_id
 ORDER BY a.adventure_name ASC NULLS LAST
 `.trim();
@@ -170,12 +143,11 @@ function adventurespoolRowToAdventure(row: Record<string, unknown>): Adventure {
     focus: genreArr,
     universe: universeArr?.[0],
     world: universeArr,
-    base_setting: row.base_setting != null ? String(row.base_setting) : undefined,
     subsetting,
-    difficulty: formatList(textArray(row.difficulty)),
+    difficulty: "Нарратив · Тактика",
     gameformats: gameformatLabels.length > 0 ? gameformatLabels : undefined,
     adventure_type: formatList(gameformatLabels, ", ") ?? undefined,
-    session_duration: formatGametimeRange(textArray(row.gametime_names)),
+    session_duration: "4–7 ч",
     tags: formatList(textArray(row.tag_names), ", "),
   };
 }
@@ -322,10 +294,7 @@ function normalizeAdventureOptionsPayload(parsed: unknown): AdventureOptions | n
 export async function fetchAdventureOptionsFromLookups(): Promise<AdventureOptions | null> {
   try {
     const pool = getDbPool();
-    const [settingsRes, subRes, genreRes, uniRes, relRes, gfRes] = await Promise.all([
-      pool.query<{ setting_name: string }>(
-        `SELECT setting_name FROM settings ORDER BY setting_name`
-      ),
+    const [subRes, genreRes, uniRes, gfRes] = await Promise.all([
       pool.query<{ subsetting_name: string }>(
         `SELECT subsetting_name FROM subsettings ORDER BY subsetting_name`
       ),
@@ -333,34 +302,17 @@ export async function fetchAdventureOptionsFromLookups(): Promise<AdventureOptio
       pool.query<{ universe_name: string }>(
         `SELECT universe_name FROM universes ORDER BY universe_name`
       ),
-      pool.query<{ setting_name: string; subsetting_name: string }>(`
-        SELECT DISTINCT s.setting_name, ss.subsetting_name
-        FROM adventure_subsettings asub
-        INNER JOIN subsettings ss ON ss.subsetting_id = asub.subsetting_id
-        INNER JOIN adventure_settings ast ON ast.adventure_id = asub.adventure_id
-        INNER JOIN settings s ON s.setting_id = ast.setting_id
-        ORDER BY s.setting_name, ss.subsetting_name
-      `),
       pool.query<{ gameformat_name: string }>(
         `SELECT gameformat_name FROM gameformat ORDER BY gameformat_id`
       ),
     ]);
 
-    const setting_relations: Record<string, string[]> = {};
-    for (const row of relRes.rows) {
-      const base = row.setting_name;
-      if (!setting_relations[base]) setting_relations[base] = [];
-      if (!setting_relations[base].includes(row.subsetting_name)) {
-        setting_relations[base].push(row.subsetting_name);
-      }
-    }
-
     return {
-      base_setting: settingsRes.rows.map((r) => r.setting_name),
+      base_setting: [],
       subsetting: subRes.rows.map((r) => r.subsetting_name),
       genre: genreRes.rows.map((r) => r.genre_name),
       universe: uniRes.rows.map((r) => r.universe_name),
-      setting_relations,
+      setting_relations: {},
       adventure_type: gfRes.rows.map((r) => ({
         id: r.gameformat_name,
         label: r.gameformat_name,

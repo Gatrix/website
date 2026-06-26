@@ -48,6 +48,7 @@ DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'botuser') THEN
     GRANT SELECT ON booking_requests TO botuser;
+    GRANT SELECT ON booking_schedule TO botuser;
     GRANT UPDATE (telegram_notified_at) ON booking_requests TO botuser;
   ELSE
     RAISE NOTICE 'Role botuser does not exist, skipping bot grants';

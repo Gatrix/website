@@ -49,59 +49,55 @@ export default function GameBookingNotice({
     >
       <p
         className={`text-body font-semibold text-center ${
-          compact ? "text-xs sm:text-sm leading-snug" : "text-sm sm:text-base"
+          compact ? "text-sm sm:text-base leading-relaxed" : "text-base sm:text-lg leading-relaxed"
         }`}
       >
         Записаться можно через личные сообщения с ведущим по предоставленным контактам, либо воспользоваться формой записи при выборе приключения.
       </p>
       <div
-        className={`flex flex-wrap items-center justify-center font-sans ${
-          compact ? "mt-3 gap-4 sm:gap-6" : "mt-6 gap-6 sm:gap-10"
+        className={`flex items-center justify-between gap-3 sm:gap-4 w-full font-sans ${
+          compact ? "mt-3" : "mt-6"
         }`}
       >
+        <div
+          className={`flex items-center shrink-0 ${
+            compact ? "gap-5 sm:gap-6" : "gap-6 sm:gap-8"
+          }`}
+        >
         <a
           href={SITE_VK_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-2 text-[#fde047] hover:text-yellow-200 transition-colors font-bold text-xs sm:text-sm uppercase tracking-widest drop-shadow-[0_0_12px_rgba(253,224,71,0.45)]"
+          title="ВКонтакте"
+          aria-label="ВКонтакте"
+          className="text-[#fde047] hover:text-[#0077FF] transition-all hover:scale-110 drop-shadow-[0_0_12px_rgba(253,224,71,0.45)]"
         >
-          <VKGlyph className="w-5 h-5 sm:w-6 sm:h-6 shrink-0" />
-          ВКонтакте
+          <VKGlyph className="w-6 h-6 sm:w-7 sm:h-7 shrink-0" />
         </a>
         <a
           href={SITE_TELEGRAM_BOOKING_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-2 text-[#fde047] hover:text-yellow-200 transition-colors font-bold text-xs sm:text-sm uppercase tracking-widest drop-shadow-[0_0_12px_rgba(253,224,71,0.45)]"
+          title="Telegram"
+          aria-label="Telegram"
+          className="text-[#fde047] hover:text-[#24A1DE] transition-all hover:scale-110 drop-shadow-[0_0_12px_rgba(253,224,71,0.45)]"
         >
-          <TelegramGlyph className="w-5 h-5 sm:w-6 sm:h-6 shrink-0" />
-          Telegram
+          <TelegramGlyph className="w-6 h-6 sm:w-7 sm:h-7 shrink-0" />
         </a>
         <a
           href={SITE_DISCORD_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-2 text-[#fde047] hover:text-yellow-200 transition-colors font-bold text-xs sm:text-sm uppercase tracking-widest drop-shadow-[0_0_12px_rgba(253,224,71,0.45)]"
+          title="Discord"
+          aria-label="Discord"
+          className="text-[#fde047] hover:text-[#5865F2] transition-all hover:scale-110 drop-shadow-[0_0_12px_rgba(253,224,71,0.45)]"
         >
-          <DiscordGlyph className="w-5 h-5 sm:w-6 sm:h-6 shrink-0" />
-          Discord
+          <DiscordGlyph className="w-6 h-6 sm:w-7 sm:h-7 shrink-0" />
         </a>
-      </div>
-      <div
-        className={`border-t border-yellow-500/25 text-center w-full ${
-          compact ? "mt-3 pt-3" : "mt-6 pt-6"
-        }`}
-      >
-        <p
-          className={`font-sans font-bold uppercase tracking-[0.25em] text-stone-500 ${
-            compact ? "text-[9px] sm:text-[10px] mb-1" : "text-[10px] sm:text-xs mb-2"
-          }`}
-        >
-          Телефон
-        </p>
+        </div>
         <a
           href={`tel:${SITE_PHONE_TEL}`}
-          className="inline-block font-serif text-base sm:text-lg font-bold text-[#fde047] hover:text-yellow-200 transition-colors drop-shadow-[0_0_14px_rgba(253,224,71,0.35)]"
+          className="shrink-0 font-serif text-sm sm:text-base lg:text-lg font-bold text-[#fde047] hover:text-yellow-200 transition-colors drop-shadow-[0_0_14px_rgba(253,224,71,0.35)] whitespace-nowrap"
         >
           {SITE_PHONE_DISPLAY}
         </a>

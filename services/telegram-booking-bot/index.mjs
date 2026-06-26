@@ -59,9 +59,10 @@ async function pollPendingRequests() {
 
   try {
     for (let i = 0; i < 20 && !stopping; i += 1) {
-      const client = await pool.connect();
+      let client = await pool.connect();
       let id = "";
       let hasRow = false;
+      let released = false;
 
       try {
         await client.query("BEGIN");
@@ -80,7 +81,8 @@ async function pollPendingRequests() {
              br.player_note,
              br.phone,
              br.warning_messages,
-             COALESCE(br.starts_at, bs.starts_at) AS starts_at
+             COALESCE(br.starts_at, bs.starts_at) AS starts_at,
+             bs.ends_at
            FROM booking_requests br
            LEFT JOIN booking_schedule bs
              ON bs.booking_request_id = br.id AND bs.status <> 'cancelled'
@@ -98,7 +100,7 @@ async function pollPendingRequests() {
 
         hasRow = true;
         id = row.id;
-        await notifyBooking(rowToBookingBody(row));
+        const body = rowToBookingBody(row);
         await client.query(
           `UPDATE booking_requests
            SET telegram_notified_at = NOW()
@@ -106,20 +108,33 @@ async function pollPendingRequests() {
           [id]
         );
         await client.query("COMMIT");
-      } catch (err) {
+        client.release();
+        released = true;
+
         try {
-          await client.query("ROLLBACK");
-        } catch (rollbackErr) {
-          console.error("[poll] rollback failed:", rollbackErr);
+          await notifyBooking(body);
+          console.log("[notify] sent:", body.adventureTitle ?? body.adventureId);
+        } catch (sendErr) {
+          console.error(`[poll] telegram send failed id=${id}:`, sendErr);
+        }
+      } catch (err) {
+        if (!released) {
+          try {
+            await client.query("ROLLBACK");
+          } catch (rollbackErr) {
+            console.error("[poll] rollback failed:", rollbackErr);
+          }
         }
         if (hasRow) {
           console.error(`[poll] id=${id}:`, err);
         } else {
           console.error("[poll] select pending request:", err);
         }
-        break;
+        continue;
       } finally {
-        client.release();
+        if (!released) {
+          client.release();
+        }
       }
     }
   } finally {

@@ -16,8 +16,23 @@ const DEFAULT_BOUNDS: BookingBounds = {
   minPlayers: 3,
   maxPlayers: 6,
   minDurationHours: 4,
-  maxDurationHours: 8,
+  maxDurationHours: 7,
 };
+
+const DEFAULT_DIFFICULTIES: BookingDifficulty[] = [
+  {
+    id: "narrative",
+    name: "Нарратив",
+    description:
+      "Легкая форма игры, в которой акцент сделан на истории. Случайность благоволит героям, а правила упрощены в угоду отыгрышу.",
+  },
+  {
+    id: "tactic",
+    name: "Тактика",
+    description:
+      "Для тех, кто хочет вызова и более игровой структуры. Главенствование правил над историей.",
+  },
+];
 
 const DEFAULT_FORMATS: FormatInfo[] = [
   {
@@ -103,7 +118,7 @@ function staticPayload(a: Adventure): BookingConfigPayload {
     adventureId: a.id,
     adventureTitle: a.title ?? "",
     systems: [],
-    difficulties: [],
+    difficulties: DEFAULT_DIFFICULTIES,
     universes: [],
     bounds: adventureFallbackBounds(a),
     formats: DEFAULT_FORMATS,
@@ -145,43 +160,6 @@ async function fetchPoolGameSystemsForAdventure(adventureId: string): Promise<Bo
       rulebook: null,
     };
   });
-}
-
-async function fetchPoolDifficulties(adventureId: string): Promise<BookingDifficulty[]> {
-  const pool = getDbPool();
-  const { rows } = await pool.query<Record<string, unknown>>(
-    `
-    SELECT d.difficulty_id, d.difficulty_name, d.difficulty_description
-    FROM adventure_difficulty ad
-    INNER JOIN difficulty d ON d.difficulty_id = ad.difficulty_id
-    WHERE ad.adventure_id = $1::text
-    ORDER BY CASE d.difficulty_id WHEN 'narrative' THEN 1 WHEN 'tactic' THEN 2 ELSE 3 END
-    `,
-    [adventureId]
-  );
-  return rows.map((r) => ({
-    id: String(r.difficulty_id),
-    name: String(r.difficulty_name),
-    description: String(r.difficulty_description ?? ""),
-  }));
-}
-
-async function fetchPoolGametimeBounds(adventureId: string): Promise<{ min: number; max: number } | null> {
-  const pool = getDbPool();
-  const { rows } = await pool.query<Record<string, unknown>>(
-    `
-    SELECT
-      MIN(CAST(g.gametime_id AS INTEGER)) AS min_h,
-      MAX(CAST(g.gametime_id AS INTEGER)) AS max_h
-    FROM adventure_gametime ag
-    INNER JOIN gametime g ON g.gametime_id = ag.gametime_id
-    WHERE ag.adventure_id = $1::text
-    `,
-    [adventureId]
-  );
-  const row = rows[0];
-  if (!row || row.min_h == null || row.max_h == null) return null;
-  return { min: Number(row.min_h), max: Number(row.max_h) };
 }
 
 async function fetchPoolUniversesForAdventure(adventureId: string): Promise<BookingUniverse[]> {
@@ -245,9 +223,7 @@ async function getPoolBookingConfig(a: Adventure): Promise<BookingConfigPayload>
   let bounds: BookingBounds = { ...playerBounds };
 
   let systems: BookingGameSystem[] = [];
-  let difficulties: BookingDifficulty[] = [];
   let universes: BookingUniverse[] = [];
-  let gametime: { min: number; max: number } | null = null;
   let formats: FormatInfo[] = [];
   let warningRules: WarningRule[] = [];
   let warnings: { id: number; message: string }[] = [];
@@ -256,18 +232,6 @@ async function getPoolBookingConfig(a: Adventure): Promise<BookingConfigPayload>
     systems = await fetchPoolGameSystemsForAdventure(adventureId);
   } catch (err) {
     if (!isMissingRelationError(err)) console.error("[booking-db] adventure_gamesystems:", err);
-  }
-
-  try {
-    difficulties = await fetchPoolDifficulties(adventureId);
-  } catch (err) {
-    if (!isMissingRelationError(err)) console.error("[booking-db] adventure_difficulty:", err);
-  }
-
-  try {
-    gametime = await fetchPoolGametimeBounds(adventureId);
-  } catch (err) {
-    if (!isMissingRelationError(err)) console.error("[booking-db] adventure_gametime:", err);
   }
 
   try {
@@ -290,14 +254,6 @@ async function getPoolBookingConfig(a: Adventure): Promise<BookingConfigPayload>
     if (!isMissingRelationError(err)) console.error("[booking-db] booking_warnings/rules:", err);
   }
 
-  if (gametime) {
-    bounds = {
-      ...bounds,
-      minDurationHours: gametime.min,
-      maxDurationHours: gametime.max,
-    };
-  }
-
   const preferred = defaultFormatFromAdventure(a);
   const defaultAdventureType = formats.some((f) => f.id === preferred)
     ? preferred
@@ -307,7 +263,7 @@ async function getPoolBookingConfig(a: Adventure): Promise<BookingConfigPayload>
     adventureId,
     adventureTitle: a.title ?? "",
     systems,
-    difficulties,
+    difficulties: DEFAULT_DIFFICULTIES,
     universes,
     bounds,
     formats,
@@ -464,7 +420,7 @@ async function getLegacyBookingConfig(a: Adventure): Promise<BookingConfigPayloa
     adventureId,
     adventureTitle,
     systems,
-    difficulties: [],
+    difficulties: DEFAULT_DIFFICULTIES,
     universes: [],
     bounds: boundsMerged,
     formats,

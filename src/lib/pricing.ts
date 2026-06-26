@@ -1,9 +1,12 @@
 /** Сегменты формата игры */
 export type Tier = "tavern" | "royal";
 
+/** Цена за 1 час с человека для игры с мастером (₽) */
+export const PRICE_PER_HOUR_PER_PERSON_RUB = 300;
+
 /** Цена за 1 час с человека (₽) */
 export const PRICE_PER_HOUR: Record<Tier, number> = {
-  tavern: 300,
+  tavern: PRICE_PER_HOUR_PER_PERSON_RUB,
   royal: 500,
 };
 

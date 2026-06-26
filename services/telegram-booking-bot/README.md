@@ -1,6 +1,6 @@
 # Telegram-бот: заявки из `adventurespool.booking_requests`
 
-Сайт сохраняет заявку в PostgreSQL. Бот на ВМ раз в несколько секунд ищет строки без `telegram_notified_at`, отправляет сообщение в Telegram и помечает строку отправленной.
+Сайт сохраняет заявку в PostgreSQL. Бот на ВМ каждые **15 секунд** (по умолчанию, `POLL_INTERVAL_MS=15000`) ищет строки без `telegram_notified_at`, помечает их в БД и отправляет сообщение в Telegram.
 
 ## 1. Таблица в БД
 
@@ -69,14 +69,21 @@ DATABASE_URL=postgresql://botuser:…@host:5432/adventurespool
 ```
 
 Права выдаются через `db/adventurespool-grants.sql` после создания роли `botuser`.
+Для даты и времени игры боту также нужен `SELECT` на `booking_schedule` (есть в `db/adventurespool-booking-schedule-grants.sql` и в `adventurespool-grants.sql`).
 
 Вебхук не нужен — бот сам читает таблицу.
+
+После обновления кода на ВМ перезапустите службу: `sudo systemctl restart telegram-booking-bot`.
 
 ## 5. Проверка
 
 ```bash
 # на ВМ, от appuser или postgres
-psql -d adventurespool -c "SELECT id, adventure_title, telegram_notified_at FROM booking_requests ORDER BY id DESC LIMIT 5;"
+psql -d adventurespool -c "
+  SELECT br.id, br.adventure_title, br.starts_at, bs.starts_at AS schedule_starts_at, br.telegram_notified_at
+  FROM booking_requests br
+  LEFT JOIN booking_schedule bs ON bs.booking_request_id = br.id AND bs.status <> 'cancelled'
+  ORDER BY br.id DESC LIMIT 5;"
 ```
 
 После успешной отправки у строки появится `telegram_notified_at`.

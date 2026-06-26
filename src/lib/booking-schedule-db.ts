@@ -96,6 +96,26 @@ export function minBookableGameDate(): string {
   return minBookableCalendarDate();
 }
 
-export function isScheduleTableAvailable(): boolean {
-  return Boolean(process.env.DATABASE_URL?.trim());
+/** Проверяет наличие таблицы booking_schedule (результат кэшируется на процесс). */
+let scheduleTableCheck: Promise<boolean> | null = null;
+
+export async function isScheduleTableAvailable(): Promise<boolean> {
+  if (!process.env.DATABASE_URL?.trim()) return false;
+  if (!scheduleTableCheck) {
+    scheduleTableCheck = (async () => {
+      try {
+        const pool = getDbPool();
+        const { rows } = await pool.query<{ exists: boolean }>(
+          `SELECT EXISTS (
+            SELECT 1 FROM information_schema.tables
+            WHERE table_schema = 'public' AND table_name = 'booking_schedule'
+          ) AS exists`
+        );
+        return rows[0]?.exists === true;
+      } catch {
+        return false;
+      }
+    })();
+  }
+  return scheduleTableCheck;
 }

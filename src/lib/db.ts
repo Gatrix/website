@@ -62,13 +62,3 @@ export interface AdventureOptions {
   /** Опционально из JSON: типы сюжета (oneshot → «Ваншот» и т.д.) */
   adventure_type?: { id: string; label: string; sessions?: string }[];
 }
-
-export interface Profile {
-  id: string;
-  user_id: string;
-  player_name: string | null;
-  avatar_url: string | null;
-  games_count: number;
-  level: number;
-  created_at?: string;
-}

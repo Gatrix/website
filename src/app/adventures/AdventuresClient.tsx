@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useCallback, useRef, useLayoutEffect } from "react";
+import React, { useState, useMemo, useCallback, useRef, useLayoutEffect, useEffect } from "react";
 import {
   RotateCcw,
   Shield,
@@ -9,6 +9,7 @@ import {
   Layers,
   Search,
   Gamepad2,
+  SlidersHorizontal,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import AdventureModal from "@/components/AdventureModal";
@@ -81,10 +82,10 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
 
   const FILTER_STEPS = useMemo(
     () => [
-      { id: "subsetting" as const, icon: <Layers size={24} />, options: SUB_SETTINGS_LIST },
-      { id: "focus" as const, icon: <Shield size={24} />, options: FOCUS_GENRES },
-      { id: "world" as const, icon: <Target size={24} />, options: WORLDS },
-      { id: "adventure_type" as const, icon: <Gamepad2 size={24} />, options: ADVENTURE_TYPE_OPTIONS },
+      { id: "world" as const, icon: <Target size={36} />, options: WORLDS },
+      { id: "subsetting" as const, icon: <Layers size={36} />, options: SUB_SETTINGS_LIST },
+      { id: "focus" as const, icon: <Shield size={36} />, options: FOCUS_GENRES },
+      { id: "adventure_type" as const, icon: <Gamepad2 size={36} />, options: ADVENTURE_TYPE_OPTIONS },
     ],
     [SUB_SETTINGS_LIST, FOCUS_GENRES, WORLDS, ADVENTURE_TYPE_OPTIONS]
   );
@@ -92,10 +93,10 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
   const PROGRESS_GROUPS = useMemo(
     () =>
       [
-        { key: "setting" as const, barLabel: "Сеттинг", indices: [0] as const, icon: <Layers size={24} /> },
-        { key: "genre" as const, barLabel: "Жанр", indices: [1] as const, icon: <Shield size={24} /> },
-        { key: "world" as const, barLabel: "Мир", indices: [2] as const, icon: <Target size={24} /> },
-        { key: "type" as const, barLabel: "Формат", indices: [3] as const, icon: <Gamepad2 size={24} /> },
+        { key: "world" as const, barLabel: "Мир", indices: [0] as const, icon: <Target size={36} /> },
+        { key: "setting" as const, barLabel: "Сеттинг", indices: [1] as const, icon: <Layers size={36} /> },
+        { key: "genre" as const, barLabel: "Жанр", indices: [2] as const, icon: <Shield size={36} /> },
+        { key: "type" as const, barLabel: "Формат", indices: [3] as const, icon: <Gamepad2 size={36} /> },
       ] as const,
     []
   );
@@ -120,6 +121,7 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
   const [selectedAdventure, setSelectedAdventure] = useState<Adventure | null>(null);
   const [longListExpanded, setLongListExpanded] = useState(false);
   const [longListOverflows, setLongListOverflows] = useState(false);
+  const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
   const optionsGridRef = useRef<HTMLDivElement>(null);
 
   // Очистка сообщения о конфликте при смене шага
@@ -309,6 +311,16 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
 
   const hasActiveFilters = Object.keys(visibleFilters).length > 0;
 
+  const activeFilterCount = useMemo(
+    () => Object.values(visibleFilters).reduce((sum, values) => sum + values.length, 0),
+    [visibleFilters]
+  );
+
+  const filterChipClass = (isSelected: boolean) =>
+    isSelected
+      ? "min-h-[44px] px-3 sm:px-4 py-2 border-2 uppercase font-black transition-all duration-300 text-[11px] sm:text-xs tracking-wider rounded-sm bg-yellow-500 border-yellow-200 text-yellow-950 shadow-[0_0_24px_rgba(253,224,71,0.55)]"
+      : "min-h-[44px] px-3 sm:px-4 py-2 border-2 uppercase font-black transition-all duration-300 text-[11px] sm:text-xs tracking-wider rounded-sm border-yellow-600/45 bg-transparent text-yellow-200 hover:border-yellow-400 hover:text-yellow-50 hover:bg-yellow-950/25 shadow-[0_0_10px_rgba(0,0,0,0.2)]";
+
   const collapsibleStep =
     currentStepData.id === "focus" || currentStepData.id === "world";
 
@@ -334,6 +346,77 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
     ro.observe(el);
     return () => ro.disconnect();
   }, [collapsibleStep, optionsFingerprint]);
+
+  useEffect(() => {
+    if (!filtersSheetOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFiltersSheetOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [filtersSheetOpen]);
+
+  const renderFilterOptions = () => (
+    <>
+      <div className="w-full mb-3 sm:mb-4 text-center">
+        <div className="relative w-full">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentStep}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              ref={collapsibleStep ? optionsGridRef : undefined}
+              style={
+                collapsibleStep && longListOverflows && !longListExpanded
+                  ? { maxHeight: COLLAPSED_OPTIONS_MAX_PX, overflow: "hidden" }
+                  : undefined
+              }
+              className="flex flex-wrap justify-center gap-1.5 sm:gap-2"
+            >
+              {currentStepData.options.map((option) => {
+                const isSelected = filters[currentStepData.id]?.includes(option);
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => toggleOption(option)}
+                    className={filterChipClass(!!isSelected)}
+                  >
+                    {option}
+                  </button>
+                );
+              })}
+            </motion.div>
+          </AnimatePresence>
+
+          {collapsibleStep && longListOverflows && !longListExpanded && (
+            <div
+              className="pointer-events-none absolute left-0 right-0 bottom-0 h-12 sm:h-14 bg-gradient-to-t from-[#0c0a09] via-[#0c0a09]/85 to-transparent"
+              aria-hidden
+            />
+          )}
+        </div>
+
+        {collapsibleStep && longListOverflows && (
+          <div className="mt-2 flex justify-center">
+            <button
+              type="button"
+              onClick={() => setLongListExpanded((v) => !v)}
+              className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-yellow-300 hover:text-yellow-100 border-b border-yellow-500/50 hover:border-yellow-300 transition-colors pb-0.5 drop-shadow-[0_0_10px_rgba(250,204,21,0.35)]"
+            >
+              {longListExpanded ? "Свернуть" : "Показать все"}
+            </button>
+          </div>
+        )}
+      </div>
+    </>
+  );
 
   return (
     <main className="relative min-h-screen text-yellow-100 font-serif selection:bg-yellow-500/30 px-4 pb-4 sm:px-6 sm:pb-6 md:px-12 md:pb-8">
@@ -365,9 +448,23 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
       </div>
 
       <div className="max-w-4xl mx-auto mb-4 sm:mb-6">
-        <div className="mb-5 sm:mb-6">
-          <div className="relative min-h-[5.75rem] sm:min-h-[5.5rem] md:min-h-24 overflow-visible">
-            <div className="absolute top-[1.45rem] sm:top-6 md:top-7 left-0 right-0 h-px bg-yellow-600/30 z-0 pointer-events-none" />
+        {/* Mobile: compact filter trigger */}
+        <div className="md:hidden mb-4">
+          <button
+            type="button"
+            onClick={() => setFiltersSheetOpen(true)}
+            className="w-full min-h-[44px] flex items-center justify-center gap-2 border-2 border-yellow-600/50 bg-yellow-950/30 text-yellow-100 font-black uppercase tracking-widest text-xs rounded-sm"
+          >
+            <SlidersHorizontal size={18} aria-hidden />
+            Фильтры{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+          </button>
+        </div>
+
+        {/* Desktop filter panel */}
+        <div className="hidden md:block">
+        <div className="mb-2.5 sm:mb-3">
+          <div className="relative overflow-visible">
+            <div className="absolute top-6 sm:top-[30px] md:top-[33px] left-0 right-0 h-px bg-yellow-600/30 z-0 pointer-events-none" />
             <div className="relative z-10 overflow-x-auto sm:overflow-x-visible overflow-y-visible scrollbar-hide">
               <div className="flex justify-between min-w-max sm:min-w-0 gap-3 sm:gap-0 px-1 sm:px-0">
               {PROGRESS_GROUPS.map((group, groupIndex) => {
@@ -379,10 +476,10 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
                     key={group.key}
                     type="button"
                     onClick={() => goToProgressGroup(groupIndex)}
-                    className="relative flex flex-col items-center gap-1 sm:gap-2 transition-all cursor-pointer opacity-100 hover:scale-105 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/90 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0a09] rounded-md px-1 shrink-0"
+                    className="relative flex flex-col items-center gap-0.5 sm:gap-1 transition-all cursor-pointer opacity-100 hover:scale-105 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300/90 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0a09] rounded-md px-1 shrink-0"
                   >
                     <div
-                      className={`relative w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center border-2 transition-all overflow-visible ${
+                      className={`relative w-12 h-12 sm:w-[60px] sm:h-[60px] md:w-[66px] md:h-[66px] rounded-full flex items-center justify-center border-2 transition-all overflow-visible ${
                         isCurrent
                           ? "bg-yellow-950/80 border-yellow-300 sm:scale-110 shadow-[0_0_22px_rgba(253,224,71,0.65)]"
                           : isCompleted
@@ -397,17 +494,17 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
                             : isCompleted
                               ? "text-yellow-300"
                               : "text-yellow-600"
-                        } flex items-center justify-center leading-none w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 [&>svg]:block [&>svg]:w-full [&>svg]:h-full [&>svg]:max-h-full [&>svg]:max-w-full [&>svg]:stroke-[2.25px]`}
+                        } flex items-center justify-center leading-none w-6 h-6 sm:w-[30px] sm:h-[30px] md:w-9 md:h-9 [&>svg]:block [&>svg]:w-full [&>svg]:h-full [&>svg]:max-h-full [&>svg]:max-w-full [&>svg]:stroke-[2.25px]`}
                       >
                         {group.icon}
                       </span>
                       {groupShowsReminderDot(group) && (
-                        <span className="absolute top-0 right-0 translate-x-1/3 -translate-y-1/3 w-3 h-3 sm:w-3.5 sm:h-3.5 bg-yellow-500 rounded-full border-2 border-yellow-950 z-10 shadow-[0_0_8px_rgba(250,204,21,0.8)]" />
+                        <span className="absolute top-0 right-0 translate-x-1/3 -translate-y-1/3 w-[18px] h-[18px] sm:w-[21px] sm:h-[21px] bg-yellow-500 rounded-full border-2 border-yellow-950 z-10 shadow-[0_0_8px_rgba(250,204,21,0.8)]" />
                       )}
                     </div>
                     <div className="flex flex-col items-center gap-0.5 text-center">
                       <span
-                        className={`text-[10px] sm:text-[11px] md:text-xs leading-snug text-center max-w-[80px] sm:max-w-[108px] w-full uppercase tracking-[0.12em] font-bold transition-colors ${
+                        className={`text-[15px] sm:text-[17px] md:text-lg leading-snug text-center max-w-[120px] sm:max-w-[162px] w-full uppercase tracking-[0.12em] font-bold transition-colors ${
                           isCurrent
                             ? "text-yellow-50 drop-shadow-[0_0_14px_rgba(253,224,71,0.85)]"
                             : isCompleted
@@ -466,59 +563,113 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
           </motion.div>
         )}
 
-        <div className="w-full mb-3 sm:mb-4 text-center">
-          <div className="relative w-full">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentStep}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                ref={collapsibleStep ? optionsGridRef : undefined}
-                style={
-                  collapsibleStep && longListOverflows && !longListExpanded
-                    ? { maxHeight: COLLAPSED_OPTIONS_MAX_PX, overflow: "hidden" }
-                    : undefined
-                }
-                className="flex flex-wrap justify-center gap-1.5 sm:gap-2"
-              >
-              {currentStepData.options.map((option) => {
-                const isSelected = filters[currentStepData.id]?.includes(option);
+        <div className="mb-4 sm:mb-5 text-center">
+          <h2 className="text-sm sm:text-base font-black uppercase tracking-[0.35em] text-yellow-100 drop-shadow-[0_0_14px_rgba(253,224,71,0.45)]">
+            Фильтр
+          </h2>
+          <p className="mt-2 text-sm sm:text-base text-yellow-300/85 leading-relaxed w-full max-w-4xl mx-auto px-1">
+            <span className="block sm:whitespace-nowrap">
+              Выберите приключение по любимой вселенной, сеттингу или жанру!
+            </span>
+          </p>
+        </div>
 
-                const buttonClass = isSelected
-                  ? "px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 border-2 uppercase font-black transition-all duration-300 text-[11px] sm:text-xs tracking-wider rounded-sm bg-yellow-500 border-yellow-200 text-yellow-950 shadow-[0_0_24px_rgba(253,224,71,0.55)]"
-                  : "px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 border-2 uppercase font-black transition-all duration-300 text-[11px] sm:text-xs tracking-wider rounded-sm border-yellow-600/45 bg-transparent text-yellow-200 hover:border-yellow-400 hover:text-yellow-50 hover:bg-yellow-950/25 shadow-[0_0_10px_rgba(0,0,0,0.2)]";
-
-                return (
-                  <button key={option} type="button" onClick={() => toggleOption(option)} className={buttonClass}>
-                    {option}
-                  </button>
-                );
-              })}
-              </motion.div>
-            </AnimatePresence>
-
-            {collapsibleStep && longListOverflows && !longListExpanded && (
-              <div
-                className="pointer-events-none absolute left-0 right-0 bottom-0 h-12 sm:h-14 bg-gradient-to-t from-[#0c0a09] via-[#0c0a09]/85 to-transparent"
-                aria-hidden
-              />
-            )}
-          </div>
-
-          {collapsibleStep && longListOverflows && (
-            <div className="mt-2 flex justify-center">
-              <button
-                type="button"
-                onClick={() => setLongListExpanded((v) => !v)}
-                className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-yellow-300 hover:text-yellow-100 border-b border-yellow-500/50 hover:border-yellow-300 transition-colors pb-0.5 drop-shadow-[0_0_10px_rgba(250,204,21,0.35)]"
-              >
-                {longListExpanded ? "Свернуть" : "Показать все"}
-              </button>
-            </div>
-          )}
+        {renderFilterOptions()}
         </div>
       </div>
+
+      {/* Mobile filter bottom sheet */}
+      {filtersSheetOpen ? (
+        <div className="fixed inset-0 z-[60] md:hidden">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/60"
+            aria-label="Закрыть фильтры"
+            onClick={() => setFiltersSheetOpen(false)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Фильтры приключений"
+            className="absolute inset-x-0 bottom-0 max-h-[85dvh] flex flex-col rounded-t-xl border-t border-yellow-700/40 bg-[#0c0a09] shadow-2xl pb-[env(safe-area-inset-bottom)]"
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-yellow-900/30 shrink-0">
+              <h2 className="text-sm font-black uppercase tracking-widest text-yellow-100">
+                Фильтры{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setFiltersSheetOpen(false)}
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center text-yellow-400"
+                aria-label="Закрыть"
+              >
+                <X size={22} />
+              </button>
+            </div>
+
+            <div className="overflow-x-auto shrink-0 border-b border-yellow-900/25 px-2 py-2">
+              <div className="flex gap-1 min-w-max">
+                {PROGRESS_GROUPS.map((group, groupIndex) => {
+                  const isCurrent = groupIsCurrent(group);
+                  return (
+                    <button
+                      key={group.key}
+                      type="button"
+                      onClick={() => goToProgressGroup(groupIndex)}
+                      className={`min-h-[44px] px-3 py-2 text-[10px] font-black uppercase tracking-wider rounded-sm border-2 transition-colors ${
+                        isCurrent
+                          ? "border-yellow-300 bg-yellow-500 text-yellow-950"
+                          : "border-yellow-700/45 text-yellow-200 bg-transparent"
+                      }`}
+                    >
+                      {group.barLabel}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-4 py-4">
+              {hasActiveFilters ? (
+                <div className="mb-4 flex flex-wrap gap-2 justify-center">
+                  {Object.entries(visibleFilters).map(([stepId, values]) =>
+                    values.map((value) => (
+                      <button
+                        key={`${stepId}-${value}`}
+                        type="button"
+                        onClick={() => removeFilter(stepId, value)}
+                        className="min-h-[44px] flex items-center gap-2 px-3 py-2 bg-yellow-900/35 border border-yellow-500/50 text-yellow-100 rounded-sm text-[10px] font-bold uppercase"
+                      >
+                        {value}
+                        <X size={12} />
+                      </button>
+                    ))
+                  )}
+                  <button
+                    type="button"
+                    onClick={resetFilters}
+                    className="min-h-[44px] flex items-center gap-1 px-3 text-yellow-400 text-[10px] font-bold uppercase"
+                  >
+                    <RotateCcw size={12} />
+                    Очистить
+                  </button>
+                </div>
+              ) : null}
+              {renderFilterOptions()}
+            </div>
+
+            <div className="shrink-0 px-4 py-3 border-t border-yellow-900/30">
+              <button
+                type="button"
+                onClick={() => setFiltersSheetOpen(false)}
+                className="w-full min-h-[44px] bg-yellow-500 text-yellow-950 font-black uppercase tracking-widest text-sm rounded-sm"
+              >
+                Показать {filteredAdventures.length} сюжетов
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="max-w-7xl mx-auto">
         {adventures.length === 0 ? (

@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, Phone, X } from "lucide-react";
-import { scrollToContacts } from "@/lib/scroll-to-contacts";
 import { scrollToFormats } from "@/lib/scroll-to-formats";
 import {
   SITE_ADDRESS_SHORT,
@@ -14,8 +13,6 @@ import {
   SITE_TELEGRAM_BOOKING_URL,
   SITE_VK_URL,
 } from "@/lib/site-contact";
-// TODO: раскомментировать при включении авторизации
-// import { useSession } from "next-auth/react";
 
 const DiscordIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 127.14 96.36" className={className}>
@@ -35,35 +32,81 @@ const VKIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+
 type HeaderProps = {
   polygonLogoUrl: string;
 };
 
 export default function Header({ polygonLogoUrl }: HeaderProps) {
   const pathname = usePathname();
-  // TODO: раскомментировать при включении авторизации
-  // const router = useRouter();
-  // const { data: session, status } = useSession();
   const isAdventuresPage = pathname === "/adventures";
-  // const isSchedulePage = pathname === "/schedule";
-  // const isLoginPage = pathname === "/login";
-  // const isProfilePage = pathname === "/profile";
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  
-  // const isAuthenticated = !!session;
-  // const loading = status === "loading";
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
 
-  const handleContactsClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+  const closeMobileMenu = useCallback(() => {
     setMobileMenuOpen(false);
-    if (pathname !== "/") return;
-    e.preventDefault();
-    if (scrollToContacts()) {
-      window.history.replaceState(null, "", "#contacts");
+  }, []);
+
+  const openMobileMenu = useCallback(() => {
+    setMobileMenuOpen(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [mobileMenuOpen]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeMobileMenu();
+        return;
+      }
+      if (e.key !== "Tab" || !mobileMenuRef.current) return;
+
+      const focusable = Array.from(
+        mobileMenuRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
+      ).filter((el) => !el.hasAttribute("disabled") && el.offsetParent !== null);
+
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [mobileMenuOpen, closeMobileMenu]);
+
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      const first = mobileMenuRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+      first?.focus();
+    } else {
+      menuButtonRef.current?.focus();
     }
-  };
+  }, [mobileMenuOpen]);
 
   const handleFormatsClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    setMobileMenuOpen(false);
+    closeMobileMenu();
     if (pathname !== "/") return;
     e.preventDefault();
     if (scrollToFormats()) {
@@ -73,7 +116,7 @@ export default function Header({ polygonLogoUrl }: HeaderProps) {
 
   return (
     <>
-      <nav className="fixed top-0 w-full z-50 bg-[#0f0d0c]/90 backdrop-blur-sm border-b border-amber-900/20 px-4 sm:px-6 py-2 sm:py-3 relative flex items-center justify-between shadow-2xl min-h-[56px] sm:min-h-[68px]">
+      <nav className="fixed top-0 w-full z-50 bg-[#0f0d0c]/90 backdrop-blur-sm border-b border-amber-900/20 px-4 sm:px-6 py-2 sm:py-3 flex items-center justify-between shadow-2xl min-h-[56px] sm:min-h-[68px] pt-[env(safe-area-inset-top)]">
         {/* Левая колонка: соцсети + часть ссылок (десктоп) */}
         <div className="flex-1 flex justify-start items-center min-w-0 z-10">
           <div className="hidden md:flex items-center gap-4 lg:gap-6 xl:gap-8 text-[10px] lg:text-xs font-bold tracking-[0.2em] uppercase text-amber-100/70">
@@ -91,25 +134,16 @@ export default function Header({ polygonLogoUrl }: HeaderProps) {
               </span>
             </div>
             <div className="flex items-center gap-4 lg:gap-6 shrink-0">
-              <div className="flex flex-col items-center gap-2 shrink-0">
-                <div className="flex items-center gap-4 lg:gap-6 shrink-0">
-                  <a href={SITE_DISCORD_URL} target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#5865F2] transition-all hover:scale-110 shrink-0" title="Discord">
-                    <DiscordIcon className="w-5 h-5" />
-                  </a>
-                  <a href={SITE_TELEGRAM_BOOKING_URL} target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#24A1DE] transition-all hover:scale-110 shrink-0" title="Telegram">
-                    <TelegramIcon className="w-5 h-5" />
-                  </a>
-                  <a href={SITE_VK_URL} target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#0077FF] transition-all hover:scale-110 shrink-0" title="ВКонтакте">
-                    <VKIcon className="w-5 h-5" />
-                  </a>
-                </div>
-                <Link
-                  href="/#contacts"
-                  onClick={handleContactsClick}
-                  className="hover:text-amber-500 transition-colors underline-offset-8 hover:underline shrink-0 text-center"
-                >
-                  Контакты
-                </Link>
+              <div className="flex items-center gap-4 lg:gap-6 shrink-0">
+                <a href={SITE_DISCORD_URL} target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#5865F2] transition-all hover:scale-110 shrink-0" title="Discord">
+                  <DiscordIcon className="w-5 h-5" />
+                </a>
+                <a href={SITE_TELEGRAM_BOOKING_URL} target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#24A1DE] transition-all hover:scale-110 shrink-0" title="Telegram">
+                  <TelegramIcon className="w-5 h-5" />
+                </a>
+                <a href={SITE_VK_URL} target="_blank" rel="noopener noreferrer" className="text-amber-100/40 hover:text-[#0077FF] transition-all hover:scale-110 shrink-0" title="ВКонтакте">
+                  <VKIcon className="w-5 h-5" />
+                </a>
               </div>
               <div className="flex min-w-[4.25rem] flex-col items-center justify-center self-stretch text-center">
                 <Link
@@ -130,7 +164,7 @@ export default function Header({ polygonLogoUrl }: HeaderProps) {
         <Link
           href="/"
           className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-auto group flex items-center justify-center px-2"
-          onClick={() => setMobileMenuOpen(false)}
+          onClick={closeMobileMenu}
           aria-label="Гильдия ПОЛИГОН — на главную"
         >
           <div
@@ -160,46 +194,13 @@ export default function Header({ polygonLogoUrl }: HeaderProps) {
             >
               Приключения
             </Link>
-            {/* <Link
-              href="/schedule"
-              className={`shrink-0 hover:text-amber-500 transition-colors underline-offset-8 ${
-                isSchedulePage ? "text-amber-500 underline" : "hover:underline"
-              }`}
-            >
-              Расписание
-            </Link> */}
-            {/* TODO: раскомментировать при включении авторизации и личных кабинетов */}
-            {/* {!loading && (
-              isAuthenticated ? (
-                <Link
-                  href="/profile"
-                  className={`ml-2 lg:ml-4 px-4 lg:px-6 py-2 border transition-all font-black rounded-sm ${
-                    isProfilePage
-                      ? "bg-amber-600 text-black border-amber-600"
-                      : "bg-amber-900/20 border-amber-700/50 text-amber-500 hover:bg-amber-600 hover:text-black"
-                  }`}
-                >
-                  ПРОФИЛЬ
-                </Link>
-              ) : (
-                <button 
-                  onClick={() => router.push("/login")}
-                  className={`ml-2 lg:ml-4 px-4 lg:px-6 py-2 border transition-all font-black rounded-sm ${
-                    isLoginPage
-                      ? "bg-amber-600 text-black border-amber-600"
-                      : "bg-amber-900/20 border-amber-700/50 text-amber-500 hover:bg-amber-600 hover:text-black"
-                  }`}
-                >
-                  ВХОД
-                </button>
-              )
-            )} */}
           </div>
 
           {/* Mobile Menu Button */}
           <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 text-amber-600 hover:text-amber-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0a09]"
+            ref={menuButtonRef}
+            onClick={() => (mobileMenuOpen ? closeMobileMenu() : openMobileMenu())}
+            className="md:hidden min-h-[44px] min-w-[44px] flex items-center justify-center text-amber-600 hover:text-amber-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c0a09]"
             aria-label="Меню"
             aria-expanded={mobileMenuOpen}
             aria-controls="mobile-menu"
@@ -212,11 +213,15 @@ export default function Header({ polygonLogoUrl }: HeaderProps) {
       {/* Mobile Menu */}
       <div
         id="mobile-menu"
+        ref={mobileMenuRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Навигация"
         className={`fixed top-0 left-0 w-full h-full bg-[#0f0d0c]/95 backdrop-blur-md z-40 md:hidden transition-transform duration-300 ${
-          mobileMenuOpen ? "translate-x-0" : "translate-x-full"
+          mobileMenuOpen ? "translate-x-0" : "translate-x-full pointer-events-none"
         }`}
       >
-        <div className="flex flex-col h-full pt-20 px-6">
+        <div className="flex flex-col h-full pt-[calc(5rem+env(safe-area-inset-top))] px-6 pb-[env(safe-area-inset-bottom)]">
           <div className="py-3 border-b border-amber-900/30">
             <a
               href={`tel:${SITE_PHONE_TEL}`}
@@ -241,13 +246,6 @@ export default function Header({ polygonLogoUrl }: HeaderProps) {
             </a>
           </div>
           <Link
-            href="/#contacts"
-            onClick={handleContactsClick}
-            className="py-4 text-lg font-bold tracking-widest uppercase transition-colors border-b border-amber-900/30 text-amber-100/70 hover:text-amber-500"
-          >
-            Контакты
-          </Link>
-          <Link
             href="/#formats"
             onClick={handleFormatsClick}
             className="py-4 text-lg font-bold tracking-widest uppercase transition-colors border-b border-amber-900/30 text-amber-100/70 hover:text-amber-500"
@@ -256,7 +254,7 @@ export default function Header({ polygonLogoUrl }: HeaderProps) {
           </Link>
           <Link
             href="/adventures"
-            onClick={() => setMobileMenuOpen(false)}
+            onClick={closeMobileMenu}
             className={`py-4 text-xl font-black tracking-widest uppercase transition-colors border-b border-amber-900/30 border-l-4 pl-4 -ml-1 ${
               isAdventuresPage
                 ? "text-amber-950 bg-amber-400/90 border-l-amber-300"
@@ -265,45 +263,6 @@ export default function Header({ polygonLogoUrl }: HeaderProps) {
           >
             Приключения
           </Link>
-          {/* <Link
-            href="/schedule"
-            onClick={() => setMobileMenuOpen(false)}
-            className={`py-4 text-lg font-bold tracking-widest uppercase transition-colors border-b border-amber-900/30 ${
-              isSchedulePage ? "text-amber-500" : "text-amber-100/70 hover:text-amber-500"
-            }`}
-          >
-            Расписание
-          </Link> */}
-          {/* TODO: раскомментировать при включении авторизации и личных кабинетов */}
-          {/* {!loading && (
-            isAuthenticated ? (
-              <Link
-                href="/profile"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`mt-4 px-6 py-3 border-2 transition-all font-black rounded-sm text-base tracking-widest uppercase ${
-                  isProfilePage
-                    ? "bg-amber-600 text-black border-amber-600"
-                    : "bg-amber-900/20 border-amber-700/50 text-amber-500 hover:bg-amber-600 hover:text-black"
-                }`}
-              >
-                ПРОФИЛЬ
-              </Link>
-            ) : (
-              <button 
-                onClick={() => {
-                  router.push("/login");
-                  setMobileMenuOpen(false);
-                }}
-                className={`mt-4 px-6 py-3 border-2 transition-all font-black rounded-sm text-base tracking-widest uppercase ${
-                  isLoginPage
-                    ? "bg-amber-600 text-black border-amber-600"
-                    : "bg-amber-900/20 border-amber-700/50 text-amber-500 hover:bg-amber-600 hover:text-black"
-                }`}
-              >
-                ВХОД
-              </button>
-            )
-          )} */}
         </div>
       </div>
     </>

@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 const MAX_RANGE_DAYS = 93;
 
 export async function GET(req: Request) {
-  if (!isScheduleTableAvailable()) {
+  if (!(await isScheduleTableAvailable())) {
     return NextResponse.json({ error: "Schedule is not configured" }, { status: 503 });
   }
 

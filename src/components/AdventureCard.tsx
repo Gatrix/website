@@ -3,6 +3,7 @@
 import React from "react";
 import Image from "next/image";
 import type { Adventure } from "@/lib/db";
+import { shouldBypassImageOptimization } from "@/lib/image-url";
 
 type AdventureCardProps = {
   adventure: Adventure;
@@ -38,7 +39,7 @@ export default function AdventureCard({
         }
       }}
       data-adventure-card
-      className={`group relative w-full flex flex-col bg-[#14110f] rounded-lg overflow-hidden border border-amber-900/30 shadow-xl cursor-pointer hover:border-amber-600/50 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-inset ${className}`}
+      className={`group relative w-full min-w-0 flex flex-col bg-[#14110f] rounded-lg overflow-hidden border border-amber-900/30 shadow-xl cursor-pointer hover:border-amber-600/50 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/80 focus-visible:ring-inset ${className}`}
       {...rest}
     >
       <div className="group/poster relative w-full aspect-[3/4] bg-[#0f0d0c] overflow-hidden flex-shrink-0 [contain:layout_paint]">
@@ -51,7 +52,7 @@ export default function AdventureCard({
             sizes={imageSizes}
             loading="lazy"
             draggable={false}
-            unoptimized
+            unoptimized={imageUrl ? shouldBypassImageOptimization(imageUrl) : false}
           />
         ) : (
           <div className="absolute inset-0 bg-amber-900/10 flex items-center justify-center">
@@ -69,6 +70,12 @@ export default function AdventureCard({
           </div>
         ) : null}
       </div>
+      <p
+        className="px-2 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-amber-100/90 truncate text-center min-w-0 w-full border-t border-amber-900/25"
+        title={adventure.title}
+      >
+        {adventure.title}
+      </p>
     </Component>
   );
 }
