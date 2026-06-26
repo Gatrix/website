@@ -160,9 +160,9 @@ export default function BookingSchedulePicker({
   return (
     <BookingPanelFrame className="p-3 sm:p-4 space-y-3">
       <div className="flex items-start gap-2">
-        <CalendarDays className="w-7 h-7 text-amber-400/90 shrink-0 mt-0.5" aria-hidden />
+        <CalendarDays className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400/90 shrink-0 mt-0.5" aria-hidden />
         <div className="min-w-0 flex-1">
-          <p className="text-xl font-bold uppercase tracking-wider text-amber-400/90">
+          <p className="text-sm sm:text-base font-bold uppercase tracking-wide sm:tracking-wider text-amber-400/90">
             Дата и время начала
           </p>
         </div>
@@ -179,7 +179,7 @@ export default function BookingSchedulePicker({
         >
           <ChevronLeft className="w-6 h-6" />
         </button>
-        <p className="text-2xl font-bold text-amber-100 tracking-wide">
+        <p className="text-base sm:text-lg md:text-xl font-bold text-amber-100 tracking-wide">
           {MONTH_NAMES[monthIndex]} {year}
         </p>
         <button
@@ -195,13 +195,13 @@ export default function BookingSchedulePicker({
 
       <div className="grid grid-cols-7 gap-1 text-center">
         {WEEKDAYS.map((d) => (
-          <div key={d} className="text-base uppercase tracking-wider text-stone-500 py-1">
+          <div key={d} className="text-xs sm:text-sm uppercase tracking-wider text-stone-500 py-0.5 sm:py-1">
             {d}
           </div>
         ))}
         {monthCells.map((cell, idx) => {
           if (cell.day == null || cell.date == null) {
-            return <div key={`empty-${idx}`} className="min-h-[52px]" aria-hidden />;
+            return <div key={`empty-${idx}`} className="min-h-[40px] sm:min-h-[52px]" aria-hidden />;
           }
 
           const slots = slotsByDate.get(cell.date) ?? [];
@@ -214,7 +214,7 @@ export default function BookingSchedulePicker({
               type="button"
               disabled={!hasSlots && !isSelected}
               onClick={() => setSelectedGameDate(cell.date)}
-              className={`min-h-[52px] rounded-md border text-xl font-semibold transition-colors ${
+              className={`min-h-[40px] sm:min-h-[52px] rounded-md border text-sm sm:text-base font-semibold transition-colors ${
                 isSelected
                   ? "border-amber-500/70 bg-amber-950/50 text-amber-100"
                   : hasSlots
@@ -234,24 +234,24 @@ export default function BookingSchedulePicker({
       </div>
 
       {error ? (
-        <p className="text-xl text-red-400/90" role="alert">
+        <p className="text-sm sm:text-base text-red-400/90" role="alert">
           {error}
         </p>
       ) : null}
 
       {!loading && !error && days.every((d) => d.slots.length === 0) ? (
-        <p className="text-xl text-amber-200/70 text-center py-1">
+        <p className="text-sm sm:text-base text-amber-200/70 text-center py-1">
           В этом месяце нет свободного времени для игры {durationHours} ч.
         </p>
       ) : null}
 
       {selectedGameDate ? (
         <div className="space-y-2 pt-1 border-t border-amber-800/25">
-          <p className="text-xl uppercase tracking-wider text-amber-400/80">
+          <p className="text-sm sm:text-base uppercase tracking-wide text-amber-400/80">
             {selectedGameDate.split("-").reverse().join(".")} — начало игры в:
           </p>
           {loading ? (
-            <p className="text-xl text-amber-200/60 flex items-center gap-2">
+            <p className="text-sm sm:text-base text-amber-200/60 flex items-center gap-2">
               <Loader2 className="w-5 h-5 animate-spin shrink-0" aria-hidden />
               Обновляем доступное время…
             </p>
@@ -270,7 +270,7 @@ export default function BookingSchedulePicker({
                         startTime: slot.startTime,
                       })
                     }
-                    className={`rounded-lg border px-4 py-3 text-xl transition-colors ${
+                    className={`rounded-lg border px-3 py-2 sm:px-4 sm:py-3 text-sm sm:text-base transition-colors ${
                       selected
                         ? "border-amber-500/65 bg-amber-950/45 text-amber-100"
                         : "border-lime-700/30 bg-lime-950/15 text-lime-200 hover:border-lime-500/45"
@@ -282,7 +282,7 @@ export default function BookingSchedulePicker({
               })}
             </div>
           ) : (
-            <p className="text-xl text-amber-200/70 leading-snug">
+            <p className="text-sm sm:text-base text-amber-200/70 leading-snug">
               На эту дату нет свободного времени для игры {durationHours} ч. Выберите другое время
               начала или измените длительность.
             </p>
@@ -291,7 +291,7 @@ export default function BookingSchedulePicker({
       ) : null}
 
       {selectedSlot ? (
-        <p className="text-xl text-emerald-300/90">
+        <p className="text-sm sm:text-base text-emerald-300/90">
           Выбрано:{" "}
           {formatSlotRangeLabel(new Date(selectedSlot.startsAt), new Date(selectedSlot.endsAt))}
         </p>

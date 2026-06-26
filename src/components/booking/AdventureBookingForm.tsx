@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   Dice5,
   ExternalLink,
-  Globe,
   Hourglass,
   Loader2,
   Phone,
@@ -61,11 +60,11 @@ function choiceGridClass(count: number, compact = false): string {
   if (compact) return "grid-cols-3";
   if (count <= 1) return "grid-cols-1";
   if (count === 2) return "grid-cols-2";
-  return "grid-cols-3";
+  return "grid-cols-2 sm:grid-cols-3";
 }
 
 function choiceButtonClass(selected: boolean): string {
-  return `relative flex items-center justify-center gap-2 rounded-lg border px-4 py-3.5 text-center transition-colors focus-visible:ring-2 focus-visible:ring-amber-500/90 ${
+  return `relative flex min-w-0 items-center justify-center gap-1 rounded-lg border px-2 py-2.5 sm:px-3 sm:py-3 md:px-4 md:py-3.5 text-center transition-colors focus-visible:ring-2 focus-visible:ring-amber-500/90 ${
     selected
       ? "border-amber-500/60 bg-amber-950/45"
       : "border-amber-800/35 bg-[#0f0d0c]/80 hover:border-amber-600/40"
@@ -84,6 +83,7 @@ function BookingChoiceGroup({
   intro,
   footer,
   gridClassName,
+  compactValues = false,
 }: {
   label: string;
   icon: React.ReactNode;
@@ -94,6 +94,7 @@ function BookingChoiceGroup({
   intro?: React.ReactNode;
   footer?: React.ReactNode;
   gridClassName?: string;
+  compactValues?: boolean;
 }) {
   if (options.length === 0) return null;
 
@@ -101,7 +102,9 @@ function BookingChoiceGroup({
     <div className="space-y-2">
       <div className="flex items-center gap-2 px-0.5">
         {icon}
-        <p className="text-xl font-bold uppercase tracking-wider text-amber-400/90">{label}</p>
+        <p className="text-sm sm:text-base font-bold uppercase tracking-wide sm:tracking-wider text-amber-400/90">
+          {label}
+        </p>
       </div>
       <div
         className={`grid gap-2 ${gridClassName ?? choiceGridClass(options.length)}`}
@@ -119,13 +122,21 @@ function BookingChoiceGroup({
               onClick={() => onChange(opt.id)}
               className={choiceButtonClass(selected)}
             >
-              <span className="font-semibold text-xl uppercase leading-snug text-amber-100">{opt.label}</span>
+              <span
+                className={
+                  compactValues
+                    ? "font-semibold text-base sm:text-lg md:text-xl tabular-nums text-amber-100"
+                    : "font-semibold text-xs sm:text-sm md:text-base uppercase leading-tight sm:leading-snug text-amber-100 break-words"
+                }
+              >
+                {opt.label}
+              </span>
             </button>
           );
         })}
       </div>
       {intro}
-      {hint ? <p className="text-xl text-amber-200/75 px-0.5 leading-snug">{hint}</p> : null}
+      {hint ? <p className="text-sm sm:text-base text-amber-200/75 px-0.5 leading-snug">{hint}</p> : null}
       {footer}
     </div>
   );
@@ -144,7 +155,6 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
 
   const [gameSystemId, setGameSystemId] = useState<string | null>(null);
   const [difficultyId, setDifficultyId] = useState<string | null>(null);
-  const [universeId, setUniverseId] = useState<string | null>(null);
   const [playerCount, setPlayerCount] = useState(5);
   const [durationHours, setDurationHours] = useState(5);
   const [selectedStartsAt, setSelectedStartsAt] = useState<string | null>(null);
@@ -173,7 +183,6 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
         const init = getBookingInitialValues(data);
         setGameSystemId(init.gameSystemId);
         setDifficultyId(init.difficultyId);
-        setUniverseId(init.universeId);
         setPlayerCount(snapToAllowed(init.playerCount, PLAYER_COUNT_OPTIONS));
         setDurationHours(snapToAllowed(init.durationHours, DURATION_HOUR_OPTIONS));
         setAdventureType(init.adventureType);
@@ -191,6 +200,8 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
       cancelled = true;
     };
   }, [adventure, reloadKey]);
+
+  const universeId = config?.universe?.id ?? null;
 
   const selection: BookingSelectionState = useMemo(
     () => ({
@@ -214,7 +225,6 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
 
   const selectedSystem = config?.systems.find((s) => s.id === gameSystemId) ?? null;
   const selectedDifficulty = config?.difficulties.find((d) => d.id === difficultyId) ?? null;
-  const selectedUniverse = config?.universes.find((u) => u.id === universeId) ?? null;
   const selectedFormat = config?.formats.find((f) => f.id === adventureType) ?? null;
 
   const handleScheduleSelect = useCallback(
@@ -234,7 +244,6 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
     selectedStartsAt != null &&
     (config?.systems.length === 0 || gameSystemId != null) &&
     (config?.difficulties.length === 0 || difficultyId != null) &&
-    (config?.universes.length === 0 || universeId != null) &&
     (config?.formats.length === 0 || config?.formats.some((f) => f.id === adventureType));
 
   const onPhoneChange = useCallback((raw: string) => {
@@ -253,7 +262,6 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
           adventureId: adventure.id,
           gameSystemId,
           difficultyId,
-          universeId,
           playerCount,
           durationHours,
           adventureType,
@@ -344,12 +352,12 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
 
       <BookingChoiceGroup
         label="Система"
-        icon={<Dice5 className="w-7 h-7 text-amber-400/90 shrink-0" aria-hidden />}
+        icon={<Dice5 className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400/90 shrink-0" aria-hidden />}
         options={config.systems.map((s) => ({ id: s.id, label: s.name }))}
         value={gameSystemId}
         onChange={setGameSystemId}
         intro={
-          <p className="text-xl text-amber-200/65 px-0.5 leading-relaxed">
+          <p className="text-sm sm:text-base text-amber-200/65 px-0.5 leading-relaxed">
             Рекомендуется выбирать{" "}
             <span className="text-amber-200/85 font-medium">авторскую систему правил</span>. В ином
             случае предполагается, что игроки уже знакомы с правилами выбранной системы.
@@ -362,7 +370,7 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
               href={selectedSystem.rulebook}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-xl text-amber-400/90 hover:text-amber-300 underline-offset-2 hover:underline px-0.5"
+              className="inline-flex items-center gap-1 text-sm sm:text-base text-amber-400/90 hover:text-amber-300 underline-offset-2 hover:underline px-0.5"
             >
               Правила (PDF)
               <ExternalLink className="w-4 h-4" aria-hidden />
@@ -373,25 +381,18 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
 
       <BookingChoiceGroup
         label="Сложность"
-        icon={<Shield className="w-7 h-7 text-amber-400/90 shrink-0" aria-hidden />}
+        icon={<Shield className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400/90 shrink-0" aria-hidden />}
         options={config.difficulties.map((d) => ({ id: d.id, label: d.name }))}
         value={difficultyId}
         onChange={setDifficultyId}
         hint={selectedDifficulty?.description || null}
       />
 
-      <BookingChoiceGroup
-        label="Вселенная"
-        icon={<Globe className="w-7 h-7 text-amber-400/90 shrink-0" aria-hidden />}
-        options={config.universes.map((u) => ({ id: u.id, label: u.name }))}
-        value={universeId}
-        onChange={setUniverseId}
-        hint={selectedUniverse ? `Игра пройдёт в сеттинге «${selectedUniverse.name}».` : null}
-      />
-
       {config.formats.length > 0 ? (
         <div className="space-y-2">
-          <p className="text-xl font-bold uppercase tracking-wider text-amber-400/90 px-0.5">Формат игры</p>
+          <p className="text-sm sm:text-base font-bold uppercase tracking-wide sm:tracking-wider text-amber-400/90 px-0.5">
+            Формат игры
+          </p>
           <div
             className={`grid gap-2 ${choiceGridClass(config.formats.length)}`}
             role="radiogroup"
@@ -408,35 +409,39 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
                   onClick={() => setAdventureType(f.id)}
                   className={choiceButtonClass(sel)}
                 >
-                  <span className="font-bold uppercase text-xl tracking-wide text-amber-100">{f.title}</span>
+                  <span className="font-bold uppercase text-xs sm:text-sm md:text-base tracking-wide text-amber-100 break-words leading-tight sm:leading-snug">
+                    {f.title}
+                  </span>
                 </button>
               );
             })}
           </div>
           {selectedFormat ? (
-            <p className="text-xl text-amber-200/75 px-0.5 leading-snug">{selectedFormat.description}</p>
+            <p className="text-sm sm:text-base text-amber-200/75 px-0.5 leading-snug">{selectedFormat.description}</p>
           ) : null}
         </div>
       ) : null}
 
       <BookingChoiceGroup
         label="Количество игроков"
-        icon={<Users className="w-7 h-7 text-amber-400/90 shrink-0" aria-hidden />}
+        icon={<Users className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400/90 shrink-0" aria-hidden />}
         options={PLAYER_COUNT_OPTIONS.map((n) => ({ id: String(n), label: String(n) }))}
         value={String(playerCount)}
         onChange={(id) => setPlayerCount(Number(id))}
         hint={playerHint(playerCount)}
         gridClassName="grid-cols-3"
+        compactValues
       />
 
       <BookingChoiceGroup
         label="Желаемая длительность (часы)"
-        icon={<Hourglass className="w-7 h-7 text-amber-400/90 shrink-0" aria-hidden />}
+        icon={<Hourglass className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400/90 shrink-0" aria-hidden />}
         options={DURATION_HOUR_OPTIONS.map((n) => ({ id: String(n), label: String(n) }))}
         value={String(durationHours)}
         onChange={(id) => setDurationHours(Number(id))}
         hint={durationHint(durationHours)}
         gridClassName="grid-cols-3"
+        compactValues
       />
 
       <BookingSchedulePicker
@@ -450,7 +455,7 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
           {activeWarnings.map((w) => (
             <div
               key={w.id}
-              className="flex gap-2.5 rounded-lg border border-amber-600/35 bg-amber-950/30 px-3 py-2.5 text-xl text-amber-100/90 leading-snug"
+              className="flex gap-2.5 rounded-lg border border-amber-600/35 bg-amber-950/30 px-3 py-2.5 text-sm sm:text-base text-amber-100/90 leading-snug"
             >
               <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" aria-hidden />
               <p>{w.message}</p>
@@ -460,7 +465,7 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
       ) : null}
 
       <BookingPanelFrame className="p-3 sm:p-4">
-        <label htmlFor="booking-phone" className="text-xl font-bold uppercase tracking-wider text-amber-400/90 block mb-2">
+        <label htmlFor="booking-phone" className="text-sm sm:text-base font-bold uppercase tracking-wide sm:tracking-wider text-amber-400/90 block mb-2">
           Телефон <span className="text-red-400/90">*</span>
         </label>
         <div className="relative">
@@ -477,17 +482,17 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
             value={phone}
             onChange={(e) => onPhoneChange(e.target.value)}
             placeholder="+7 (999) 123-45-67"
-            className="input-base !text-xl sm:!text-xl w-full pl-10 py-3"
+            className="input-base !text-base sm:!text-lg w-full pl-10 py-2.5 sm:py-3"
             aria-invalid={phone.length > 0 && !phoneComplete}
           />
         </div>
         {phone.length > 0 && !phoneComplete ? (
-          <p className="mt-1.5 text-lg text-amber-600/80">Введите номер полностью, 11 цифр</p>
+          <p className="mt-1.5 text-sm text-amber-600/80">Введите номер полностью, 11 цифр</p>
         ) : null}
       </BookingPanelFrame>
 
       <BookingPanelFrame className="p-3 sm:p-4">
-        <label htmlFor="booking-note" className="text-xl font-bold uppercase tracking-wider text-amber-400/90 block mb-2">
+        <label htmlFor="booking-note" className="text-sm sm:text-base font-bold uppercase tracking-wide sm:tracking-wider text-amber-400/90 block mb-2">
           Комментарий
         </label>
         <textarea
@@ -497,7 +502,7 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
           rows={2}
           maxLength={2000}
           placeholder="Вопросы, пожелания, дополнительные контакты"
-          className="input-base resize-none !text-xl sm:!text-xl w-full py-3"
+          className="input-base resize-none !text-base sm:!text-lg w-full py-2.5 sm:py-3"
         />
       </BookingPanelFrame>
 
@@ -509,15 +514,15 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
       </div>
 
       <div className="z-10 shrink-0 border-t border-amber-900/30 bg-[#14110f] pt-3 pb-[max(0.25rem,env(safe-area-inset-bottom))]">
-        <div className="flex gap-3 items-stretch">
+        <div className="flex flex-col gap-2 sm:flex-row sm:gap-3 sm:items-stretch">
           <div
-            className="flex min-w-0 flex-1 flex-col justify-center rounded-lg border border-amber-500/45 bg-gradient-to-b from-amber-950/60 to-[#0f0d0c]/90 px-3 py-2.5 text-center shadow-[inset_0_1px_0_rgba(251,191,36,0.1)]"
+            className="flex min-w-0 flex-col justify-center rounded-lg border border-amber-500/45 bg-gradient-to-b from-amber-950/60 to-[#0f0d0c]/90 px-3 py-2 sm:flex-1 sm:text-center shadow-[inset_0_1px_0_rgba(251,191,36,0.1)]"
             aria-live="polite"
           >
-            <p className="text-sm font-semibold uppercase tracking-wider text-amber-400/90">
+            <p className="text-xs sm:text-sm font-semibold uppercase tracking-wide text-amber-400/90">
               Стоимость за человека
             </p>
-            <p className="mt-0.5 text-2xl font-extrabold text-amber-50 tabular-nums leading-tight">
+            <p className="mt-0.5 text-xl sm:text-2xl font-extrabold text-amber-50 tabular-nums leading-tight">
               {formatRub(pricePerPersonRub)} ₽
             </p>
             <p className="mt-0.5 text-xs text-amber-200/65">
@@ -528,11 +533,11 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
           <button
             type="submit"
             disabled={!canSubmit}
-            className="min-w-[9.5rem] flex-1 inline-flex items-center justify-center gap-2 rounded-lg border-2 px-4 py-3 text-2xl font-black uppercase tracking-wider transition-all duration-200 enabled:border-amber-200 enabled:bg-gradient-to-b enabled:from-amber-300 enabled:via-amber-400 enabled:to-amber-600 enabled:text-[#1a1008] enabled:shadow-[0_0_28px_rgba(251,191,36,0.55),inset_0_1px_0_rgba(255,255,255,0.45)] hover:enabled:from-amber-200 hover:enabled:via-amber-300 hover:enabled:to-amber-500 hover:enabled:shadow-[0_0_40px_rgba(251,191,36,0.7)] hover:enabled:scale-[1.02] active:enabled:scale-[0.98] disabled:cursor-not-allowed disabled:border-amber-900/50 disabled:bg-[#1a1510] disabled:text-amber-700/45 disabled:shadow-none"
+            className="w-full sm:min-w-[9.5rem] sm:flex-1 inline-flex items-center justify-center gap-2 rounded-lg border-2 px-3 py-2.5 sm:px-4 sm:py-3 text-sm sm:text-base font-bold uppercase tracking-wide transition-all duration-200 enabled:border-amber-200 enabled:bg-gradient-to-b enabled:from-amber-300 enabled:via-amber-400 enabled:to-amber-600 enabled:text-[#1a1008] enabled:shadow-[0_0_28px_rgba(251,191,36,0.55),inset_0_1px_0_rgba(255,255,255,0.45)] hover:enabled:from-amber-200 hover:enabled:via-amber-300 hover:enabled:to-amber-500 hover:enabled:shadow-[0_0_40px_rgba(251,191,36,0.7)] hover:enabled:scale-[1.01] active:enabled:scale-[0.99] disabled:cursor-not-allowed disabled:border-amber-800/60 disabled:bg-[#1a1510] disabled:text-amber-500/70 disabled:shadow-none"
           >
             {submitting ? (
               <>
-                <Loader2 className="w-6 h-6 animate-spin" aria-hidden />
+                <Loader2 className="w-5 h-5 shrink-0 animate-spin" aria-hidden />
                 Отправка…
               </>
             ) : (

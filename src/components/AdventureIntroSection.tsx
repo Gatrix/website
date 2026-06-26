@@ -18,6 +18,8 @@ function fitGenreFontSize(el: HTMLElement): number {
 }
 
 type AdventureIntroSectionProps = {
+  universe?: string | null;
+  subsetting?: string | null;
   genres: string[];
   text: string;
   descriptionId?: string;
@@ -25,7 +27,12 @@ type AdventureIntroSectionProps = {
   textClassName?: string;
 };
 
+const settingLineClass =
+  "font-fantasy-serif font-bold uppercase tracking-[0.12em] text-amber-300/95 leading-tight";
+
 export default function AdventureIntroSection({
+  universe,
+  subsetting,
   genres,
   text,
   descriptionId,
@@ -69,15 +76,29 @@ export default function AdventureIntroSection({
     };
   }, [remeasureGenres]);
 
+  const hasUniverse = Boolean(universe?.trim());
+  const hasSubsetting = Boolean(subsetting?.trim());
   const hasGenres = genres.length > 0;
   const hasText = Boolean(text);
-  if (!hasGenres && !hasText) return null;
+  if (!hasUniverse && !hasSubsetting && !hasGenres && !hasText) return null;
 
   return (
     <section
       className="min-w-0 w-full"
       aria-describedby={hasText && descriptionId ? descriptionId : undefined}
     >
+      {hasUniverse || hasSubsetting ? (
+        <div className="mb-4 sm:mb-5 space-y-2 sm:space-y-2.5">
+          {hasUniverse ? (
+            <p className={`${settingLineClass} text-[clamp(1.25rem,4.5vw,2.25rem)]`}>{universe!.trim()}</p>
+          ) : null}
+          {hasSubsetting ? (
+            <p className={`${settingLineClass} text-[clamp(1.125rem,3.8vw,1.875rem)] text-amber-400/90`}>
+              {subsetting!.trim()}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
       {hasGenres ? (
         <p
           ref={genresRef}

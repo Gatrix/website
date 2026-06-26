@@ -1,5 +1,5 @@
 import type { Adventure } from "@/lib/db";
-import type { BookingConfigPayload, GameFormatId } from "@/lib/booking-types";
+import type { BookingConfigPayload, BookingUniverse, GameFormatId } from "@/lib/booking-types";
 
 export function defaultFormatFromAdventure(a: Adventure): GameFormatId {
   const raw = (a.adventure_type ?? a.format ?? "").toLowerCase();
@@ -22,19 +22,16 @@ export function getBookingInitialValues(config: BookingConfigPayload) {
   const adventureType = config.formats.some((f) => f.id === preferred)
     ? preferred
     : (config.formats[0]?.id ?? "adventure");
-  const defaultUni = config.defaultUniverseId;
-  const universeId =
-    config.universes.length === 0
-      ? null
-      : defaultUni && config.universes.some((u) => u.id === defaultUni)
-        ? defaultUni
-        : (config.universes[0]?.id ?? null);
   return {
     gameSystemId: config.systems[0]?.id ?? null,
     difficultyId: config.difficulties[0]?.id ?? null,
-    universeId,
+    universeId: config.universe?.id ?? null,
     playerCount: snap(Math.min(b.maxPlayers, Math.max(b.minPlayers, midPc)), allowedPlayers),
     durationHours: snap(Math.min(b.maxDurationHours, Math.max(b.minDurationHours, midDh)), allowedHours),
     adventureType,
   };
+}
+
+export function bookingUniverseFromConfig(config: BookingConfigPayload): BookingUniverse | null {
+  return config.universe;
 }

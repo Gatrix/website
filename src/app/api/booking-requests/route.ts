@@ -7,6 +7,7 @@ import {
   insertBookingRequest,
 } from "@/lib/booking-db";
 import { collectActiveWarnings, isGameFormatId } from "@/lib/booking-rules";
+import { bookingUniverseFromConfig } from "@/lib/booking-config-utils";
 import { fetchBusyIntervalsForValidation } from "@/lib/booking-schedule-db";
 import { validateBookingInstant } from "@/lib/booking-schedule";
 import type { BookingSelectionState } from "@/lib/booking-types";
@@ -177,12 +178,8 @@ export async function POST(req: Request) {
     }
   }
 
-  const universeId = body.universeId?.trim() || null;
-  if (config.universes.length > 0) {
-    if (universeId == null || !config.universes.some((u) => u.id === universeId)) {
-      return NextResponse.json({ error: "universeId required" }, { status: 400 });
-    }
-  }
+  const configuredUniverse = bookingUniverseFromConfig(config);
+  const universeId = configuredUniverse?.id ?? null;
 
   const pc = body.playerCount;
   const dh = body.durationHours;
@@ -225,8 +222,7 @@ export async function POST(req: Request) {
     gsid != null ? config.systems.find((s) => s.id === gsid)?.name ?? null : null;
   const difficultyName =
     diffId != null ? config.difficulties.find((d) => d.id === diffId)?.name ?? null : null;
-  const universeName =
-    universeId != null ? config.universes.find((u) => u.id === universeId)?.name ?? null : null;
+  const universeName = configuredUniverse?.name ?? null;
 
   const playerNote =
     typeof body.playerNote === "string" ? body.playerNote.slice(0, 2000) : "";

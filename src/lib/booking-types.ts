@@ -44,13 +44,13 @@ export type BookingConfigPayload = {
   adventureTitle: string;
   systems: BookingGameSystem[];
   difficulties: BookingDifficulty[];
-  universes: BookingUniverse[];
+  /** Единственная вселенная приключения (задаётся в БД, не выбирается в форме). */
+  universe: BookingUniverse | null;
   bounds: BookingBounds;
   formats: FormatInfo[];
   warningRules: WarningRule[];
   warnings: { id: number; message: string }[];
   defaultAdventureType?: GameFormatId;
-  defaultUniverseId?: string;
 };
 
 export type BookingSelectionState = {

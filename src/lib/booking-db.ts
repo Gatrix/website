@@ -100,17 +100,43 @@ function isMissingColumnError(err: unknown, column: string): boolean {
   return e.code === "42703" && (e.message?.includes(column) ?? false);
 }
 
-function pickDefaultUniverse(a: Adventure, list: BookingUniverse[]): string | undefined {
-  if (!list.length) return undefined;
-  const candidates = [a.universe, ...(a.world ?? [])]
-    .filter((v): v is string => typeof v === "string" && v.trim() !== "")
-    .map((v) => v.trim().toLowerCase());
-  for (const u of list) {
-    const id = u.id.toLowerCase();
-    const name = u.name.toLowerCase();
-    if (candidates.some((c) => c === id || c === name)) return u.id;
+function mapUniverseRow(r: Record<string, unknown>): BookingUniverse {
+  return {
+    id: String(r.universe_id),
+    name: String(r.universe_name),
+  };
+}
+
+/** Единственная вселенная приключения: adventures.default_universe_id (или одна связь в adventure_universes). */
+async function fetchPoolUniverseForAdventure(adventureId: string): Promise<BookingUniverse | null> {
+  const pool = getDbPool();
+
+  try {
+    const { rows } = await pool.query<Record<string, unknown>>(
+      `
+      SELECT u.universe_id, u.universe_name
+      FROM adventures a
+      INNER JOIN universes u ON u.universe_id = a.default_universe_id
+      WHERE a.adventure_id = $1::text
+      `,
+      [adventureId]
+    );
+    if (rows[0]) return mapUniverseRow(rows[0]);
+  } catch (err) {
+    if (!isMissingColumnError(err, "default_universe_id")) throw err;
   }
-  return list[0].id;
+
+  const { rows } = await pool.query<Record<string, unknown>>(
+    `
+    SELECT u.universe_id, u.universe_name
+    FROM adventure_universes au
+    INNER JOIN universes u ON u.universe_id = au.universe_id
+    WHERE au.adventure_id = $1::text
+    LIMIT 1
+    `,
+    [adventureId]
+  );
+  return rows[0] ? mapUniverseRow(rows[0]) : null;
 }
 
 function staticPayload(a: Adventure): BookingConfigPayload {
@@ -119,7 +145,7 @@ function staticPayload(a: Adventure): BookingConfigPayload {
     adventureTitle: a.title ?? "",
     systems: [],
     difficulties: DEFAULT_DIFFICULTIES,
-    universes: [],
+    universe: null,
     bounds: adventureFallbackBounds(a),
     formats: DEFAULT_FORMATS,
     warningRules: [],
@@ -160,24 +186,6 @@ async function fetchPoolGameSystemsForAdventure(adventureId: string): Promise<Bo
       rulebook: null,
     };
   });
-}
-
-async function fetchPoolUniversesForAdventure(adventureId: string): Promise<BookingUniverse[]> {
-  const pool = getDbPool();
-  const { rows } = await pool.query<Record<string, unknown>>(
-    `
-    SELECT u.universe_id, u.universe_name
-    FROM adventure_universes au
-    INNER JOIN universes u ON u.universe_id = au.universe_id
-    WHERE au.adventure_id = $1::text
-    ORDER BY u.universe_name ASC
-    `,
-    [adventureId]
-  );
-  return rows.map((r) => ({
-    id: String(r.universe_id),
-    name: String(r.universe_name),
-  }));
 }
 
 function mapPoolFormatRows(rows: Record<string, unknown>[]): FormatInfo[] {
@@ -223,7 +231,7 @@ async function getPoolBookingConfig(a: Adventure): Promise<BookingConfigPayload>
   let bounds: BookingBounds = { ...playerBounds };
 
   let systems: BookingGameSystem[] = [];
-  let universes: BookingUniverse[] = [];
+  let universe: BookingUniverse | null = null;
   let formats: FormatInfo[] = [];
   let warningRules: WarningRule[] = [];
   let warnings: { id: number; message: string }[] = [];
@@ -241,7 +249,7 @@ async function getPoolBookingConfig(a: Adventure): Promise<BookingConfigPayload>
   }
 
   try {
-    universes = await fetchPoolUniversesForAdventure(adventureId);
+    universe = await fetchPoolUniverseForAdventure(adventureId);
   } catch (err) {
     if (!isMissingRelationError(err)) console.error("[booking-db] adventure_universes:", err);
   }
@@ -264,13 +272,12 @@ async function getPoolBookingConfig(a: Adventure): Promise<BookingConfigPayload>
     adventureTitle: a.title ?? "",
     systems,
     difficulties: DEFAULT_DIFFICULTIES,
-    universes,
+    universe,
     bounds,
     formats,
     warningRules,
     warnings,
     defaultAdventureType,
-    defaultUniverseId: pickDefaultUniverse(a, universes),
   };
 }
 
@@ -421,7 +428,7 @@ async function getLegacyBookingConfig(a: Adventure): Promise<BookingConfigPayloa
     adventureTitle,
     systems,
     difficulties: DEFAULT_DIFFICULTIES,
-    universes: [],
+    universe: null,
     bounds: boundsMerged,
     formats,
     warningRules,

@@ -6,7 +6,7 @@ import Image from "next/image";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Adventure } from "@/lib/db";
-import { adventureGenres } from "@/lib/adventure-genres";
+import { adventureGenres, adventureWorldName } from "@/lib/adventure-genres";
 import { shouldBypassImageOptimization } from "@/lib/image-url";
 import AdventureIntroSection from "@/components/AdventureIntroSection";
 
@@ -303,7 +303,10 @@ export default function AdventureModal({
   const fullDescription = adventure?.description?.trim() || adventure?.logline?.trim() || "";
   const displayText = playerIntro || fullDescription;
   const genres = adventure ? adventureGenres(adventure) : [];
-  const showIntroSection = genres.length > 0 || Boolean(displayText);
+  const universeLabel = adventure ? adventureWorldName(adventure) : null;
+  const subsettingLabel = adventure?.subsetting?.trim() || null;
+  const showIntroSection =
+    Boolean(universeLabel) || Boolean(subsettingLabel) || genres.length > 0 || Boolean(displayText);
 
   const handleDialogKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "Tab") return;
@@ -467,6 +470,8 @@ export default function AdventureModal({
                               >
                                 {showIntroSection ? (
                                   <AdventureIntroSection
+                                    universe={universeLabel}
+                                    subsetting={subsettingLabel}
                                     genres={genres}
                                     text={displayText}
                                     descriptionId="adventure-description"

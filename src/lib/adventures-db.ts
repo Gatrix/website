@@ -61,11 +61,30 @@ function validateSqlIdentifier(name: string, label: string): string {
   return n;
 }
 
+function isMissingColumnError(err: unknown, column: string): boolean {
+  const e = err as { code?: string; message?: string };
+  return e.code === "42703" && (e.message?.includes(column) ?? false);
+}
+
 /**
  * БД adventurespool: adventures + M2M-справочники (subsettings, genres, gameformat, …).
+ * @param useDefaultUniverseColumn — adventures.default_universe_id; иначе одна строка adventure_universes.
  */
-function buildAdventurespoolSql(adventuresTable: string): string {
+function buildAdventurespoolSql(adventuresTable: string, useDefaultUniverseColumn: boolean): string {
   const table = validateSqlIdentifier(adventuresTable, "PG_ADVENTURES_TABLE");
+  const universeSelect = useDefaultUniverseColumn
+    ? "uni.universe_name AS universe"
+    : "uni_fb.universe_name AS universe";
+  const universeJoin = useDefaultUniverseColumn
+    ? "LEFT JOIN universes uni ON uni.universe_id = a.default_universe_id"
+    : `LEFT JOIN LATERAL (
+  SELECT u.universe_name
+  FROM adventure_universes au
+  INNER JOIN universes u ON u.universe_id = au.universe_id
+  WHERE au.adventure_id = a.adventure_id
+  LIMIT 1
+) uni_fb ON true`;
+
   return `
 WITH genre_agg AS (
   SELECT ag.adventure_id,
@@ -80,13 +99,6 @@ subsetting_agg AS (
   FROM adventure_subsettings asub
   INNER JOIN subsettings ss ON ss.subsetting_id = asub.subsetting_id
   GROUP BY asub.adventure_id
-),
-universe_agg AS (
-  SELECT au.adventure_id,
-         array_agg(u.universe_name::text ORDER BY u.universe_name) AS universe_names
-  FROM adventure_universes au
-  INNER JOIN universes u ON u.universe_id = au.universe_id
-  GROUP BY au.adventure_id
 ),
 gameformat_agg AS (
   SELECT agf.adventure_id,
@@ -109,7 +121,7 @@ SELECT
   a.adventure_intro AS intro,
   a.adventure_intro AS description,
   sa.subsetting_names[1] AS subsetting,
-  ua.universe_names AS universe,
+  ${universeSelect},
   ga.genre_names AS genre,
   gfa.gameformat_ids AS gameformat_ids,
   gfa.gameformat_names AS gameformat_names,
@@ -117,7 +129,7 @@ SELECT
 FROM ${table} a
 LEFT JOIN subsetting_agg sa ON sa.adventure_id = a.adventure_id
 LEFT JOIN genre_agg ga ON ga.adventure_id = a.adventure_id
-LEFT JOIN universe_agg ua ON ua.adventure_id = a.adventure_id
+${universeJoin}
 LEFT JOIN gameformat_agg gfa ON gfa.adventure_id = a.adventure_id
 LEFT JOIN tags_agg ta ON ta.adventure_id = a.adventure_id
 ORDER BY a.adventure_name ASC NULLS LAST
@@ -127,7 +139,7 @@ ORDER BY a.adventure_name ASC NULLS LAST
 function adventurespoolRowToAdventure(row: Record<string, unknown>): Adventure {
   const id = String(row.id ?? "");
   const genreArr = textArray(row.genre);
-  const universeArr = textArray(row.universe);
+  const universeName = row.universe != null ? String(row.universe).trim() : undefined;
   const gameformatIds = textArray(row.gameformat_ids);
   const gameformatLabels = mapGameformatLabels(gameformatIds);
   const subsetting = row.subsetting != null ? String(row.subsetting) : undefined;
@@ -138,11 +150,10 @@ function adventurespoolRowToAdventure(row: Record<string, unknown>): Adventure {
     poster: id ? `${id}.webp` : undefined,
     intro: row.intro != null ? String(row.intro) : undefined,
     description: row.description != null ? String(row.description) : undefined,
-    theme: subsetting,
     genre: genreArr,
     focus: genreArr,
-    universe: universeArr?.[0],
-    world: universeArr,
+    universe: universeName,
+    world: universeName,
     subsetting,
     difficulty: "Нарратив · Тактика",
     gameformats: gameformatLabels.length > 0 ? gameformatLabels : undefined,
@@ -226,8 +237,15 @@ export async function fetchAdventuresFromDatabase(): Promise<Adventure[]> {
   const usePoolSchema = process.env.PG_ADVENTURES_SCHEMA !== "legacy";
 
   if (usePoolSchema) {
-    const sql = buildAdventurespoolSql(table);
-    const { rows } = await pool.query(sql);
+    let rows: Record<string, unknown>[];
+    try {
+      const sql = buildAdventurespoolSql(table, true);
+      ({ rows } = await pool.query(sql));
+    } catch (err) {
+      if (!isMissingColumnError(err, "default_universe_id")) throw err;
+      const sql = buildAdventurespoolSql(table, false);
+      ({ rows } = await pool.query(sql));
+    }
     return rows.map((r) => adventurespoolRowToAdventure(r as Record<string, unknown>));
   }
 

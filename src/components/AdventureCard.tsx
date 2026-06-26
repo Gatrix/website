@@ -21,7 +21,7 @@ export default function AdventureCard({
   ...rest
 }: AdventureCardProps & Record<string, unknown>) {
   const imageUrl = adventure.imageUrl ?? null;
-  const themeLabel = adventure.theme?.trim();
+  const posterLabel = adventure.universe?.trim();
 
   return (
     <Component
@@ -59,13 +59,13 @@ export default function AdventureCard({
             <span className="text-amber-900/30 text-[10px] font-bold tracking-widest">Нет свитка</span>
           </div>
         )}
-        {themeLabel ? (
+        {posterLabel ? (
           <div
             className="pointer-events-none absolute inset-x-0 top-1/2 z-10 flex min-h-[18%] -translate-y-1/2 items-center justify-center bg-black/90 px-2 py-2 transition-opacity duration-200 group-hover/poster:opacity-0"
             aria-hidden
           >
             <span className="font-fantasy-serif text-center text-sm sm:text-base font-semibold uppercase tracking-[0.18em] text-white leading-snug">
-              {themeLabel}
+              {posterLabel}
             </span>
           </div>
         ) : null}
