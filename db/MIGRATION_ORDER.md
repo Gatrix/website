@@ -51,6 +51,7 @@ Apply only patches that are relevant to the current DB state:
 9. `db/adventurespool-booking-requests-grants.sql` — grants fix for existing booking tables.
 10. `db/adventurespool-booking-schedule-grants.sql` — grants for schedule table.
 11. `db/adventurespool-grants.sql` — final least-privilege grants after roles are created.
+12. `db/adventurespool-fallout.sql` — NFC board phrases (`fallout`: character_name + text).
 
 ## Roles
 

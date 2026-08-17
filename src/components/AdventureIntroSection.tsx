@@ -3,9 +3,9 @@
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 
 const GENRE_SEPARATOR = "·";
-/** ~3× от базового sm; подстраивается вниз, если строка не влезает */
-const MAX_GENRE_FONT_PX = 48;
-const MIN_GENRE_FONT_PX = 13;
+/** Подстраивается вниз, если строка жанров не влезает */
+const MAX_GENRE_FONT_PX = 24;
+const MIN_GENRE_FONT_PX = 11;
 
 function fitGenreFontSize(el: HTMLElement): number {
   let size = MAX_GENRE_FONT_PX;
@@ -36,7 +36,7 @@ export default function AdventureIntroSection({
   genres,
   text,
   descriptionId,
-  genresClassName = "mb-3 w-full min-w-0 font-fantasy-serif font-semibold text-amber-400/95 tracking-wide leading-snug",
+  genresClassName = "w-full min-w-0 font-fantasy-serif font-semibold text-amber-400/95 tracking-wide leading-snug",
   textClassName = "text-body whitespace-pre-line",
 }: AdventureIntroSectionProps) {
   const genresRef = useRef<HTMLParagraphElement>(null);
@@ -87,8 +87,8 @@ export default function AdventureIntroSection({
       className="min-w-0 w-full"
       aria-describedby={hasText && descriptionId ? descriptionId : undefined}
     >
-      {hasUniverse || hasSubsetting ? (
-        <div className="mb-4 sm:mb-5 space-y-2 sm:space-y-2.5">
+      {hasUniverse || hasSubsetting || hasGenres ? (
+        <div className="mb-3 sm:mb-4 space-y-2 sm:space-y-2.5">
           {hasUniverse ? (
             <p className={`${settingLineClass} text-[clamp(1.25rem,4.5vw,2.25rem)]`}>{universe!.trim()}</p>
           ) : null}
@@ -97,29 +97,29 @@ export default function AdventureIntroSection({
               {subsetting!.trim()}
             </p>
           ) : null}
-        </div>
-      ) : null}
-      {hasGenres ? (
-        <p
-          ref={genresRef}
-          className={`${genresClassName} ${genreWrap ? "flex flex-wrap items-baseline gap-x-2 gap-y-1" : "whitespace-nowrap"}`}
-          style={{ fontSize: `${genreFontPx}px` }}
-        >
-          {genres.map((genre, index) => (
-            <span key={`${genre}-${index}`}>
-              {index > 0 ? (
-                <span
-                  className="mx-[0.35em] text-amber-500/55 font-normal select-none"
-                  style={{ fontSize: "0.85em" }}
-                  aria-hidden
-                >
-                  {GENRE_SEPARATOR}
+          {hasGenres ? (
+            <p
+              ref={genresRef}
+              className={`${genresClassName} ${genreWrap ? "flex flex-wrap items-baseline gap-x-2 gap-y-1" : "whitespace-nowrap"}`}
+              style={{ fontSize: `${genreFontPx}px` }}
+            >
+              {genres.map((genre, index) => (
+                <span key={`${genre}-${index}`}>
+                  {index > 0 ? (
+                    <span
+                      className="mx-[0.35em] text-amber-500/55 font-normal select-none"
+                      style={{ fontSize: "0.85em" }}
+                      aria-hidden
+                    >
+                      {GENRE_SEPARATOR}
+                    </span>
+                  ) : null}
+                  {genre}
                 </span>
-              ) : null}
-              {genre}
-            </span>
-          ))}
-        </p>
+              ))}
+            </p>
+          ) : null}
+        </div>
       ) : null}
       {hasText ? (
         <p id={descriptionId} className={textClassName}>

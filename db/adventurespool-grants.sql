@@ -39,6 +39,9 @@ BEGIN
   IF to_regclass('public.site_settings') IS NOT NULL THEN
     EXECUTE 'GRANT SELECT ON site_settings TO appuser';
   END IF;
+  IF to_regclass('public.fallout') IS NOT NULL THEN
+    EXECUTE 'GRANT SELECT ON fallout TO appuser';
+  END IF;
 END
 $$;
 

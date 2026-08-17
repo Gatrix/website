@@ -202,7 +202,7 @@ export async function POST(req: Request) {
   if (!isGameFormatId(atRaw)) {
     return NextResponse.json({ error: "Invalid adventureType" }, { status: 400 });
   }
-  const formatAllowed = config.formats.some((f) => f.id === atRaw);
+  const formatAllowed = config.formats.some((f) => f.id === atRaw && f.available);
   if (!formatAllowed) {
     return NextResponse.json({ error: "adventureType not available for this adventure" }, { status: 400 });
   }

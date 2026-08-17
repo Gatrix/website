@@ -32,6 +32,12 @@ const DEFAULT_DIFFICULTIES: BookingDifficulty[] = [
     description:
       "Для тех, кто хочет вызова и более игровой структуры. Главенствование правил над историей.",
   },
+  {
+    id: "survival",
+    name: "Выживание",
+    description:
+      "Персонажей не жалеют: обстоятельства часто оказываются против игроков. Ошибки дорого стоят, а выживание — не гарантия, а награда.",
+  },
 ];
 
 const DEFAULT_FORMATS: FormatInfo[] = [
@@ -40,18 +46,21 @@ const DEFAULT_FORMATS: FormatInfo[] = [
     title: "Ваншот",
     description:
       "Игра на одну встречу. Быстрый старт, простая цель, минимум подготовки. Прекрасно подходит новичкам как отправная точка в мир НРИ.",
+    available: true,
   },
   {
     id: "adventure",
     title: "Приключение",
     description:
       "Законченная история длиной в несколько встреч. Сбалансированный вариант. Идеально для знакомства с правилами и миром игры.",
+    available: true,
   },
   {
     id: "campaign",
     title: "Кампания",
     description:
       "Длинная история на десятки игровых встреч. Глубокий сюжет и персонажи, развитие игроков. Для создания историй, о которых помнят всю жизнь.",
+    available: true,
   },
 ];
 
@@ -198,7 +207,20 @@ function mapPoolFormatRows(rows: Record<string, unknown>[]): FormatInfo[] {
       id,
       title: String(row.gameformat_name ?? def.title),
       description: desc != null && String(desc).trim() !== "" ? String(desc) : def.description,
+      available: true,
     };
+  });
+}
+
+/** Все три формата; недоступные — те, которых нет в adventure_gameformat. */
+function withAllFormatsAvailability(linked: FormatInfo[]): FormatInfo[] {
+  const byId = new Map(linked.map((f) => [f.id, f]));
+  const noneLinked = linked.length === 0;
+  return FORMAT_ORDER.map((id) => {
+    const found = byId.get(id);
+    const def = DEFAULT_FORMATS.find((d) => d.id === id)!;
+    if (found) return { ...found, available: true };
+    return { ...def, available: noneLinked };
   });
 }
 
@@ -217,11 +239,11 @@ async function fetchPoolFormatsForAdventure(adventureId: string): Promise<Format
   );
   try {
     const { rows } = await pool.query<Record<string, unknown>>(sqlWithDescription, [adventureId]);
-    return mapPoolFormatRows(rows);
+    return withAllFormatsAvailability(mapPoolFormatRows(rows));
   } catch (err) {
     if (!isMissingColumnError(err, "gameformat_description")) throw err;
     const { rows } = await pool.query<Record<string, unknown>>(baseSql, [adventureId]);
-    return mapPoolFormatRows(rows);
+    return withAllFormatsAvailability(mapPoolFormatRows(rows));
   }
 }
 
@@ -248,6 +270,10 @@ async function getPoolBookingConfig(a: Adventure): Promise<BookingConfigPayload>
     if (!isMissingRelationError(err)) console.error("[booking-db] adventure_gameformat:", err);
   }
 
+  if (formats.length === 0) {
+    formats = DEFAULT_FORMATS;
+  }
+
   try {
     universe = await fetchPoolUniverseForAdventure(adventureId);
   } catch (err) {
@@ -263,9 +289,10 @@ async function getPoolBookingConfig(a: Adventure): Promise<BookingConfigPayload>
   }
 
   const preferred = defaultFormatFromAdventure(a);
-  const defaultAdventureType = formats.some((f) => f.id === preferred)
+  const availableFormats = formats.filter((f) => f.available);
+  const defaultAdventureType = availableFormats.some((f) => f.id === preferred)
     ? preferred
-    : formats[0]?.id;
+    : availableFormats[0]?.id;
 
   return {
     adventureId,
@@ -335,6 +362,7 @@ async function fetchLegacyFormats(): Promise<FormatInfo[]> {
       id: String(r.format_id) as GameFormatId,
       title: String(r.title),
       description: String(r.description ?? ""),
+      available: true,
     }))
     .filter((x) => FORMAT_ORDER.includes(x.id));
   const list: FormatInfo[] = [];

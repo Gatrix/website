@@ -1,6 +1,7 @@
 [Unit]
 Description=Telegram booking notifications (adventurespool)
-After=network.target postgresql.service
+After=network.target postgresql.service warp-svc.service
+Wants=warp-svc.service
 
 [Service]
 Type=simple

@@ -86,4 +86,29 @@ psql -d adventurespool -c "
   ORDER BY br.id DESC LIMIT 5;"
 ```
 
-После успешной отправки у строки появится `telegram_notified_at`.
+После успешной отправки у строки появится `telegram_notified_at`. Если отправка в Telegram не удалась, поле остаётся `NULL` и бот повторит попытку.
+
+## 6. Если заявки пишутся в БД, а в Telegram тишина
+
+С ВМ в РФ исходящий HTTPS до `api.telegram.org` часто отваливается по таймауту (`ETIMEDOUT`). Проверка:
+
+```bash
+curl -4 -I --max-time 10 https://api.telegram.org
+```
+
+Если таймаут, нужен SOCKS5 за пределы блокировки. На этой ВМ используется Cloudflare WARP в режиме локального прокси (`127.0.0.1:40000`), без смены маршрутов всей машины:
+
+```bash
+warp-cli --accept-tos status
+curl --proxy socks5h://127.0.0.1:40000 -4 -I --max-time 15 https://api.telegram.org
+```
+
+В `.env` бота:
+
+```env
+TELEGRAM_SOCKS_PROXY=127.0.0.1:40000
+```
+
+Затем `sudo systemctl restart telegram-booking-bot`.
+
+Не ставьте WARP в режим `warp` (полный туннель) — можно потерять SSH. Нужен только `mode proxy`.

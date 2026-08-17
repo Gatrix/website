@@ -30,6 +30,8 @@ export type FormatInfo = {
   id: GameFormatId;
   title: string;
   description: string;
+  /** false — формат есть в справочнике, но не привязан к этому приключению. */
+  available: boolean;
 };
 
 export type WarningRule = {

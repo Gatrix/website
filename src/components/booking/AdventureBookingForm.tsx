@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -15,7 +16,7 @@ import {
 import type { Adventure } from "@/lib/db";
 import type { BookingConfigPayload, BookingSelectionState, GameFormatId } from "@/lib/booking-types";
 import { getBookingInitialValues } from "@/lib/booking-config-utils";
-import { collectActiveWarnings } from "@/lib/booking-rules";
+import { collectActiveWarnings, isGameFormatId } from "@/lib/booking-rules";
 import { BookingPanelFrame } from "@/components/booking/BookingDecor";
 import BookingSchedulePicker from "@/components/booking/BookingSchedulePicker";
 import {
@@ -56,87 +57,227 @@ function durationHint(hours: number): string {
   return "Длинная сессия для боёв и исследований.";
 }
 
-function choiceGridClass(count: number, compact = false): string {
-  if (compact) return "grid-cols-3";
-  if (count <= 1) return "grid-cols-1";
-  if (count === 2) return "grid-cols-2";
-  return "grid-cols-2 sm:grid-cols-3";
+function hoursLabel(hours: number): string {
+  const n = Math.abs(hours);
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return `${hours} час`;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${hours} часа`;
+  return `${hours} часов`;
 }
 
-function choiceButtonClass(selected: boolean): string {
-  return `relative flex min-w-0 items-center justify-center gap-1 rounded-lg border px-2 py-2.5 sm:px-3 sm:py-3 md:px-4 md:py-3.5 text-center transition-colors focus-visible:ring-2 focus-visible:ring-amber-500/90 ${
-    selected
-      ? "border-amber-500/60 bg-amber-950/45"
-      : "border-amber-800/35 bg-[#0f0d0c]/80 hover:border-amber-600/40"
-  }`;
+function peopleLabel(count: number): string {
+  return `${count} чел.`;
 }
 
-type ChoiceOption = { id: string; label: string };
+function titleCaseRu(s: string): string {
+  const t = s.trim();
+  if (!t) return t;
+  return t.charAt(0).toLocaleUpperCase("ru-RU") + t.slice(1);
+}
 
-function BookingChoiceGroup({
-  label,
-  icon,
-  options,
-  value,
-  onChange,
-  hint,
-  intro,
-  footer,
-  gridClassName,
-  compactValues = false,
-}: {
+const SYSTEM_INTRO =
+  "Рекомендуется выбирать авторскую систему правил. В ином случае предполагается, что игроки уже знакомы с правилами выбранной системы.";
+
+const UNAVAILABLE_FORMAT_HINT = "Данный формат недоступен для этого приключения.";
+
+type ChoiceOption = {
+  id: string;
   label: string;
-  icon: React.ReactNode;
-  options: ChoiceOption[];
+  hint?: string | null;
+  unavailable?: boolean;
+  unavailableHint?: string;
+};
+
+type ChoiceColumn = {
+  id: string;
+  label: string;
+  icon?: React.ReactNode;
   value: string | null;
   onChange: (id: string) => void;
-  hint?: string | null;
-  intro?: React.ReactNode;
-  footer?: React.ReactNode;
-  gridClassName?: string;
-  compactValues?: boolean;
+  options: ChoiceOption[];
+};
+
+function cellButtonClass(selected: boolean, unavailable: boolean): string {
+  const base =
+    "relative flex w-full min-h-[2.25rem] items-center justify-center px-1.5 py-1.5 sm:px-2 sm:py-1.5 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/90 focus-visible:ring-inset";
+  if (unavailable) {
+    return `${base} cursor-not-allowed border border-amber-900/40 bg-[#0c0a09]/80 text-amber-500/45`;
+  }
+  if (selected) {
+    return `${base} border border-amber-500/60 bg-amber-950/45 text-amber-50`;
+  }
+  return `${base} border border-amber-800/35 bg-[#0f0d0c]/80 text-amber-100 hover:border-amber-600/40`;
+}
+
+function FloatingTip({ anchor, text }: { anchor: HTMLElement; text: string }) {
+  const r = anchor.getBoundingClientRect();
+  const placeBelow = r.top < 72;
+  return createPortal(
+    <div
+      role="tooltip"
+      className="pointer-events-none fixed z-[80] max-w-[min(18rem,calc(100vw-1.5rem))] rounded-md border border-amber-600/50 bg-[#1a1510] px-2.5 py-1.5 text-xs sm:text-sm leading-snug text-amber-100 shadow-[0_8px_24px_rgba(0,0,0,0.55)]"
+      style={{
+        left: r.left + r.width / 2,
+        top: placeBelow ? r.bottom + 6 : Math.max(8, r.top - 6),
+        transform: placeBelow ? "translate(-50%, 0)" : "translate(-50%, -100%)",
+      }}
+    >
+      {text}
+    </div>,
+    document.body
+  );
+}
+
+function ChoiceCell({
+  option,
+  selected,
+  columnLabel,
+  onSelect,
+}: {
+  option: ChoiceOption;
+  selected: boolean;
+  columnLabel: string;
+  onSelect: () => void;
 }) {
-  if (options.length === 0) return null;
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [tipOpen, setTipOpen] = useState(false);
+  const unavailable = Boolean(option.unavailable);
+  const tipText = unavailable
+    ? (option.unavailableHint ?? UNAVAILABLE_FORMAT_HINT)
+    : (option.hint ?? null);
+
+  useEffect(() => {
+    if (!tipOpen) return;
+    const hide = () => setTipOpen(false);
+    const onPointerDown = (e: PointerEvent) => {
+      if (btnRef.current?.contains(e.target as Node)) return;
+      hide();
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("scroll", hide, true);
+    window.addEventListener("resize", hide);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("scroll", hide, true);
+      window.removeEventListener("resize", hide);
+    };
+  }, [tipOpen]);
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-2 px-0.5">
-        {icon}
-        <p className="text-sm sm:text-base font-bold uppercase tracking-wide sm:tracking-wider text-amber-400/90">
-          {label}
-        </p>
-      </div>
-      <div
-        className={`grid gap-2 ${gridClassName ?? choiceGridClass(options.length)}`}
-        role="radiogroup"
-        aria-label={label}
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        role="radio"
+        aria-checked={selected}
+        aria-disabled={unavailable}
+        aria-label={
+          unavailable
+            ? `${columnLabel}: ${option.label}, недоступно`
+            : `${columnLabel}: ${option.label}`
+        }
+        onMouseEnter={() => {
+          if (tipText) setTipOpen(true);
+        }}
+        onMouseLeave={() => setTipOpen(false)}
+        onClick={() => {
+          if (unavailable) {
+            setTipOpen(true);
+            return;
+          }
+          onSelect();
+        }}
+        className={cellButtonClass(selected, unavailable)}
       >
-        {options.map((opt) => {
-          const selected = value === opt.id;
-          return (
-            <button
-              key={opt.id}
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              onClick={() => onChange(opt.id)}
-              className={choiceButtonClass(selected)}
+        <span className="font-semibold text-[11px] sm:text-sm leading-tight break-words">
+          {option.label}
+        </span>
+      </button>
+      {tipOpen && tipText && btnRef.current ? (
+        <FloatingTip anchor={btnRef.current} text={tipText} />
+      ) : null}
+    </>
+  );
+}
+
+function BookingChoiceTable({
+  columns,
+  hint,
+  footer,
+  className = "",
+}: {
+  columns: ChoiceColumn[];
+  hint?: string | null;
+  footer?: React.ReactNode;
+  className?: string;
+}) {
+  const visible = columns.filter((c) => c.options.length > 0);
+  if (visible.length === 0) return null;
+
+  const rowCount = Math.max(...visible.map((c) => c.options.length), 1);
+  const colTemplate = `repeat(${visible.length}, minmax(0, 1fr))`;
+
+  return (
+    <div className={`space-y-1.5 ${className}`.trim()}>
+      <div
+        className="overflow-hidden rounded-lg border border-amber-800/40 bg-amber-950/20"
+        role="table"
+      >
+        <div
+          className="grid border-b border-amber-800/40 bg-amber-950/35"
+          style={{ gridTemplateColumns: colTemplate }}
+          role="row"
+        >
+          {visible.map((col, i) => (
+            <div
+              key={col.id}
+              role="columnheader"
+              className={`flex items-center justify-center gap-1 px-1.5 py-1.5 ${
+                i > 0 ? "border-l border-amber-800/40" : ""
+              }`}
             >
-              <span
-                className={
-                  compactValues
-                    ? "font-semibold text-base sm:text-lg md:text-xl tabular-nums text-amber-100"
-                    : "font-semibold text-xs sm:text-sm md:text-base uppercase leading-tight sm:leading-snug text-amber-100 break-words"
-                }
-              >
-                {opt.label}
+              {col.icon}
+              <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-400/90">
+                {col.label}
               </span>
-            </button>
-          );
-        })}
+            </div>
+          ))}
+        </div>
+        {Array.from({ length: rowCount }, (_, row) => (
+          <div
+            key={row}
+            className={`grid ${row > 0 ? "border-t border-amber-900/35" : ""}`}
+            style={{ gridTemplateColumns: colTemplate }}
+            role="row"
+          >
+            {visible.map((col, i) => {
+              const option = col.options[row];
+              return (
+                <div
+                  key={col.id}
+                  role="cell"
+                  className={i > 0 ? "border-l border-amber-900/35" : ""}
+                >
+                  {option ? (
+                    <ChoiceCell
+                      option={option}
+                      columnLabel={col.label}
+                      selected={col.value === option.id}
+                      onSelect={() => col.onChange(option.id)}
+                    />
+                  ) : (
+                    <div className="min-h-[2.25rem]" />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ))}
       </div>
-      {intro}
-      {hint ? <p className="text-sm sm:text-base text-amber-200/75 px-0.5 leading-snug">{hint}</p> : null}
+      {hint ? (
+        <p className="text-xs sm:text-sm text-amber-200/75 px-0.5 leading-snug">{hint}</p>
+      ) : null}
       {footer}
     </div>
   );
@@ -163,6 +304,8 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
   const [phone, setPhone] = useState("");
   const [company, setCompany] = useState("");
   const [idempotencyKey] = useState(createIdempotencyKey);
+  const [paramsHint, setParamsHint] = useState<string | null>(null);
+  const [sessionHint, setSessionHint] = useState<string | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -186,6 +329,8 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
         setPlayerCount(snapToAllowed(init.playerCount, PLAYER_COUNT_OPTIONS));
         setDurationHours(snapToAllowed(init.durationHours, DURATION_HOUR_OPTIONS));
         setAdventureType(init.adventureType);
+        setParamsHint(null);
+        setSessionHint(null);
       } catch (err) {
         if (cancelled) return;
         setConfig(null);
@@ -244,7 +389,7 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
     selectedStartsAt != null &&
     (config?.systems.length === 0 || gameSystemId != null) &&
     (config?.difficulties.length === 0 || difficultyId != null) &&
-    (config?.formats.length === 0 || config?.formats.some((f) => f.id === adventureType));
+    (config?.formats.length === 0 || config?.formats.some((f) => f.id === adventureType && f.available));
 
   const onPhoneChange = useCallback((raw: string) => {
     setPhone(formatRuPhoneAsYouType(raw).display);
@@ -336,7 +481,7 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
         void handleSubmit();
       }}
     >
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-y-contain sm:gap-4 pb-4">
+      <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto overscroll-y-contain sm:gap-3 pb-3">
       <div className="absolute left-[-10000px] top-auto h-px w-px overflow-hidden" aria-hidden="true">
         <label htmlFor="booking-company">Компания</label>
         <input
@@ -350,98 +495,115 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
         />
       </div>
 
-      <BookingChoiceGroup
-        label="Система"
-        icon={<Dice5 className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400/90 shrink-0" aria-hidden />}
-        options={config.systems.map((s) => ({ id: s.id, label: s.name }))}
-        value={gameSystemId}
-        onChange={setGameSystemId}
-        intro={
-          <p className="text-sm sm:text-base text-amber-200/65 px-0.5 leading-relaxed">
-            Рекомендуется выбирать{" "}
-            <span className="text-amber-200/85 font-medium">авторскую систему правил</span>. В ином
-            случае предполагается, что игроки уже знакомы с правилами выбранной системы.
-          </p>
+      <BookingChoiceTable
+        columns={[
+          {
+            id: "system",
+            label: "Система",
+            icon: <Dice5 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400/90 shrink-0" aria-hidden />,
+            value: gameSystemId,
+            onChange: (id) => {
+              setGameSystemId(id);
+              const sys = config.systems.find((s) => s.id === id);
+              setParamsHint(sys?.description?.trim() || SYSTEM_INTRO);
+            },
+            options: config.systems.map((s) => ({
+              id: s.id,
+              label: s.name,
+              hint: s.description?.trim() || SYSTEM_INTRO,
+            })),
+          },
+          {
+            id: "difficulty",
+            label: "Сложность",
+            icon: <Shield className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400/90 shrink-0" aria-hidden />,
+            value: difficultyId,
+            onChange: (id) => {
+              setDifficultyId(id);
+              setParamsHint(config.difficulties.find((d) => d.id === id)?.description ?? null);
+            },
+            options: config.difficulties.map((d) => ({
+              id: d.id,
+              label: d.name,
+              hint: d.description,
+            })),
+          },
+          {
+            id: "format",
+            label: "Формат",
+            value: adventureType,
+            onChange: (id) => {
+              if (!isGameFormatId(id)) return;
+              setAdventureType(id);
+              setParamsHint(config.formats.find((f) => f.id === id)?.description ?? null);
+            },
+            options: config.formats.map((f) => ({
+              id: f.id,
+              label: titleCaseRu(f.title),
+              hint: f.description,
+              unavailable: !f.available,
+              unavailableHint: UNAVAILABLE_FORMAT_HINT,
+            })),
+          },
+        ]}
+        hint={
+          paramsHint ??
+          selectedFormat?.description ??
+          selectedDifficulty?.description ??
+          (selectedSystem ? selectedSystem.description?.trim() || SYSTEM_INTRO : null)
         }
-        hint={selectedSystem?.description || null}
         footer={
           selectedSystem?.rulebook ? (
             <a
               href={selectedSystem.rulebook}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-sm sm:text-base text-amber-400/90 hover:text-amber-300 underline-offset-2 hover:underline px-0.5"
+              className="inline-flex items-center gap-1 text-xs sm:text-sm text-amber-400/90 hover:text-amber-300 underline-offset-2 hover:underline px-0.5"
             >
               Правила (PDF)
-              <ExternalLink className="w-4 h-4" aria-hidden />
+              <ExternalLink className="w-3.5 h-3.5" aria-hidden />
             </a>
           ) : null
         }
       />
 
-      <BookingChoiceGroup
-        label="Сложность"
-        icon={<Shield className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400/90 shrink-0" aria-hidden />}
-        options={config.difficulties.map((d) => ({ id: d.id, label: d.name }))}
-        value={difficultyId}
-        onChange={setDifficultyId}
-        hint={selectedDifficulty?.description || null}
-      />
-
-      {config.formats.length > 0 ? (
-        <div className="space-y-2">
-          <p className="text-sm sm:text-base font-bold uppercase tracking-wide sm:tracking-wider text-amber-400/90 px-0.5">
-            Формат игры
-          </p>
-          <div
-            className={`grid gap-2 ${choiceGridClass(config.formats.length)}`}
-            role="radiogroup"
-            aria-label="Формат игры"
-          >
-            {config.formats.map((f) => {
-              const sel = adventureType === f.id;
-              return (
-                <button
-                  key={f.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={sel}
-                  onClick={() => setAdventureType(f.id)}
-                  className={choiceButtonClass(sel)}
-                >
-                  <span className="font-bold uppercase text-xs sm:text-sm md:text-base tracking-wide text-amber-100 break-words leading-tight sm:leading-snug">
-                    {f.title}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          {selectedFormat ? (
-            <p className="text-sm sm:text-base text-amber-200/75 px-0.5 leading-snug">{selectedFormat.description}</p>
-          ) : null}
-        </div>
-      ) : null}
-
-      <BookingChoiceGroup
-        label="Количество игроков"
-        icon={<Users className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400/90 shrink-0" aria-hidden />}
-        options={PLAYER_COUNT_OPTIONS.map((n) => ({ id: String(n), label: String(n) }))}
-        value={String(playerCount)}
-        onChange={(id) => setPlayerCount(Number(id))}
-        hint={playerHint(playerCount)}
-        gridClassName="grid-cols-3"
-        compactValues
-      />
-
-      <BookingChoiceGroup
-        label="Желаемая длительность (часы)"
-        icon={<Hourglass className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400/90 shrink-0" aria-hidden />}
-        options={DURATION_HOUR_OPTIONS.map((n) => ({ id: String(n), label: String(n) }))}
-        value={String(durationHours)}
-        onChange={(id) => setDurationHours(Number(id))}
-        hint={durationHint(durationHours)}
-        gridClassName="grid-cols-3"
-        compactValues
+      <BookingChoiceTable
+        className="mt-5 sm:mt-7"
+        columns={[
+          {
+            id: "players",
+            label: "Игроки",
+            icon: <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400/90 shrink-0" aria-hidden />,
+            value: String(playerCount),
+            onChange: (id) => {
+              const n = Number(id);
+              setPlayerCount(n);
+              setSessionHint(playerHint(n));
+            },
+            options: PLAYER_COUNT_OPTIONS.map((n) => ({
+              id: String(n),
+              label: peopleLabel(n),
+              hint: playerHint(n),
+            })),
+          },
+          {
+            id: "duration",
+            label: "Длительность",
+            icon: <Hourglass className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400/90 shrink-0" aria-hidden />,
+            value: String(durationHours),
+            onChange: (id) => {
+              const n = Number(id);
+              setDurationHours(n);
+              setSessionHint(durationHint(n));
+            },
+            options: DURATION_HOUR_OPTIONS.map((n) => ({
+              id: String(n),
+              label: hoursLabel(n),
+              hint: durationHint(n),
+            })),
+          },
+        ]}
+        hint={sessionHint ?? durationHint(durationHours)}
       />
 
       <BookingSchedulePicker
@@ -464,13 +626,13 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
         </div>
       ) : null}
 
-      <BookingPanelFrame className="p-3 sm:p-4">
-        <label htmlFor="booking-phone" className="text-sm sm:text-base font-bold uppercase tracking-wide sm:tracking-wider text-amber-400/90 block mb-2">
+      <BookingPanelFrame className="p-2.5 sm:p-3">
+        <label htmlFor="booking-phone" className="text-xs sm:text-sm font-bold uppercase tracking-wide text-amber-400/90 block mb-1.5">
           Телефон <span className="text-red-400/90">*</span>
         </label>
         <div className="relative">
           <Phone
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-amber-500/70 pointer-events-none"
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-500/70 pointer-events-none"
             aria-hidden
           />
           <input
@@ -482,17 +644,17 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
             value={phone}
             onChange={(e) => onPhoneChange(e.target.value)}
             placeholder="+7 (999) 123-45-67"
-            className="input-base !text-base sm:!text-lg w-full pl-10 py-2.5 sm:py-3"
+            className="input-base !text-sm sm:!text-base w-full pl-9 py-2"
             aria-invalid={phone.length > 0 && !phoneComplete}
           />
         </div>
         {phone.length > 0 && !phoneComplete ? (
-          <p className="mt-1.5 text-sm text-amber-600/80">Введите номер полностью, 11 цифр</p>
+          <p className="mt-1 text-xs text-amber-600/80">Введите номер полностью, 11 цифр</p>
         ) : null}
       </BookingPanelFrame>
 
-      <BookingPanelFrame className="p-3 sm:p-4">
-        <label htmlFor="booking-note" className="text-sm sm:text-base font-bold uppercase tracking-wide sm:tracking-wider text-amber-400/90 block mb-2">
+      <BookingPanelFrame className="p-2.5 sm:p-3">
+        <label htmlFor="booking-note" className="text-xs sm:text-sm font-bold uppercase tracking-wide text-amber-400/90 block mb-1.5">
           Комментарий
         </label>
         <textarea
@@ -502,7 +664,7 @@ export default function AdventureBookingForm({ adventure, onBack }: Props) {
           rows={2}
           maxLength={2000}
           placeholder="Вопросы, пожелания, дополнительные контакты"
-          className="input-base resize-none !text-base sm:!text-lg w-full py-2.5 sm:py-3"
+          className="input-base resize-none !text-sm sm:!text-base w-full py-2"
         />
       </BookingPanelFrame>
 

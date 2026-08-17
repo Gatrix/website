@@ -19,9 +19,10 @@ export function getBookingInitialValues(config: BookingConfigPayload) {
   const snap = (value: number, list: number[]) =>
     list.reduce((best, n) => (Math.abs(n - value) < Math.abs(best - value) ? n : best));
   const preferred = config.defaultAdventureType ?? "adventure";
-  const adventureType = config.formats.some((f) => f.id === preferred)
+  const selectableFormats = config.formats.filter((f) => f.available);
+  const adventureType = selectableFormats.some((f) => f.id === preferred)
     ? preferred
-    : (config.formats[0]?.id ?? "adventure");
+    : (selectableFormats[0]?.id ?? "adventure");
   return {
     gameSystemId: config.systems[0]?.id ?? null,
     difficultyId: config.difficulties[0]?.id ?? null,

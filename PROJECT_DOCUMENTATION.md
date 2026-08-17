@@ -51,6 +51,15 @@
 
 Установка бота: `services/telegram-booking-bot/README.md`
 
+## NFC / Fallout board
+
+Таблица **`fallout`** (`character_name`, `text`) в БД `adventurespool` — фразы для планшета.
+
+- `/board` — «Приложись ко мне!»
+- `/board/technik`, `/board/boets`, `/board/dozornyy`, `/board/tyagach`, `/board/ten`, `/board/litso` — текст персонажа из БД; через 10 с возврат на `/board`
+
+SQL: `db/adventurespool-fallout.sql`.
+
 ## ВМ и миграции
 
 SSH-доступ и хост production-ВМ хранятся в приватном runbook (не в репозитории).

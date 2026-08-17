@@ -42,6 +42,7 @@ type HeaderProps = {
 export default function Header({ polygonLogoUrl }: HeaderProps) {
   const pathname = usePathname();
   const isAdventuresPage = pathname === "/adventures";
+  const isStandaloneBoard = pathname.startsWith("/board");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
@@ -113,6 +114,10 @@ export default function Header({ polygonLogoUrl }: HeaderProps) {
       window.history.replaceState(null, "", "#formats");
     }
   };
+
+  if (isStandaloneBoard) {
+    return null;
+  }
 
   return (
     <>

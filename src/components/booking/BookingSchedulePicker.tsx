@@ -158,50 +158,49 @@ export default function BookingSchedulePicker({
   const canNext = viewDate < maxMonth;
 
   return (
-    <BookingPanelFrame className="p-3 sm:p-4 space-y-3">
-      <div className="flex items-start gap-2">
-        <CalendarDays className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400/90 shrink-0 mt-0.5" aria-hidden />
-        <div className="min-w-0 flex-1">
-          <p className="text-sm sm:text-base font-bold uppercase tracking-wide sm:tracking-wider text-amber-400/90">
-            Дата и время начала
+    <BookingPanelFrame className="p-2 sm:p-2.5 space-y-2">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+          <CalendarDays className="w-4 h-4 text-amber-400/90 shrink-0" aria-hidden />
+          <p className="text-xs sm:text-sm font-bold uppercase tracking-wide text-amber-400/90">
+            Дата и время
           </p>
+          {loading ? <Loader2 className="w-4 h-4 text-amber-400/70 animate-spin shrink-0" aria-hidden /> : null}
         </div>
-        {loading ? <Loader2 className="w-5 h-5 text-amber-400/70 animate-spin shrink-0" aria-hidden /> : null}
+        <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            disabled={!canPrev}
+            onClick={() => setViewDate(new Date(year, monthIndex - 1, 1))}
+            className="p-1 text-amber-400 hover:text-amber-200 disabled:opacity-30 disabled:pointer-events-none"
+            aria-label="Предыдущий месяц"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <p className="min-w-[9.5rem] text-center text-sm sm:text-base font-bold text-amber-100 tracking-wide tabular-nums">
+            {MONTH_NAMES[monthIndex]} {year}
+          </p>
+          <button
+            type="button"
+            disabled={!canNext}
+            onClick={() => setViewDate(new Date(year, monthIndex + 1, 1))}
+            className="p-1 text-amber-400 hover:text-amber-200 disabled:opacity-30 disabled:pointer-events-none"
+            aria-label="Следующий месяц"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
-      <div className="flex items-center justify-between gap-2">
-        <button
-          type="button"
-          disabled={!canPrev}
-          onClick={() => setViewDate(new Date(year, monthIndex - 1, 1))}
-          className="p-1.5 text-amber-400 hover:text-amber-200 disabled:opacity-30 disabled:pointer-events-none"
-          aria-label="Предыдущий месяц"
-        >
-          <ChevronLeft className="w-6 h-6" />
-        </button>
-        <p className="text-base sm:text-lg md:text-xl font-bold text-amber-100 tracking-wide">
-          {MONTH_NAMES[monthIndex]} {year}
-        </p>
-        <button
-          type="button"
-          disabled={!canNext}
-          onClick={() => setViewDate(new Date(year, monthIndex + 1, 1))}
-          className="p-1.5 text-amber-400 hover:text-amber-200 disabled:opacity-30 disabled:pointer-events-none"
-          aria-label="Следующий месяц"
-        >
-          <ChevronRight className="w-6 h-6" />
-        </button>
-      </div>
-
-      <div className="grid grid-cols-7 gap-1 text-center">
+      <div className="grid grid-cols-7 gap-0.5 text-center">
         {WEEKDAYS.map((d) => (
-          <div key={d} className="text-xs sm:text-sm uppercase tracking-wider text-stone-500 py-0.5 sm:py-1">
+          <div key={d} className="text-[10px] sm:text-xs uppercase tracking-wider text-stone-500 py-0.5">
             {d}
           </div>
         ))}
         {monthCells.map((cell, idx) => {
           if (cell.day == null || cell.date == null) {
-            return <div key={`empty-${idx}`} className="min-h-[40px] sm:min-h-[52px]" aria-hidden />;
+            return <div key={`empty-${idx}`} className="min-h-8" aria-hidden />;
           }
 
           const slots = slotsByDate.get(cell.date) ?? [];
@@ -214,7 +213,7 @@ export default function BookingSchedulePicker({
               type="button"
               disabled={!hasSlots && !isSelected}
               onClick={() => setSelectedGameDate(cell.date)}
-              className={`min-h-[40px] sm:min-h-[52px] rounded-md border text-sm sm:text-base font-semibold transition-colors ${
+              className={`min-h-8 rounded-sm border text-xs sm:text-sm font-semibold transition-colors ${
                 isSelected
                   ? "border-amber-500/70 bg-amber-950/50 text-amber-100"
                   : hasSlots
@@ -234,29 +233,29 @@ export default function BookingSchedulePicker({
       </div>
 
       {error ? (
-        <p className="text-sm sm:text-base text-red-400/90" role="alert">
+        <p className="text-xs sm:text-sm text-red-400/90" role="alert">
           {error}
         </p>
       ) : null}
 
       {!loading && !error && days.every((d) => d.slots.length === 0) ? (
-        <p className="text-sm sm:text-base text-amber-200/70 text-center py-1">
+        <p className="text-xs sm:text-sm text-amber-200/70 text-center">
           В этом месяце нет свободного времени для игры {durationHours} ч.
         </p>
       ) : null}
 
       {selectedGameDate ? (
-        <div className="space-y-2 pt-1 border-t border-amber-800/25">
-          <p className="text-sm sm:text-base uppercase tracking-wide text-amber-400/80">
-            {selectedGameDate.split("-").reverse().join(".")} — начало игры в:
+        <div className="space-y-1.5 pt-1 border-t border-amber-800/25">
+          <p className="text-[10px] sm:text-xs uppercase tracking-wide text-amber-400/80">
+            {selectedGameDate.split("-").reverse().join(".")} — начало:
           </p>
           {loading ? (
-            <p className="text-sm sm:text-base text-amber-200/60 flex items-center gap-2">
-              <Loader2 className="w-5 h-5 animate-spin shrink-0" aria-hidden />
+            <p className="text-xs sm:text-sm text-amber-200/60 flex items-center gap-1.5">
+              <Loader2 className="w-4 h-4 animate-spin shrink-0" aria-hidden />
               Обновляем доступное время…
             </p>
           ) : selectedDaySlots.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1">
               {selectedDaySlots.map((slot) => {
                 const selected = selectedStartsAt === slot.startsAt;
                 return (
@@ -270,7 +269,7 @@ export default function BookingSchedulePicker({
                         startTime: slot.startTime,
                       })
                     }
-                    className={`rounded-lg border px-3 py-2 sm:px-4 sm:py-3 text-sm sm:text-base transition-colors ${
+                    className={`rounded-md border px-2 py-1 sm:px-2.5 sm:py-1.5 text-xs sm:text-sm transition-colors ${
                       selected
                         ? "border-amber-500/65 bg-amber-950/45 text-amber-100"
                         : "border-lime-700/30 bg-lime-950/15 text-lime-200 hover:border-lime-500/45"
@@ -282,7 +281,7 @@ export default function BookingSchedulePicker({
               })}
             </div>
           ) : (
-            <p className="text-sm sm:text-base text-amber-200/70 leading-snug">
+            <p className="text-xs sm:text-sm text-amber-200/70 leading-snug">
               На эту дату нет свободного времени для игры {durationHours} ч. Выберите другое время
               начала или измените длительность.
             </p>
@@ -291,7 +290,7 @@ export default function BookingSchedulePicker({
       ) : null}
 
       {selectedSlot ? (
-        <p className="text-sm sm:text-base text-emerald-300/90">
+        <p className="text-xs sm:text-sm text-emerald-300/90">
           Выбрано:{" "}
           {formatSlotRangeLabel(new Date(selectedSlot.startsAt), new Date(selectedSlot.endsAt))}
         </p>

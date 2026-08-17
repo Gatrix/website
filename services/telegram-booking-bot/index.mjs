@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process";
 import pg from "pg";
 import { formatBookingMessage } from "./format-message.mjs";
 import { loadEnvFile } from "./load-env.mjs";
@@ -13,6 +14,8 @@ const BOT_TOKEN = env("TELEGRAM_BOT_TOKEN");
 const CHAT_ID = env("TELEGRAM_CHAT_ID");
 const DATABASE_URL = env("DATABASE_URL");
 const POLL_INTERVAL_MS = Number(env("POLL_INTERVAL_MS", "15000"));
+const API_BASE = env("TELEGRAM_API_BASE", "https://api.telegram.org").replace(/\/+$/, "");
+const SOCKS_PROXY = env("TELEGRAM_SOCKS_PROXY");
 
 if (!BOT_TOKEN || !CHAT_ID) {
   console.error("Задайте TELEGRAM_BOT_TOKEN и TELEGRAM_CHAT_ID в файле .env (в этой же папке)");
@@ -23,22 +26,79 @@ if (!DATABASE_URL) {
   process.exit(1);
 }
 
-/** @param {string} text */
-async function sendTelegram(text) {
-  const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+/** @param {string} url @param {string} payload */
+async function sendViaFetch(url, payload) {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: CHAT_ID,
-      text,
-      parse_mode: "HTML",
-      disable_web_page_preview: true,
-    }),
+    body: payload,
+    signal: AbortSignal.timeout(25000),
   });
-  const data = await res.json();
-  if (!res.ok || !data.ok) {
-    throw new Error(data.description ?? `Telegram API ${res.status}`);
+  return res.json();
+}
+
+/**
+ * @param {string} url
+ * @param {string} payload
+ * @param {string} socks host:port
+ */
+function sendViaCurl(url, payload, socks) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(
+      "curl",
+      [
+        "-sS",
+        "--max-time",
+        "25",
+        "-H",
+        "Content-Type: application/json",
+        "-d",
+        payload,
+        "--proxy",
+        `socks5h://${socks}`,
+        url,
+      ],
+      { stdio: ["ignore", "pipe", "pipe"] }
+    );
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code !== 0) {
+        reject(new Error(stderr.trim() || `curl exited ${code}`));
+        return;
+      }
+      try {
+        resolve(JSON.parse(stdout));
+      } catch {
+        reject(new Error("Telegram response is not JSON"));
+      }
+    });
+  });
+}
+
+/** @param {string} text */
+async function sendTelegram(text) {
+  const url = `${API_BASE}/bot${BOT_TOKEN}/sendMessage`;
+  const payload = JSON.stringify({
+    chat_id: CHAT_ID,
+    text,
+    parse_mode: "HTML",
+    disable_web_page_preview: true,
+  });
+  const data = SOCKS_PROXY
+    ? await sendViaCurl(url, payload, SOCKS_PROXY)
+    : await sendViaFetch(url, payload);
+  if (!data?.ok) {
+    throw new Error(data?.description ?? "Telegram API error");
   }
 }
 
@@ -52,6 +112,20 @@ async function notifyBooking(body) {
 const pool = new pg.Pool({ connectionString: DATABASE_URL });
 let polling = false;
 let stopping = false;
+
+async function markNotified(id) {
+  const client = await pool.connect();
+  try {
+    await client.query(
+      `UPDATE booking_requests
+       SET telegram_notified_at = NOW()
+       WHERE id = $1::bigint AND telegram_notified_at IS NULL`,
+      [id]
+    );
+  } finally {
+    client.release();
+  }
+}
 
 async function pollPendingRequests() {
   if (polling || stopping) return;
@@ -101,19 +175,13 @@ async function pollPendingRequests() {
         hasRow = true;
         id = row.id;
         const body = rowToBookingBody(row);
-        await client.query(
-          `UPDATE booking_requests
-           SET telegram_notified_at = NOW()
-           WHERE id = $1::bigint AND telegram_notified_at IS NULL`,
-          [id]
-        );
         await client.query("COMMIT");
         client.release();
         released = true;
 
         try {
           await notifyBooking(body);
-          console.log("[notify] sent:", body.adventureTitle ?? body.adventureId);
+          await markNotified(id);
         } catch (sendErr) {
           console.error(`[poll] telegram send failed id=${id}:`, sendErr);
         }
@@ -156,7 +224,9 @@ async function shutdown(signal) {
   process.exit(0);
 }
 
-console.log(`[poll] adventurespool.booking_requests, interval=${POLL_INTERVAL_MS}ms`);
+console.log(
+  `[poll] adventurespool.booking_requests, interval=${POLL_INTERVAL_MS}ms, telegram=${SOCKS_PROXY ? `socks ${SOCKS_PROXY}` : "direct"}`
+);
 await pollPendingRequests();
 const interval = setInterval(() => {
   void pollPendingRequests();

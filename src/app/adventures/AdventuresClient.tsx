@@ -50,6 +50,85 @@ const collectSearchValues = (...values: SearchableValue[]): string[] =>
 /** Примерно три строки кнопок-фильтров (высота ряда + отступ между рядами). */
 const COLLAPSED_OPTIONS_MAX_PX = 168;
 
+/** Два ряда по четыре карточки на странице каталога. */
+const PAGE_SIZE = 8;
+
+type PaginationControlsProps = {
+  page: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+};
+
+function PaginationControls({ page, totalPages, onPageChange }: PaginationControlsProps) {
+  if (totalPages <= 1) return null;
+
+  const prevPage = page - 1;
+  const nextPage = page + 1;
+
+  const textBtn =
+    "min-h-[44px] px-3 sm:px-4 py-2 border-2 font-black transition-all duration-300 text-sm sm:text-base tracking-wide rounded-sm border-yellow-600/45 bg-transparent text-yellow-200 hover:border-yellow-400 hover:text-yellow-50 hover:bg-yellow-950/25 shadow-[0_0_10px_rgba(0,0,0,0.2)] disabled:opacity-40 disabled:pointer-events-none disabled:hover:border-yellow-600/45 disabled:hover:text-yellow-200 disabled:hover:bg-transparent";
+  const numberBtn =
+    "min-h-[52px] min-w-[52px] px-3 sm:px-4 py-1.5 border-2 font-black transition-all duration-300 text-[22px] sm:text-2xl leading-none rounded-sm border-yellow-600/45 bg-transparent text-yellow-200 hover:border-yellow-400 hover:text-yellow-50 hover:bg-yellow-950/25 shadow-[0_0_10px_rgba(0,0,0,0.2)] disabled:opacity-40 disabled:pointer-events-none disabled:hover:border-yellow-600/45 disabled:hover:text-yellow-200 disabled:hover:bg-transparent";
+  const currentBtn =
+    "inline-flex items-center justify-center min-h-[52px] min-w-[52px] px-3 sm:px-4 py-1.5 border-2 font-black text-[22px] sm:text-2xl leading-none rounded-sm bg-yellow-500 border-yellow-200 text-yellow-950 shadow-[0_0_24px_rgba(253,224,71,0.55)] cursor-default";
+
+  return (
+    <nav
+      aria-label="Страницы приключений"
+      className="flex flex-wrap justify-center items-center gap-1.5 sm:gap-2"
+    >
+      <button
+        type="button"
+        className={textBtn}
+        disabled={page <= 1}
+        onClick={() => onPageChange(1)}
+      >
+        Начало
+      </button>
+      {page > 1 ? (
+        <button
+          type="button"
+          className={numberBtn}
+          onClick={() => onPageChange(prevPage)}
+          aria-label={`Страница ${prevPage}`}
+        >
+          {prevPage}
+        </button>
+      ) : (
+        <span className={`${numberBtn} invisible pointer-events-none`} aria-hidden>
+          0
+        </span>
+      )}
+      <span aria-current="page" className={currentBtn}>
+        {page}
+        <span className="sr-only"> из {totalPages}</span>
+      </span>
+      {page < totalPages ? (
+        <button
+          type="button"
+          className={numberBtn}
+          onClick={() => onPageChange(nextPage)}
+          aria-label={`Страница ${nextPage}`}
+        >
+          {nextPage}
+        </button>
+      ) : (
+        <span className={`${numberBtn} invisible pointer-events-none`} aria-hidden>
+          0
+        </span>
+      )}
+      <button
+        type="button"
+        className={textBtn}
+        disabled={page >= totalPages}
+        onClick={() => onPageChange(totalPages)}
+      >
+        Конец
+      </button>
+    </nav>
+  );
+}
+
 /** Сеттинг, мир и формат — только одно значение; жанр — несколько. */
 const SINGLE_SELECT_FILTER_IDS = new Set(["subsetting", "world", "adventure_type"]);
 
@@ -122,7 +201,9 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
   const [longListExpanded, setLongListExpanded] = useState(false);
   const [longListOverflows, setLongListOverflows] = useState(false);
   const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
+  const [page, setPage] = useState(1);
   const optionsGridRef = useRef<HTMLDivElement>(null);
+  const catalogRef = useRef<HTMLDivElement>(null);
 
   // Очистка сообщения о конфликте при смене шага
   const handleSetStep = useCallback((step: number) => {
@@ -234,6 +315,22 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
       return queryWords.every(word => searchableText.includes(word));
     });
   }, [adventures, filters, searchQuery, matchesFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredAdventures.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedAdventures = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredAdventures.slice(start, start + PAGE_SIZE);
+  }, [filteredAdventures, currentPage]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [filters, searchQuery]);
+
+  const goToPage = useCallback((nextPage: number) => {
+    setPage(Math.min(Math.max(1, nextPage), totalPages));
+    catalogRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [totalPages]);
 
   const toggleOption = (option: string) => {
     const stepId = currentStepData.id;
@@ -671,7 +768,7 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
         </div>
       ) : null}
 
-      <div className="max-w-7xl mx-auto">
+      <div ref={catalogRef} className="max-w-7xl mx-auto scroll-mt-24">
         {adventures.length === 0 ? (
           <p className="text-body text-center text-sm sm:text-base py-12 px-4 border border-amber-900/35 rounded-lg bg-amber-950/20">
             Каталог приключений сейчас недоступен — не удалось загрузить данные из базы. Проверьте, что на
@@ -680,9 +777,19 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
           </p>
         ) : null}
 
-        <motion.div layout className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
+        {totalPages > 1 ? (
+          <div className="mb-4 sm:mb-5">
+            <PaginationControls
+              page={currentPage}
+              totalPages={totalPages}
+              onPageChange={goToPage}
+            />
+          </div>
+        ) : null}
+
+        <motion.div layout className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
           <AnimatePresence>
-            {filteredAdventures.map((adv) => (
+            {pagedAdventures.map((adv) => (
               <AdventureCard
                 key={adv.id}
                 as={motion.div}
@@ -692,11 +799,21 @@ export default function AdventuresClient({ initialAdventures, adventureOptions }
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 onClick={() => setSelectedAdventure(adv)}
-                imageSizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
+                imageSizes="(max-width: 768px) 50vw, 25vw"
               />
             ))}
           </AnimatePresence>
         </motion.div>
+
+        {totalPages > 1 ? (
+          <div className="mt-4 sm:mt-5">
+            <PaginationControls
+              page={currentPage}
+              totalPages={totalPages}
+              onPageChange={goToPage}
+            />
+          </div>
+        ) : null}
       </div>
 
       <AdventureModal adventure={selectedAdventure} isOpen={!!selectedAdventure} onClose={() => setSelectedAdventure(null)}
